@@ -1,0 +1,17 @@
+name: inner-agora-commands
+version: 0.1.0
+description: "Deterministic The Inner Agora slash commands for Hermes: Paperclip sessions, dialogues, synthesis, memory export, and guard checks."
+author: The Inner Agora
+hooks: []
+provides:
+  commands:
+    - agora-prepare
+    - agora-status
+    - agora-tasks
+    - agora-task
+    - agora-move
+    - agora-ask
+    - agora-dialogue
+    - agora-synth
+    - agora-memory
+    - agora-guard
