@@ -162,26 +162,24 @@ inneragora status
 inneragora gateway status
 ```
 
-Если команда показывает `stopped` или Telegram `not configured`, это нормально до отдельной настройки Telegram.
+Сейчас профиль `inneragora` настроен как отдельный Telegram gateway. Токен хранится локально в `~/.hermes/profiles/inneragora/.env` и не входит в git.
 
-Slash-команды для Hermes gateway:
+Telegram slash-команды используют `_`, потому что Telegram не принимает дефисы в именах команд:
 
 ```text
-/agora-prepare
-/agora-status
-/agora-tasks
-/agora-task THE-1
-/agora-council QUESTION
-/agora-ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
-/agora-dialogue PHILOSOPHER QUESTION
-/agora-synth THE-1
-/agora-memory THE-3
-/agora-guard
+/agora_prepare
+/agora_status
+/agora_tasks
+/agora_task THE-1
+/agora_council QUESTION
+/agora_ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
+/agora_dialogue PHILOSOPHER QUESTION
+/agora_synth THE-1
+/agora_memory THE-3
+/agora_guard
 ```
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
-
-Важно: Telegram для профиля `inneragora` не настраивается автоматически. Секреты не копируются из других профилей.
 
 ## Проверка
 

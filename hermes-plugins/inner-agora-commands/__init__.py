@@ -95,49 +95,49 @@ def register(ctx: Any) -> None:
         if words:
             limit = words[0]
         if not limit.isdigit():
-            return "Usage: /agora-tasks [open|all] [limit]"
+            return "Usage: /agora_tasks [open|all] [limit]"
         return _agora_script("tasks", f"--{scope}", "--limit", limit)
 
     def task(raw_args: str) -> str:
         issue = raw_args.strip()
         if not issue:
-            return "Usage: /agora-task ISSUE"
+            return "Usage: /agora_task ISSUE"
         return _agora_script("task", issue)
 
     def move(raw_args: str) -> str:
         words = _parse_words(raw_args)
         if len(words) != 2 or words[1] not in TASK_STATUSES:
-            return "Usage: /agora-move ISSUE <todo|in_progress|blocked|done|cancelled>"
+            return "Usage: /agora_move ISSUE <todo|in_progress|blocked|done|cancelled>"
         return _agora_script("move", words[0], words[1])
 
     def ask(raw_args: str) -> str:
         words = _parse_words(raw_args)
         if not words:
-            return "Usage: /agora-ask [--min|--balanced|--max|--all|--philosophers list] <question>"
+            return "Usage: /agora_ask [--min|--balanced|--max|--all|--philosophers list] <question>"
         return _agora_script("ask", *words, timeout=900)
 
     def council(raw_args: str) -> str:
         words = _parse_words(raw_args)
         if not words:
-            return "Usage: /agora-council <question>"
+            return "Usage: /agora_council <question>"
         return _agora_script("council", *words, timeout=900)
 
     def dialogue(raw_args: str) -> str:
         words = _parse_words(raw_args)
         if len(words) < 2:
-            return "Usage: /agora-dialogue <philosopher> <question>"
+            return "Usage: /agora_dialogue <philosopher> <question>"
         return _agora_script("dialogue", *words, timeout=600)
 
     def synth(raw_args: str) -> str:
         issue = raw_args.strip()
         if not issue:
-            return "Usage: /agora-synth ISSUE"
+            return "Usage: /agora_synth ISSUE"
         return _agora_script("synthesize", issue, timeout=900)
 
     def memory(raw_args: str) -> str:
         issue = raw_args.strip()
         if not issue:
-            return "Usage: /agora-memory ISSUE"
+            return "Usage: /agora_memory ISSUE"
         return _agora_script("export-memory", issue)
 
     def guard(_: str) -> str:

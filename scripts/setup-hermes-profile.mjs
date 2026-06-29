@@ -121,17 +121,17 @@ Unknown command = show \`помощь\`. Never reveal secrets.
 Preferred deterministic slash commands:
 
 \`\`\`text
-/agora-prepare [local|balanced|max]
-/agora-status
-/agora-tasks [open|all] [limit]
-/agora-task ISSUE
-/agora-move ISSUE STATUS
-/agora-council QUESTION
-/agora-ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
-/agora-dialogue PHILOSOPHER QUESTION
-/agora-synth ISSUE
-/agora-memory ISSUE
-/agora-guard
+/agora_prepare [local|balanced|max]
+/agora_status
+/agora_tasks [open|all] [limit]
+/agora_task ISSUE
+/agora_move ISSUE STATUS
+/agora_council QUESTION
+/agora_ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
+/agora_dialogue PHILOSOPHER QUESTION
+/agora_synth ISSUE
+/agora_memory ISSUE
+/agora_guard
 \`\`\`
 
 Russian prompt-routed commands:
