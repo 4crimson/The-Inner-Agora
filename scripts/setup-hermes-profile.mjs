@@ -18,7 +18,7 @@ const PROFILE_YAML_PATH = path.join(PROFILE_DIR, "profile.yaml");
 const PLUGIN_SOURCE = path.join(ROOT, "hermes-plugins", "inner-agora-commands");
 const PLUGIN_TARGET = path.join(PROFILE_DIR, "plugins", "inner-agora-commands");
 const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
-const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "qwen/qwen3.6-35b-a3b";
+const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const HERMES_BASE_URL = process.env.INNER_AGORA_HERMES_BASE_URL || "http://192.168.1.229:1234/v1";
 
 function configTemplate() {

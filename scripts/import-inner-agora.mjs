@@ -16,7 +16,7 @@ const COMPANY_NAME = process.env.INNER_AGORA_COMPANY_NAME || "The Inner Agora";
 const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
 const GOAL_TITLE = process.env.INNER_AGORA_GOAL_TITLE || "Run philosophical research dialogues with The Inner Agora";
 const HERMES_COMMAND = process.env.INNER_AGORA_HERMES_COMMAND || "/Users/admin/.local/bin/inneragora";
-const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "qwen/qwen3.6-35b-a3b";
+const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const CODEX_COMMAND = process.env.CODEX_CLI_PATH || "/Applications/Codex.app/Contents/Resources/codex";
 const CODEX_AUTH_SOURCE =
   process.env.INNER_AGORA_CODEX_AUTH_SOURCE || path.join(os.homedir(), ".codex", "auth.json");
