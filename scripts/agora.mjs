@@ -429,25 +429,68 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   add("socrates");
 
   if (/морал|этик|добродетел|долг|вина|счаст|жизнь|страдан|выбор|ценност/.test(text)) {
-    add("aristotle", "diogenes", "kant", "epictetus", "marcus-aurelius", "epicurus", "augustine", "nietzsche");
+    add(
+      "buddha",
+      "confucius",
+      "schopenhauer",
+      "kierkegaard",
+      "levinas",
+      "tolstoy",
+      "aristotle",
+      "diogenes",
+      "kant",
+      "epictetus",
+      "marcus-aurelius",
+      "epicurus",
+      "augustine",
+      "nietzsche",
+    );
   }
   if (/свобод|условн|обыча|стыд|роскош|аскез|циник|киник|провокац|простот/.test(text)) {
-    add("diogenes", "epictetus", "epicurus", "nietzsche", "rousseau");
+    add("sartre", "beauvoir", "camus", "berdyaev", "diogenes", "epictetus", "epicurus", "nietzsche", "rousseau");
   }
   if (/быт|существ|реальн|метафиз|бог|единое|душ|субстанц|природ/.test(text)) {
-    add("parmenides", "plotinus", "spinoza", "aquinas", "cusanus");
+    add(
+      "laozi",
+      "nagarjuna",
+      "shankara",
+      "avicenna",
+      "ibn-arabi",
+      "leibniz",
+      "dogen",
+      "parmenides",
+      "plotinus",
+      "spinoza",
+      "aquinas",
+      "cusanus",
+    );
   }
   if (/знан|истин|метод|сомнен|доказ|разум|субъект|позна/.test(text)) {
-    add("pyrrho", "kant", "spinoza", "aquinas");
+    add("hume", "montaigne", "pascal", "husserl", "wittgenstein", "al-ghazali", "averroes", "maimonides", "pyrrho", "kant", "spinoza", "aquinas");
   }
   if (/истор|обще|полит|государ|власт|культур|цивилизац|либерал|модерн|традиц/.test(text)) {
-    add("diogenes", "rousseau", "hegel", "nietzsche", "foucault", "dugin");
+    add(
+      "machiavelli",
+      "hobbes",
+      "marx",
+      "arendt",
+      "fanon",
+      "said",
+      "freire",
+      "ibn-khaldun",
+      "diogenes",
+      "rousseau",
+      "hegel",
+      "nietzsche",
+      "foucault",
+      "dugin",
+    );
   }
   if (/язык|текст|знак|медиа|симулякр|постмодерн|дискурс|нарратив|культура/.test(text)) {
-    add("barthes", "baudrillard", "deleuze", "foucault");
+    add("wittgenstein", "derrida", "bakhtin", "said", "barthes", "baudrillard", "deleuze", "foucault");
   }
   if (/желан|тело|станов|различ|машин|ризом|поток/.test(text)) {
-    add("deleuze", "nietzsche", "spinoza");
+    add("bergson", "merleau-ponty", "zhuangzi", "deleuze", "nietzsche", "spinoza");
   }
 
   add("aristotle", "diogenes", "nietzsche", "foucault");

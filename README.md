@@ -13,6 +13,8 @@
 - CLI bridge: `scripts/agora.mjs`
 - Состав философов: `data/philosophers.json`
 - Markdown-каталог философов и промптов: `philosophers/README.md`
+- Активный Paperclip roster: `philosophers/active-roster.md`
+- Большой банк кандидатов, рейтинги и draft-промпты: `philosophers/candidates/`
 - Память экспортов: `memory/sessions/` (не коммитится в git)
 
 ## Как устроено
@@ -28,6 +30,10 @@
 ## Состав
 
 Полная рабочая папка для проработки личностей: [philosophers/README.md](philosophers/README.md).
+
+Текущий импортируемый в Paperclip состав: [philosophers/active-roster.md](philosophers/active-roster.md).
+
+Широкий банк всех кандидатов из канона, включая тех, кто пока не импортируется в Paperclip: [philosophers/candidates/](philosophers/candidates/README.md).
 
 Архитекторы над пространством:
 [Платон](philosophers/prompts/plato.md), [Декарт](philosophers/prompts/descartes.md), [Хайдеггер](philosophers/prompts/heidegger.md).
@@ -152,14 +158,19 @@ node scripts/agora.mjs ask --all "Что такое истина?"
 
 Используй ключи из `data/philosophers.json`.
 
-Частые ключи:
+Полный текущий список смотри в [philosophers/active-roster.md](philosophers/active-roster.md).
+
+Примеры ключей:
 
 ```text
 socrates, plato, aristotle, parmenides, pyrrho, epicurus,
 diogenes, epictetus, marcus-aurelius, plotinus, augustine, aquinas,
 cusanus, descartes, spinoza, rousseau, kant, hegel,
 nietzsche, heidegger, barthes, baudrillard, deleuze,
-foucault, dugin
+foucault, dugin, buddha, confucius, laozi, zhuangzi,
+nagarjuna, shankara, avicenna, al-ghazali, averroes,
+machiavelli, hobbes, hume, marx, wittgenstein, arendt,
+derrida, dostoevsky, bakhtin
 ```
 
 ## Hermes

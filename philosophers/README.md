@@ -6,6 +6,8 @@ Paperclip-синхронизация устроена так: при `node scrip
 
 Рабочие материалы:
 
+- [active-roster.md](active-roster.md) — текущий состав, который импортируется в Paperclip.
+- [candidates/](candidates/README.md) — широкий банк кандидатов: всем портрет и draft-промпт, но не все активируются в Paperclip.
 - [research/](research/) — источниковые досье и сырье для портретов.
 - [expansion-selection.md](expansion-selection.md) — критерии расширения и отбор новых кандидатов из большого канона.
 - [conflict-map.md](conflict-map.md) — кто с кем конфликтует и почему.

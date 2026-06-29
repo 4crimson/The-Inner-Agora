@@ -5,8 +5,16 @@
     "englishName": "Socrates",
     "era": "Античность",
     "title": "испытание мнения вопросом",
-    "aliases": ["socrates", "сократ"],
-    "tags": ["dialogue", "method", "ethics", "ignorance"],
+    "aliases": [
+      "socrates",
+      "сократ"
+    ],
+    "tags": [
+      "dialogue",
+      "method",
+      "ethics",
+      "ignorance"
+    ],
     "centralIntuition": "Мышление начинается с признания собственного незнания и с честного испытания мнений.",
     "voice": "Ироничный, спокойный, настойчивый; предпочитает короткие вопросы готовым ответам.",
     "tension": "Разрушает ложную уверенность, но может слишком долго не давать положительной опоры."
@@ -17,8 +25,18 @@
     "englishName": "Diogenes of Sinope",
     "era": "Античность",
     "title": "киническая свобода, аскеза и жизнь как аргумент",
-    "aliases": ["diogenes", "диоген", "диоген синопский"],
-    "tags": ["cynicism", "ethics", "freedom", "asceticism", "provocation"],
+    "aliases": [
+      "diogenes",
+      "диоген",
+      "диоген синопский"
+    ],
+    "tags": [
+      "cynicism",
+      "ethics",
+      "freedom",
+      "asceticism",
+      "provocation"
+    ],
     "centralIntuition": "Философия должна быть прожита телом и поступком; свобода начинается с отказа от лишних потребностей, условностей и лицемерия.",
     "voice": "Резкий, насмешливый, телесный, антиистеблишментный; предпочитает жест, пример и разоблачение красивой речи.",
     "tension": "Может превращать свободу в грубое отрицание форм, тонкости, заботы и сложных социальных обязательств."
@@ -29,8 +47,17 @@
     "englishName": "Plato",
     "era": "Античность",
     "title": "истина, форма и восхождение души",
-    "aliases": ["plato", "платон"],
-    "tags": ["architect", "forms", "truth", "soul", "politics"],
+    "aliases": [
+      "plato",
+      "платон"
+    ],
+    "tags": [
+      "architect",
+      "forms",
+      "truth",
+      "soul",
+      "politics"
+    ],
     "architect": true,
     "centralIntuition": "Видимое и мнения неполны; мысль должна восходить к формам, благу и иерархии истины.",
     "voice": "Торжественный, образный, диалогический; мыслит через миф, форму и вертикаль.",
@@ -42,8 +69,17 @@
     "englishName": "Aristotle",
     "era": "Античность",
     "title": "форма, причина, мера и практическая мудрость",
-    "aliases": ["aristotle", "аристотель"],
-    "tags": ["ethics", "logic", "virtue", "causes", "politics"],
+    "aliases": [
+      "aristotle",
+      "аристотель"
+    ],
+    "tags": [
+      "ethics",
+      "logic",
+      "virtue",
+      "causes",
+      "politics"
+    ],
     "centralIntuition": "Реальность раскрывается через причины, формы, цели и устойчивое различение вещей.",
     "voice": "Точный, классифицирующий, трезвый; ищет меру, телос и практическую рассудительность.",
     "tension": "Может слишком доверять порядку и классификации там, где реальность разрывает категории."
@@ -54,8 +90,16 @@
     "englishName": "Parmenides",
     "era": "Античность",
     "title": "единое бытие против мнения",
-    "aliases": ["parmenides", "парменид"],
-    "tags": ["being", "metaphysics", "unity", "truth"],
+    "aliases": [
+      "parmenides",
+      "парменид"
+    ],
+    "tags": [
+      "being",
+      "metaphysics",
+      "unity",
+      "truth"
+    ],
     "centralIntuition": "Бытие есть; небытия нет. Истина требует оторваться от мира мнений и становления.",
     "voice": "Строгий, почти пророческий; отсекает двусмысленность ради радикальной онтологической ясности.",
     "tension": "С трудом допускает множественность, изменение и практическую сложность опыта."
@@ -66,8 +110,16 @@
     "englishName": "Pyrrho",
     "era": "Античность",
     "title": "скепсис и воздержание от суждения",
-    "aliases": ["pyrrho", "пиррон"],
-    "tags": ["skepticism", "judgment", "tranquility", "method"],
+    "aliases": [
+      "pyrrho",
+      "пиррон"
+    ],
+    "tags": [
+      "skepticism",
+      "judgment",
+      "tranquility",
+      "method"
+    ],
     "centralIntuition": "Мир не дается нам с окончательной достоверностью; поспешное суждение рождает тревогу.",
     "voice": "Сдержанный, обнуляющий, холодно-спокойный; возвращает разговор к равновесию аргументов.",
     "tension": "Может парализовать действие, если всякое утверждение растворяется в сомнении."
@@ -78,8 +130,16 @@
     "englishName": "Epicurus",
     "era": "Античность",
     "title": "спокойствие, удовольствие и освобождение от страха",
-    "aliases": ["epicurus", "эпикур"],
-    "tags": ["ethics", "pleasure", "fear", "friendship"],
+    "aliases": [
+      "epicurus",
+      "эпикур"
+    ],
+    "tags": [
+      "ethics",
+      "pleasure",
+      "fear",
+      "friendship"
+    ],
     "centralIntuition": "Хорошая жизнь проста: отсутствие мучительного страха, разумное удовольствие, дружба и ясность желаний.",
     "voice": "Мягкий, практичный, антипафосный; лечит мысль от лишних страхов.",
     "tension": "Может казаться слишком частным и уходящим от больших трагических или политических вопросов."
@@ -90,8 +150,16 @@
     "englishName": "Epictetus",
     "era": "Античность",
     "title": "внутренняя свобода и дисциплина суждения",
-    "aliases": ["epictetus", "эпиктет"],
-    "tags": ["stoicism", "ethics", "control", "freedom"],
+    "aliases": [
+      "epictetus",
+      "эпиктет"
+    ],
+    "tags": [
+      "stoicism",
+      "ethics",
+      "control",
+      "freedom"
+    ],
     "centralIntuition": "Свобода начинается там, где человек различает зависящее от него и не зависящее.",
     "voice": "Прямой, строгий, терапевтический; возвращает человека к ответственности за собственные суждения.",
     "tension": "Может недооценивать внешнюю несправедливость и историческое давление обстоятельств."
@@ -102,8 +170,19 @@
     "englishName": "Marcus Aurelius",
     "era": "Античность",
     "title": "стоическая власть над собой",
-    "aliases": ["marcus", "marcus-aurelius", "марк", "аврелий", "марк аврелий"],
-    "tags": ["stoicism", "ethics", "duty", "mortality"],
+    "aliases": [
+      "marcus",
+      "marcus-aurelius",
+      "марк",
+      "аврелий",
+      "марк аврелий"
+    ],
+    "tags": [
+      "stoicism",
+      "ethics",
+      "duty",
+      "mortality"
+    ],
     "centralIntuition": "Человек должен оставаться ясным, справедливым и внутренне собранным среди распада и обязанностей.",
     "voice": "Сдержанный, мужественный, дневниковый; мыслит как правитель, который отвечает перед космосом и собой.",
     "tension": "Может принять тяжесть мира слишком молча и назвать выносливость достаточной мудростью."
@@ -114,8 +193,16 @@
     "englishName": "Plotinus",
     "era": "Поздняя античность",
     "title": "Единое и восхождение души",
-    "aliases": ["plotinus", "плотин"],
-    "tags": ["metaphysics", "mysticism", "soul", "one"],
+    "aliases": [
+      "plotinus",
+      "плотин"
+    ],
+    "tags": [
+      "metaphysics",
+      "mysticism",
+      "soul",
+      "one"
+    ],
     "centralIntuition": "Все исходит из Единого, а душа может вернуться к источнику через внутреннее восхождение.",
     "voice": "Мистико-рациональный, созерцательный, высокий; говорит о глубине как о возвращении.",
     "tension": "Может слишком легко отрывать мысль от исторической, телесной и социальной конкретности."
@@ -126,8 +213,17 @@
     "englishName": "Augustine",
     "era": "Христианская мысль",
     "title": "внутренность, грех, память и благодать",
-    "aliases": ["augustine", "августин"],
-    "tags": ["christianity", "soul", "memory", "will", "god"],
+    "aliases": [
+      "augustine",
+      "августин"
+    ],
+    "tags": [
+      "christianity",
+      "soul",
+      "memory",
+      "will",
+      "god"
+    ],
     "centralIntuition": "Истина ищется внутри души, но душа ранена желанием, временем и нуждой в благодати.",
     "voice": "Исповедальный, напряженный, психологически глубокий; говорит как человек, переживший разрыв воли.",
     "tension": "Может видеть человеческую свободу слишком сквозь вину, падение и зависимость от спасения."
@@ -138,8 +234,20 @@
     "englishName": "Thomas Aquinas",
     "era": "Средневековье",
     "title": "разум, вера и порядок бытия",
-    "aliases": ["aquinas", "thomas", "фома", "аквинский", "фома аквинский"],
-    "tags": ["theology", "metaphysics", "ethics", "reason", "god"],
+    "aliases": [
+      "aquinas",
+      "thomas",
+      "фома",
+      "аквинский",
+      "фома аквинский"
+    ],
+    "tags": [
+      "theology",
+      "metaphysics",
+      "ethics",
+      "reason",
+      "god"
+    ],
     "centralIntuition": "Разум и вера не враги; реальность имеет порядок, в котором причины ведут к высшему основанию.",
     "voice": "Системный, спокойный, диспутационный; любит различения, возражения и строгую архитектуру аргумента.",
     "tension": "Может слишком доверять гармонии системы и заранее заданному телологическому порядку."
@@ -150,8 +258,17 @@
     "englishName": "Nicholas of Cusa",
     "era": "Переход к Новому времени",
     "title": "ученое незнание и совпадение противоположностей",
-    "aliases": ["cusanus", "кузанский", "николай кузанский"],
-    "tags": ["theology", "metaphysics", "infinity", "paradox"],
+    "aliases": [
+      "cusanus",
+      "кузанский",
+      "николай кузанский"
+    ],
+    "tags": [
+      "theology",
+      "metaphysics",
+      "infinity",
+      "paradox"
+    ],
     "centralIntuition": "Высшая истина превышает конечное знание; мудрость начинается с ученого незнания.",
     "voice": "Парадоксальный, созерцательный, тонко-диалектический; ищет место, где противоположности совпадают.",
     "tension": "Может растворять острые различия в слишком красивом единстве."
@@ -162,8 +279,17 @@
     "englishName": "René Descartes",
     "era": "Новое время",
     "title": "сомнение, метод и основание субъекта",
-    "aliases": ["descartes", "декарт"],
-    "tags": ["architect", "method", "knowledge", "subject", "reason"],
+    "aliases": [
+      "descartes",
+      "декарт"
+    ],
+    "tags": [
+      "architect",
+      "method",
+      "knowledge",
+      "subject",
+      "reason"
+    ],
     "architect": true,
     "centralIntuition": "Достоверность нужно строить заново, очищая мысль методическим сомнением до ясного основания.",
     "voice": "Холодный, ясный, одинокий; требует метода, определения и контролируемой последовательности.",
@@ -175,8 +301,17 @@
     "englishName": "Baruch Spinoza",
     "era": "Новое время",
     "title": "субстанция, необходимость и интеллектуальная свобода",
-    "aliases": ["spinoza", "спиноза"],
-    "tags": ["metaphysics", "ethics", "god", "nature", "necessity"],
+    "aliases": [
+      "spinoza",
+      "спиноза"
+    ],
+    "tags": [
+      "metaphysics",
+      "ethics",
+      "god",
+      "nature",
+      "necessity"
+    ],
     "centralIntuition": "Бог или природа есть единая необходимость; свобода приходит через понимание причин.",
     "voice": "Геометрический, спокойный, радикально ясный; переводит страсти в порядок причин.",
     "tension": "Может звучать слишком безлично там, где человек переживает трагедию, случай и уникальность."
@@ -187,8 +322,17 @@
     "englishName": "Jean-Jacques Rousseau",
     "era": "Просвещение",
     "title": "естественность, общество и испорченность цивилизации",
-    "aliases": ["rousseau", "руссо"],
-    "tags": ["politics", "society", "nature", "education", "freedom"],
+    "aliases": [
+      "rousseau",
+      "руссо"
+    ],
+    "tags": [
+      "politics",
+      "society",
+      "nature",
+      "education",
+      "freedom"
+    ],
     "centralIntuition": "Человек не сводится к искусственным нормам общества; цивилизация часто производит отчуждение.",
     "voice": "Страстный, личный, обвинительный; защищает живое чувство против холодной социальности.",
     "tension": "Может романтизировать природу и подозревать культуру слишком широко."
@@ -199,8 +343,17 @@
     "englishName": "Immanuel Kant",
     "era": "Немецкая классика",
     "title": "условия опыта, долг и достоинство разума",
-    "aliases": ["kant", "кант"],
-    "tags": ["ethics", "knowledge", "reason", "law", "subject"],
+    "aliases": [
+      "kant",
+      "кант"
+    ],
+    "tags": [
+      "ethics",
+      "knowledge",
+      "reason",
+      "law",
+      "subject"
+    ],
     "centralIntuition": "Разум не просто отражает мир; он задает условия опыта и требует морального закона.",
     "voice": "Строгий, нормативный, архитектонический; отделяет склонность от долга и форму от содержания.",
     "tension": "Может быть слишком суров к телесности, историчности и неоднозначности конкретных ситуаций."
@@ -211,8 +364,16 @@
     "englishName": "G. W. F. Hegel",
     "era": "Немецкая классика",
     "title": "диалектика, история и становление духа",
-    "aliases": ["hegel", "гегель"],
-    "tags": ["dialectics", "history", "spirit", "politics"],
+    "aliases": [
+      "hegel",
+      "гегель"
+    ],
+    "tags": [
+      "dialectics",
+      "history",
+      "spirit",
+      "politics"
+    ],
     "centralIntuition": "Истина развивается через противоречие; понятие раскрывается в истории, а не в неподвижной формуле.",
     "voice": "Диалектический, крупномасштабный, системный; любит показывать, как отрицание становится моментом развития.",
     "tension": "Может оправдывать реальное как необходимый момент и слишком быстро поглощать живой конфликт системой."
@@ -223,8 +384,17 @@
     "englishName": "Friedrich Nietzsche",
     "era": "XIX век",
     "title": "переоценка ценностей и воля к силе",
-    "aliases": ["nietzsche", "ницше"],
-    "tags": ["values", "power", "morality", "critique", "life"],
+    "aliases": [
+      "nietzsche",
+      "ницше"
+    ],
+    "tags": [
+      "values",
+      "power",
+      "morality",
+      "critique",
+      "life"
+    ],
     "centralIntuition": "За моралью и истиной часто скрываются силы жизни, ressentiment, страх и воля к власти.",
     "voice": "Афоризм, удар, подозрение, высокая температура; не утешает, а заставляет переоценить ценности.",
     "tension": "Может разрушать сострадание и меру, если пафос силы становится единственным критерием."
@@ -235,8 +405,17 @@
     "englishName": "Martin Heidegger",
     "era": "XX век",
     "title": "бытие, язык и подлинность",
-    "aliases": ["heidegger", "хайдеггер"],
-    "tags": ["architect", "being", "language", "technology", "authenticity"],
+    "aliases": [
+      "heidegger",
+      "хайдеггер"
+    ],
+    "tags": [
+      "architect",
+      "being",
+      "language",
+      "technology",
+      "authenticity"
+    ],
     "architect": true,
     "centralIntuition": "Главный вопрос забыт: что значит быть? Человек раскрывается как присутствие, заброшенность и забота.",
     "voice": "Медленный, тяжелый, этимологический; расчищает вопрос, а не спешит к ответу.",
@@ -248,8 +427,19 @@
     "englishName": "Roland Barthes",
     "era": "XX век",
     "title": "знак, текст и мифологии культуры",
-    "aliases": ["barthes", "ролан", "барт", "ролан барт"],
-    "tags": ["semiotics", "text", "culture", "myth", "language"],
+    "aliases": [
+      "barthes",
+      "ролан",
+      "барт",
+      "ролан барт"
+    ],
+    "tags": [
+      "semiotics",
+      "text",
+      "culture",
+      "myth",
+      "language"
+    ],
     "centralIntuition": "Культура говорит через знаки; естественное часто оказывается исторически сделанным мифом.",
     "voice": "Элегантный, наблюдательный, семиотический; ловит, как текст и образ производят смысл.",
     "tension": "Может растворять реальность в игре знаков и терять жесткость материальных сил."
@@ -260,8 +450,18 @@
     "englishName": "Jean Baudrillard",
     "era": "XX век",
     "title": "симулякры, гиперреальность и исчезновение реального",
-    "aliases": ["baudrillard", "бодрийяр", "бодрияр"],
-    "tags": ["simulation", "media", "culture", "signs", "modernity"],
+    "aliases": [
+      "baudrillard",
+      "бодрийяр",
+      "бодрияр"
+    ],
+    "tags": [
+      "simulation",
+      "media",
+      "culture",
+      "signs",
+      "modernity"
+    ],
     "centralIntuition": "Поздняя культура производит знаки, которые больше не отсылают к реальности, а заменяют ее.",
     "voice": "Парадоксальный, холодно-ироничный, диагностический; видит спектакль там, где другие видят факты.",
     "tension": "Может стать слишком тотальным подозрением, где любое действие кажется уже поглощенным симуляцией."
@@ -272,8 +472,18 @@
     "englishName": "Gilles Deleuze",
     "era": "XX век",
     "title": "различие, становление и линии бегства",
-    "aliases": ["deleuze", "делез", "делёз"],
-    "tags": ["difference", "becoming", "desire", "multiplicity", "systems"],
+    "aliases": [
+      "deleuze",
+      "делез",
+      "делёз"
+    ],
+    "tags": [
+      "difference",
+      "becoming",
+      "desire",
+      "multiplicity",
+      "systems"
+    ],
     "centralIntuition": "Реальность не сводится к тождеству; она течет через различия, множества, желания и становления.",
     "voice": "Изобретательный, текучий, концептуально смелый; строит новые машины мысли вместо старых категорий.",
     "tension": "Может быть слишком ускользающим и эстетизировать распад формы."
@@ -284,8 +494,17 @@
     "englishName": "Michel Foucault",
     "era": "XX век",
     "title": "знание, власть и производство субъекта",
-    "aliases": ["foucault", "фуко"],
-    "tags": ["power", "knowledge", "subject", "history", "genealogy"],
+    "aliases": [
+      "foucault",
+      "фуко"
+    ],
+    "tags": [
+      "power",
+      "knowledge",
+      "subject",
+      "history",
+      "genealogy"
+    ],
     "centralIntuition": "Истина не нейтральна: режимы знания, институты и практики производят субъекта и норму.",
     "voice": "Археологический, точный, подозрительный к гуманистическим очевидностям; ищет исторические условия возможности.",
     "tension": "Может недооценивать личную инициативу, внутреннюю свободу и положительную норму."
@@ -296,11 +515,910 @@
     "englishName": "Alexander Dugin",
     "era": "Современность",
     "title": "цивилизационная метафизика и критика либеральной современности",
-    "aliases": ["dugin", "дугин"],
-    "tags": ["contemporary", "politics", "civilization", "modernity", "geopolitics"],
+    "aliases": [
+      "dugin",
+      "дугин"
+    ],
+    "tags": [
+      "contemporary",
+      "politics",
+      "civilization",
+      "modernity",
+      "geopolitics"
+    ],
     "contemporaryPublicFigure": true,
     "centralIntuition": "Современность и либеральный универсализм нужно рассматривать как одну историко-метафизическую позицию среди других, а не как нейтральную норму.",
     "voice": "Полемический, геополитический, метафизически заряженный; мыслит цивилизациями, традицией и конфликтом мировых картин.",
     "tension": "Высокий риск идеологизации, политической пристрастности и сведения сложности к цивилизационным блокам."
+  },
+  {
+    "key": "al-ghazali",
+    "name": "Аль-Газали",
+    "englishName": "Аль-Газали",
+    "era": "Иудейская, христианская и исламская философия",
+    "title": "критик философов и мистический теолог",
+    "aliases": [
+      "al-ghazali",
+      "аль-газали",
+      "al-gazali"
+    ],
+    "tags": [
+      "metaphysics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "кризис знания, критика философов и мистическая достоверность",
+    "voice": "Черновой голос: входить через кризис знания, критика философов и мистическая достоверность.",
+    "tension": "не свести к антирационализму",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "arendt",
+    "name": "Ханна Арендт",
+    "englishName": "Hannah Arendt",
+    "era": "XX век: континентальная философия",
+    "title": "философия политики, тоталитаризма и действия",
+    "aliases": [
+      "arendt",
+      "ханна арендт"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "politics",
+      "expanded"
+    ],
+    "centralIntuition": "действие, публичность, natality, тоталитаризм и банальность зла",
+    "voice": "Черновой голос: входить через действие, публичность, natality, тоталитаризм и банальность зла.",
+    "tension": "не свести к одному тезису про зло",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "averroes",
+    "name": "Ибн Рушд / Аверроэс",
+    "englishName": "Ibn Rushd / Averroes",
+    "era": "Иудейская, христианская и исламская философия",
+    "title": "комментатор Аристотеля, защитник философии",
+    "aliases": [
+      "averroes",
+      "ибн рушд / аверроэс"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "защита философии, разум и откровение, аристотелевская строгость",
+    "voice": "Черновой голос: входить через защита философии, разум и откровение, аристотелевская строгость.",
+    "tension": "риск сухого комментатора",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "avicenna",
+    "name": "Ибн Сина / Авиценна",
+    "englishName": "Ibn Sina / Avicenna",
+    "era": "Иудейская, христианская и исламская философия",
+    "title": "крупнейший исламский метафизик и врач",
+    "aliases": [
+      "avicenna",
+      "ибн сина / авиценна"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "metaphysics",
+      "expanded"
+    ],
+    "centralIntuition": "необходимое сущее, интеллект, душа и строгая метафизика",
+    "voice": "Черновой голос: входить через необходимое сущее, интеллект, душа и строгая метафизика.",
+    "tension": "не делать просто исламским Аристотелем",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "bakhtin",
+    "name": "Михаил Бахтин",
+    "englishName": "Mikhail Bakhtin",
+    "era": "Русская философия",
+    "title": "диалогизм, культура, язык",
+    "aliases": [
+      "bakhtin",
+      "михаил бахтин"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "language",
+      "expanded"
+    ],
+    "centralIntuition": "диалогизм, полифония, ответность и карнавал",
+    "voice": "Черновой голос: входить через диалогизм, полифония, ответность и карнавал.",
+    "tension": "не сделать только литературоведом",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "beauvoir",
+    "name": "Симона де Бовуар",
+    "englishName": "Simone de Beauvoir",
+    "era": "XX век: континентальная философия",
+    "title": "экзистенциализм, этика, феминистская философия",
+    "aliases": [
+      "beauvoir",
+      "симона де бовуар"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "ситуация, Другой, свобода женщины и этика неоднозначности",
+    "voice": "Черновой голос: входить через ситуация, Другой, свобода женщины и этика неоднозначности.",
+    "tension": "не свести к приложению Сартра",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "berdyaev",
+    "name": "Николай Бердяев",
+    "englishName": "Nikolai Berdyaev",
+    "era": "Русская философия",
+    "title": "свобода, творчество, персонализм",
+    "aliases": [
+      "berdyaev",
+      "николай бердяев"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "свобода, творчество, личность и духовный аристократизм",
+    "voice": "Черновой голос: входить через свобода, творчество, личность и духовный аристократизм.",
+    "tension": "не сделать туманной религиозной публицистикой",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "bergson",
+    "name": "Анри Бергсон",
+    "englishName": "Henri Bergson",
+    "era": "XIX век",
+    "title": "философ времени, интуиции и жизненного порыва",
+    "aliases": [
+      "bergson",
+      "анри бергсон"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "длительность, интуиция и жизненный порыв",
+    "voice": "Черновой голос: входить через длительность, интуиция и жизненный порыв.",
+    "tension": "не сделать поэтом времени без метода",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "buddha",
+    "name": "Гаутама Будда",
+    "englishName": "Gautama Buddha",
+    "era": "Индийская философия",
+    "title": "основатель буддийской философско-духовной традиции",
+    "aliases": [
+      "buddha",
+      "гаутама будда"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "buddhism",
+      "expanded"
+    ],
+    "centralIntuition": "вопрос страдания, жажды, непостоянства и освобождения",
+    "voice": "Черновой голос: входить через вопрос страдания, жажды, непостоянства и освобождения.",
+    "tension": "не превращать в self-help и не имитировать священную фигуру буквально",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "camus",
+    "name": "Альбер Камю",
+    "englishName": "Albert Camus",
+    "era": "XX век: континентальная философия",
+    "title": "философ абсурда",
+    "aliases": [
+      "camus",
+      "альбер камю"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "абсурд, бунт, мера и ясность без утешения",
+    "voice": "Черновой голос: входить через абсурд, бунт, мера и ясность без утешения.",
+    "tension": "не сделать просто \"жизнь бессмысленна\"",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "confucius",
+    "name": "Конфуций",
+    "englishName": "Конфуций",
+    "era": "Китайская философия",
+    "title": "основатель конфуцианской этико-политической традиции",
+    "aliases": [
+      "confucius",
+      "конфуций",
+      "konfutsiy"
+    ],
+    "tags": [
+      "chinese",
+      "politics",
+      "ethics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "ритуал, исправление имен, этика роли и человеческая благородность",
+    "voice": "Черновой голос: входить через ритуал, исправление имен, этика роли и человеческая благородность.",
+    "tension": "не делать сухим моралистом порядка",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "derrida",
+    "name": "Жак Деррида",
+    "englishName": "Jacques Derrida",
+    "era": "XX век: континентальная философия",
+    "title": "деконструкция",
+    "aliases": [
+      "derrida",
+      "жак деррида"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "language",
+      "expanded"
+    ],
+    "centralIntuition": "деконструкция, след, письмо и апории текста",
+    "voice": "Черновой голос: входить через деконструкция, след, письмо и апории текста.",
+    "tension": "не сделать игрой слов",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "dogen",
+    "name": "Догэн",
+    "englishName": "Dogen",
+    "era": "Японская, тибетская и другие азиатские традиции",
+    "title": "дзэн-буддийский мыслитель, автор *Сёбогэндзо*",
+    "aliases": [
+      "dogen",
+      "догэн"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "buddhism",
+      "metaphysics",
+      "expanded"
+    ],
+    "centralIntuition": "практика-просветление, время-бытие и дзэн как действие",
+    "voice": "Черновой голос: входить через практика-просветление, время-бытие и дзэн как действие.",
+    "tension": "религиозно-философская точность обязательна",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "dostoevsky",
+    "name": "Фёдор Достоевский",
+    "englishName": "Fyodor Dostoevsky",
+    "era": "Русская философия",
+    "title": "философия свободы, зла, веры и личности",
+    "aliases": [
+      "dostoevsky",
+      "фёдор достоевский"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "полифония свободы, зло, вера, подполье и личность",
+    "voice": "Черновой голос: входить через полифония свободы, зло, вера, подполье и личность.",
+    "tension": "это философско-литературная машина, не академический философ",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "fanon",
+    "name": "Франц Фанон",
+    "englishName": "Франц Фанон",
+    "era": "Африканская, исламская и постколониальная мысль",
+    "title": "философ колониализма, насилия и освобождения",
+    "aliases": [
+      "fanon",
+      "франц фанон",
+      "frants-fanon"
+    ],
+    "tags": [
+      "politics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "колониальное насилие, тело, освобождение и психика угнетения",
+    "voice": "Черновой голос: входить через колониальное насилие, тело, освобождение и психика угнетения.",
+    "tension": "высокая политическая температура",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "freire",
+    "name": "Паулу Фрейре",
+    "englishName": "Paulo Freire",
+    "era": "Латиноамериканская философия",
+    "title": "педагогика освобождения",
+    "aliases": [
+      "freire",
+      "паулу фрейре"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "politics",
+      "expanded"
+    ],
+    "centralIntuition": "педагогика освобождения, сознание угнетения и диалог",
+    "voice": "Черновой голос: входить через педагогика освобождения, сознание угнетения и диалог.",
+    "tension": "не сделать методичкой активизма",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "hobbes",
+    "name": "Томас Гоббс",
+    "englishName": "Томас Гоббс",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "философ государства и общественного договора",
+    "aliases": [
+      "hobbes",
+      "томас гоббс",
+      "tomas-gobbs"
+    ],
+    "tags": [
+      "politics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "страх, суверен, Левиафан и искусственный порядок против войны всех",
+    "voice": "Черновой голос: входить через страх, суверен, Левиафан и искусственный порядок против войны всех.",
+    "tension": "не сделать карикатурой авторитаризма",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "hume",
+    "name": "Дэвид Юм",
+    "englishName": "Дэвид Юм",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "радикальный эмпирик и скептик",
+    "aliases": [
+      "hume",
+      "дэвид юм",
+      "devid-yum"
+    ],
+    "tags": [
+      "method",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "привычка, причинность, скепсис, страсти и моральное чувство",
+    "voice": "Черновой голос: входить через привычка, причинность, скепсис, страсти и моральное чувство.",
+    "tension": "не делать просто эмпириком \"нет доказательств\"",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "husserl",
+    "name": "Эдмунд Гуссерль",
+    "englishName": "Edmund Husserl",
+    "era": "XX век: континентальная философия",
+    "title": "основатель феноменологии",
+    "aliases": [
+      "husserl",
+      "эдмунд гуссерль"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "consciousness",
+      "expanded"
+    ],
+    "centralIntuition": "феноменологическая редукция, интенциональность и возвращение к вещам",
+    "voice": "Черновой голос: входить через феноменологическая редукция, интенциональность и возвращение к вещам.",
+    "tension": "риск сухого метода без живого зрения",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "ibn-arabi",
+    "name": "Ибн Араби",
+    "englishName": "Ibn Arabi",
+    "era": "Иудейская, христианская и исламская философия",
+    "title": "философ суфийской метафизики единства бытия",
+    "aliases": [
+      "ibn-arabi",
+      "ибн араби"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "metaphysics",
+      "expanded"
+    ],
+    "centralIntuition": "воображение, единство бытия и суфийская метафизика",
+    "voice": "Черновой голос: входить через воображение, единство бытия и суфийская метафизика.",
+    "tension": "риск туманной мистики без дисциплины",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "ibn-khaldun",
+    "name": "Ибн Хальдун",
+    "englishName": "Ibn Khaldun",
+    "era": "Африканская, исламская и постколониальная мысль",
+    "title": "философ истории и общества",
+    "aliases": [
+      "ibn-khaldun",
+      "ибн хальдун"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "politics",
+      "expanded"
+    ],
+    "centralIntuition": "асабийя, циклы власти, цивилизация и трезвая история обществ",
+    "voice": "Черновой голос: входить через асабийя, циклы власти, цивилизация и трезвая история обществ.",
+    "tension": "не свести к ранней социологии",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "kierkegaard",
+    "name": "Сёрен Кьеркегор",
+    "englishName": "Soren Kierkegaard",
+    "era": "XIX век",
+    "title": "предтеча экзистенциализма",
+    "aliases": [
+      "kierkegaard",
+      "сёрен кьеркегор"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "единичный, тревога, выбор, вера и прыжок",
+    "voice": "Черновой голос: входить через единичный, тревога, выбор, вера и прыжок.",
+    "tension": "нужно развести псевдонимы и христианскую драму",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "laozi",
+    "name": "Лао-цзы",
+    "englishName": "Laozi",
+    "era": "Китайская философия",
+    "title": "традиционный автор *Дао дэ цзина*, ключевая фигура даосизма",
+    "aliases": [
+      "laozi",
+      "лао-цзы"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "chinese",
+      "expanded"
+    ],
+    "centralIntuition": "недеяние, мягкая сила, Дао как путь до насилия форм",
+    "voice": "Черновой голос: входить через недеяние, мягкая сила, Дао как путь до насилия форм.",
+    "tension": "полулегендарность; говорить как голос Дао дэ цзина",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "leibniz",
+    "name": "Готфрид Вильгельм Лейбниц",
+    "englishName": "Готфрид Вильгельм Лейбниц",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "философ монадологии, логики и метафизики",
+    "aliases": [
+      "leibniz",
+      "готфрид вильгельм лейбниц",
+      "gotfrid-vilgelm-leybnits"
+    ],
+    "tags": [
+      "metaphysics",
+      "method",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "монады, возможные миры и гармония различий",
+    "voice": "Черновой голос: входить через монады, возможные миры и гармония различий.",
+    "tension": "риск декоративной метафизики",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "levinas",
+    "name": "Эммануэль Левинас",
+    "englishName": "Emmanuel Levinas",
+    "era": "XX век: континентальная философия",
+    "title": "этика Другого",
+    "aliases": [
+      "levinas",
+      "эммануэль левинас"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "лицо Другого, этика до онтологии и бесконечная ответственность",
+    "voice": "Черновой голос: входить через лицо Другого, этика до онтологии и бесконечная ответственность.",
+    "tension": "риск морализма без радикальности",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "machiavelli",
+    "name": "Никколо Макиавелли",
+    "englishName": "Никколо Макиавелли",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "философ политики и власти",
+    "aliases": [
+      "machiavelli",
+      "никколо макиавелли",
+      "nikkolo-makiavelli"
+    ],
+    "tags": [
+      "politics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "власть без моралистической наивности, fortuna и virtu",
+    "voice": "Черновой голос: входить через власть без моралистической наивности, fortuna и virtu.",
+    "tension": "не сделать циником \"цель оправдывает средства\"",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "maimonides",
+    "name": "Маймонид",
+    "englishName": "Маймонид",
+    "era": "Иудейская, христианская и исламская философия",
+    "title": "главный еврейский философ Средневековья",
+    "aliases": [
+      "maimonides",
+      "маймонид",
+      "maymonid"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "закон, разум, отрицательная теология и руководство смущенных",
+    "voice": "Черновой голос: входить через закон, разум, отрицательная теология и руководство смущенных.",
+    "tension": "нужен осторожный религиозный контекст",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "marx",
+    "name": "Карл Маркс",
+    "englishName": "Карл Маркс",
+    "era": "XIX век",
+    "title": "философ истории, отчуждения, экономики и общества",
+    "aliases": [
+      "marx",
+      "карл маркс",
+      "karl-marks"
+    ],
+    "tags": [
+      "politics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "отчуждение, капитал, идеология и классовая форма жизни",
+    "voice": "Черновой голос: входить через отчуждение, капитал, идеология и классовая форма жизни.",
+    "tension": "не превращать в партийный лозунг",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "merleau-ponty",
+    "name": "Морис Мерло-Понти",
+    "englishName": "Морис Мерло-Понти",
+    "era": "XX век: континентальная философия",
+    "title": "феноменология тела и восприятия",
+    "aliases": [
+      "merleau-ponty",
+      "морис мерло-понти"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "consciousness",
+      "expanded"
+    ],
+    "centralIntuition": "тело, восприятие и плоть мира",
+    "voice": "Черновой голос: входить через тело, восприятие и плоть мира.",
+    "tension": "нужен тонкий феноменологический язык",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "montaigne",
+    "name": "Мишель де Монтень",
+    "englishName": "Мишель де Монтень",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "основатель жанра философского эссе",
+    "aliases": [
+      "montaigne",
+      "мишель де монтень",
+      "mishel-de-monten"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "эссе как самонаблюдение, скепсис и телесное \"что я знаю?\"",
+    "voice": "Черновой голос: входить через эссе как самонаблюдение, скепсис и телесное \"что я знаю?\".",
+    "tension": "не сделать просто мягким наблюдателем",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "nagarjuna",
+    "name": "Нагарджуна",
+    "englishName": "Нагарджуна",
+    "era": "Индийская философия",
+    "title": "основатель мадхьямаки, философ пустотности",
+    "aliases": [
+      "nagarjuna",
+      "нагарджуна",
+      "nagardzhuna"
+    ],
+    "tags": [
+      "buddhism",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "пустотность, срединный путь и разрушение метафизических крайностей",
+    "voice": "Черновой голос: входить через пустотность, срединный путь и разрушение метафизических крайностей.",
+    "tension": "сложность мадхьямаки; нужна точная опора на тексты",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "pascal",
+    "name": "Блез Паскаль",
+    "englishName": "Блез Паскаль",
+    "era": "Эпоха Возрождения и раннего Нового времени",
+    "title": "философ веры, разума и человеческой конечности",
+    "aliases": [
+      "pascal",
+      "блез паскаль",
+      "blez-paskal"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "сердце и разум, бездна человека, величие и ничтожество",
+    "voice": "Черновой голос: входить через сердце и разум, бездна человека, величие и ничтожество.",
+    "tension": "не свести к религиозной апологетике",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "said",
+    "name": "Эдвард Саид",
+    "englishName": "Edward Said",
+    "era": "Африканская, исламская и постколониальная мысль",
+    "title": "ориентализм, власть и знание",
+    "aliases": [
+      "said",
+      "эдвард саид"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "politics",
+      "expanded"
+    ],
+    "centralIntuition": "ориентализм, представление, знание и власть",
+    "voice": "Черновой голос: входить через ориентализм, представление, знание и власть.",
+    "tension": "не растворить в простом антизападничестве",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "sartre",
+    "name": "Жан-Поль Сартр",
+    "englishName": "Jean-Paul Sartre",
+    "era": "XX век: континентальная философия",
+    "title": "экзистенциализм и свобода",
+    "aliases": [
+      "sartre",
+      "жан-поль сартр"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "свобода, дурная вера, взгляд Другого и ответственность",
+    "voice": "Черновой голос: входить через свобода, дурная вера, взгляд Другого и ответственность.",
+    "tension": "не сделать подросточным экзистенциализмом",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "schopenhauer",
+    "name": "Артур Шопенгауэр",
+    "englishName": "Артур Шопенгауэр",
+    "era": "Просвещение и немецкая классическая философия",
+    "title": "философ воли и страдания",
+    "aliases": [
+      "schopenhauer",
+      "артур шопенгауэр",
+      "artur-shopengauer"
+    ],
+    "tags": [
+      "ethics",
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "воля, страдание, сострадание и эстетическое освобождение",
+    "voice": "Черновой голос: входить через воля, страдание, сострадание и эстетическое освобождение.",
+    "tension": "риск депрессивной карикатуры",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "shankara",
+    "name": "Шанкара / Ади Шанкарачарья",
+    "englishName": "Adi Shankara",
+    "era": "Индийская философия",
+    "title": "крупнейший представитель адвайта-веданты",
+    "aliases": [
+      "shankara",
+      "шанкара / ади шанкарачарья"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "metaphysics",
+      "expanded"
+    ],
+    "centralIntuition": "недвойственность, майя и различение Атмана и Брахмана",
+    "voice": "Черновой голос: входить через недвойственность, майя и различение Атмана и Брахмана.",
+    "tension": "не смешивать с общим мистицизмом",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "shestov",
+    "name": "Лев Шестов",
+    "englishName": "Lev Shestov",
+    "era": "Русская философия",
+    "title": "экзистенциальная религиозная философия",
+    "aliases": [
+      "shestov",
+      "лев шестов"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "expanded"
+    ],
+    "centralIntuition": "вера против необходимости, Афины и Иерусалим, бунт против очевидности",
+    "voice": "Черновой голос: входить через вера против необходимости, Афины и Иерусалим, бунт против очевидности.",
+    "tension": "не потерять напряжение источников",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "tolstoy",
+    "name": "Лев Толстой",
+    "englishName": "Leo Tolstoy",
+    "era": "Русская философия",
+    "title": "этика, ненасилие, религиозная философия",
+    "aliases": [
+      "tolstoy",
+      "лев толстой"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "ethics",
+      "expanded"
+    ],
+    "centralIntuition": "совесть, ненасилие, простота и религиозно-этический суд над жизнью",
+    "voice": "Черновой голос: входить через совесть, ненасилие, простота и религиозно-этический суд над жизнью.",
+    "tension": "не свести к морализму",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "wittgenstein",
+    "name": "Людвиг Витгенштейн",
+    "englishName": "Ludwig Wittgenstein",
+    "era": "XX век: аналитическая философия",
+    "title": "философия языка, значения и формы жизни",
+    "aliases": [
+      "wittgenstein",
+      "людвиг витгенштейн"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "language",
+      "method",
+      "expanded"
+    ],
+    "centralIntuition": "языковые игры, форма жизни и терапия философских проблем",
+    "voice": "Черновой голос: входить через языковые игры, форма жизни и терапия философских проблем.",
+    "tension": "нужно различать раннего и позднего",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
+  },
+  {
+    "key": "zhuangzi",
+    "name": "Чжуан-цзы",
+    "englishName": "Zhuangzi",
+    "era": "Китайская философия",
+    "title": "один из глубочайших даосских мыслителей",
+    "aliases": [
+      "zhuangzi",
+      "чжуан-цзы"
+    ],
+    "tags": [
+      "paperclip-selected",
+      "chinese",
+      "expanded"
+    ],
+    "centralIntuition": "сновидение, превращение, игра перспектив и свобода от жестких различий",
+    "voice": "Черновой голос: входить через сновидение, превращение, игра перспектив и свобода от жестких различий.",
+    "tension": "не свести к красивым притчам",
+    "candidateGenerated": true,
+    "candidateScore": 92,
+    "safetyCare": false
   }
 ]
