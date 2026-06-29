@@ -6,6 +6,7 @@ Commands:
 
 - `/agora_prepare [local|balanced|max]`
 - `/agora_status`
+- `/agora_philosophers`
 - `/agora_tasks [open|all] [limit]`
 - `/agora_task ISSUE`
 - `/agora_move ISSUE <todo|in_progress|blocked|done|cancelled>`

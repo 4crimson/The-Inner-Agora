@@ -196,6 +196,7 @@ Telegram slash-команды используют `_`, потому что Tele
 ```text
 /agora_prepare
 /agora_status
+/agora_philosophers
 /agora_tasks
 /agora_task THE-1
 /agora_council QUESTION
@@ -207,6 +208,8 @@ Telegram slash-команды используют `_`, потому что Tele
 ```
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
+
+Обычные read-only фразы про Paperclip тоже разрешены для Hermes: например, `список философов`, `кто в перклипе`, `узнай список философов в перклипе`, `статус`, `задачи`. Они должны запускать безопасные команды чтения, а не создавать новые задачи.
 
 ## Проверка
 

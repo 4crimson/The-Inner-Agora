@@ -31,6 +31,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs dialogue <philosopher> "question"
   node scripts/agora.mjs synthesize <root-issue-id-or-key> [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
+  node scripts/agora.mjs philosophers
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
@@ -844,6 +845,33 @@ async function status() {
   }
 }
 
+async function listPhilosophers() {
+  const { agents } = await getAgora();
+  const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
+  const expectedNames = new Set(philosophers.map((item) => item.name));
+  const present = philosophers.filter((item) => agentsByName.has(item.name));
+  const extra = agents.filter((agent) => agent.name !== ASSISTANT_NAME && !expectedNames.has(agent.name));
+  const assistant = agentsByName.get(ASSISTANT_NAME);
+
+  console.log("# Философы в Paperclip");
+  for (const item of philosophers) {
+    const agent = agentsByName.get(item.name);
+    const statusLabel = agent ? String(agent.status || "unknown").padEnd(8) : "missing ";
+    console.log(`- ${statusLabel} ${item.name} (${item.key})`);
+  }
+
+  console.log("");
+  console.log(`Итого философов: ${present.length}/${philosophers.length}`);
+  console.log(`Agora Assistant: ${assistant ? assistant.status || "unknown" : "missing"}`);
+  console.log(`Всего агентов в Paperclip: ${agents.length}`);
+
+  if (extra.length) {
+    console.log("");
+    console.log("Лишние агенты не из активного roster:");
+    for (const agent of extra) console.log(`- ${agent.status || "unknown"} ${agent.name}`);
+  }
+}
+
 async function tasks(args) {
   const { scope, limit } = parseTasksArgs(args);
   const { company, agents } = await getAgora();
@@ -1086,6 +1114,7 @@ async function main() {
   if (command === "dialogue") return dialogue(args);
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
+  if (command === "philosophers" || command === "agents") return listPhilosophers();
   if (command === "status") return status();
   if (command === "tasks") return tasks(args);
   if (command === "task") return taskDetails(args);

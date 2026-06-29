@@ -86,6 +86,9 @@ def register(ctx: Any) -> None:
     def status(_: str) -> str:
         return _agora_script("status")
 
+    def philosophers(_: str) -> str:
+        return _agora_script("philosophers")
+
     def tasks(raw_args: str) -> str:
         words = _parse_words(raw_args)
         scope = "open"
@@ -153,6 +156,12 @@ def register(ctx: Any) -> None:
         name="agora-status",
         handler=status,
         description="Show The Inner Agora/Paperclip status.",
+        args_hint="",
+    )
+    ctx.register_command(
+        name="agora-philosophers",
+        handler=philosophers,
+        description="List active The Inner Agora philosophers in Paperclip.",
         args_hint="",
     )
     ctx.register_command(
