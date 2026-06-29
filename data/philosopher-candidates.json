@@ -759,18 +759,17 @@
     "tradition": "Иудейская, христианская и исламская философия",
     "era": "Иудейская, христианская и исламская философия",
     "description": "критик философов и мистический теолог",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "критик философов и мистический теолог",
     "centralGesture": "кризис знания, критика философов и мистическая достоверность",
     "voice": "Черновой голос: входить через кризис знания, критика философов и мистическая достоверность.",
     "tension": "не свести к антирационализму",
     "tags": [
       "metaphysics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "al-ghazali",
@@ -788,17 +787,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "философия политики, тоталитаризма и действия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философия политики, тоталитаризма и действия",
     "centralGesture": "действие, публичность, natality, тоталитаризм и банальность зла",
     "voice": "Черновой голос: входить через действие, публичность, natality, тоталитаризм и банальность зла.",
     "tension": "не свести к одному тезису про зло",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "politics"
     ],
     "aliases": [
@@ -816,17 +814,16 @@
     "tradition": "Иудейская, христианская и исламская философия",
     "era": "Иудейская, христианская и исламская философия",
     "description": "комментатор Аристотеля, защитник философии",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "комментатор Аристотеля, защитник философии",
     "centralGesture": "защита философии, разум и откровение, аристотелевская строгость",
     "voice": "Черновой голос: входить через защита философии, разум и откровение, аристотелевская строгость.",
     "tension": "риск сухого комментатора",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "averroes",
@@ -843,17 +840,16 @@
     "tradition": "Иудейская, христианская и исламская философия",
     "era": "Иудейская, христианская и исламская философия",
     "description": "крупнейший исламский метафизик и врач",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "крупнейший исламский метафизик и врач",
     "centralGesture": "необходимое сущее, интеллект, душа и строгая метафизика",
     "voice": "Черновой голос: входить через необходимое сущее, интеллект, душа и строгая метафизика.",
     "tension": "не делать просто исламским Аристотелем",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "metaphysics"
     ],
     "aliases": [
@@ -871,17 +867,16 @@
     "tradition": "Русская философия",
     "era": "Русская философия",
     "description": "диалогизм, культура, язык",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "диалогизм, культура, язык",
     "centralGesture": "диалогизм, полифония, ответность и карнавал",
     "voice": "Черновой голос: входить через диалогизм, полифония, ответность и карнавал.",
     "tension": "не сделать только литературоведом",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "language"
     ],
     "aliases": [
@@ -899,17 +894,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "экзистенциализм, этика, феминистская философия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "экзистенциализм, этика, феминистская философия",
     "centralGesture": "ситуация, Другой, свобода женщины и этика неоднозначности",
     "voice": "Черновой голос: входить через ситуация, Другой, свобода женщины и этика неоднозначности.",
     "tension": "не свести к приложению Сартра",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -927,17 +921,16 @@
     "tradition": "Русская философия",
     "era": "Русская философия",
     "description": "свобода, творчество, персонализм",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "свобода, творчество, персонализм",
     "centralGesture": "свобода, творчество, личность и духовный аристократизм",
     "voice": "Черновой голос: входить через свобода, творчество, личность и духовный аристократизм.",
     "tension": "не сделать туманной религиозной публицистикой",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -955,17 +948,16 @@
     "tradition": "XIX век",
     "era": "XIX век",
     "description": "философ времени, интуиции и жизненного порыва",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ времени, интуиции и жизненного порыва",
     "centralGesture": "длительность, интуиция и жизненный порыв",
     "voice": "Черновой голос: входить через длительность, интуиция и жизненный порыв.",
     "tension": "не сделать поэтом времени без метода",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "bergson",
@@ -982,17 +974,16 @@
     "tradition": "Индийская философия",
     "era": "Индийская философия",
     "description": "основатель буддийской философско-духовной традиции",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "основатель буддийской философско-духовной традиции",
     "centralGesture": "вопрос страдания, жажды, непостоянства и освобождения",
     "voice": "Черновой голос: входить через вопрос страдания, жажды, непостоянства и освобождения.",
     "tension": "не превращать в self-help и не имитировать священную фигуру буквально",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "buddhism"
     ],
     "aliases": [
@@ -1010,17 +1001,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "философ абсурда",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ абсурда",
     "centralGesture": "абсурд, бунт, мера и ясность без утешения",
     "voice": "Черновой голос: входить через абсурд, бунт, мера и ясность без утешения.",
     "tension": "не сделать просто \"жизнь бессмысленна\"",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "camus",
@@ -1037,10 +1027,10 @@
     "tradition": "Китайская философия",
     "era": "Китайская философия",
     "description": "основатель конфуцианской этико-политической традиции",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "основатель конфуцианской этико-политической традиции",
     "centralGesture": "ритуал, исправление имен, этика роли и человеческая благородность",
     "voice": "Черновой голос: входить через ритуал, исправление имен, этика роли и человеческая благородность.",
@@ -1049,8 +1039,7 @@
       "chinese",
       "politics",
       "ethics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "confucius",
@@ -1068,17 +1057,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "деконструкция",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "деконструкция",
     "centralGesture": "деконструкция, след, письмо и апории текста",
     "voice": "Черновой голос: входить через деконструкция, след, письмо и апории текста.",
     "tension": "не сделать игрой слов",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "language"
     ],
     "aliases": [
@@ -1096,17 +1084,16 @@
     "tradition": "Японская, тибетская и другие азиатские традиции",
     "era": "Японская, тибетская и другие азиатские традиции",
     "description": "дзэн-буддийский мыслитель, автор *Сёбогэндзо*",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "дзэн-буддийский мыслитель, автор *Сёбогэндзо*",
     "centralGesture": "практика-просветление, время-бытие и дзэн как действие",
     "voice": "Черновой голос: входить через практика-просветление, время-бытие и дзэн как действие.",
     "tension": "религиозно-философская точность обязательна",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "buddhism",
       "metaphysics"
     ],
@@ -1125,17 +1112,16 @@
     "tradition": "Русская философия",
     "era": "Русская философия",
     "description": "философия свободы, зла, веры и личности",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философия свободы, зла, веры и личности",
     "centralGesture": "полифония свободы, зло, вера, подполье и личность",
     "voice": "Черновой голос: входить через полифония свободы, зло, вера, подполье и личность.",
     "tension": "это философско-литературная машина, не академический философ",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -1153,18 +1139,17 @@
     "tradition": "Африканская, исламская и постколониальная мысль",
     "era": "Африканская, исламская и постколониальная мысль",
     "description": "философ колониализма, насилия и освобождения",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ колониализма, насилия и освобождения",
     "centralGesture": "колониальное насилие, тело, освобождение и психика угнетения",
     "voice": "Черновой голос: входить через колониальное насилие, тело, освобождение и психика угнетения.",
     "tension": "высокая политическая температура",
     "tags": [
       "politics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "fanon",
@@ -1182,17 +1167,16 @@
     "tradition": "Латиноамериканская философия",
     "era": "Латиноамериканская философия",
     "description": "педагогика освобождения",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "педагогика освобождения",
     "centralGesture": "педагогика освобождения, сознание угнетения и диалог",
     "voice": "Черновой голос: входить через педагогика освобождения, сознание угнетения и диалог.",
     "tension": "не сделать методичкой активизма",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "politics"
     ],
     "aliases": [
@@ -1210,18 +1194,17 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "философ государства и общественного договора",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ государства и общественного договора",
     "centralGesture": "страх, суверен, Левиафан и искусственный порядок против войны всех",
     "voice": "Черновой голос: входить через страх, суверен, Левиафан и искусственный порядок против войны всех.",
     "tension": "не сделать карикатурой авторитаризма",
     "tags": [
       "politics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "hobbes",
@@ -1239,18 +1222,17 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "радикальный эмпирик и скептик",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "радикальный эмпирик и скептик",
     "centralGesture": "привычка, причинность, скепсис, страсти и моральное чувство",
     "voice": "Черновой голос: входить через привычка, причинность, скепсис, страсти и моральное чувство.",
     "tension": "не делать просто эмпириком \"нет доказательств\"",
     "tags": [
       "method",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "hume",
@@ -1268,17 +1250,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "основатель феноменологии",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "основатель феноменологии",
     "centralGesture": "феноменологическая редукция, интенциональность и возвращение к вещам",
     "voice": "Черновой голос: входить через феноменологическая редукция, интенциональность и возвращение к вещам.",
     "tension": "риск сухого метода без живого зрения",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "consciousness"
     ],
     "aliases": [
@@ -1296,17 +1277,16 @@
     "tradition": "Иудейская, христианская и исламская философия",
     "era": "Иудейская, христианская и исламская философия",
     "description": "философ суфийской метафизики единства бытия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ суфийской метафизики единства бытия",
     "centralGesture": "воображение, единство бытия и суфийская метафизика",
     "voice": "Черновой голос: входить через воображение, единство бытия и суфийская метафизика.",
     "tension": "риск туманной мистики без дисциплины",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "metaphysics"
     ],
     "aliases": [
@@ -1324,17 +1304,16 @@
     "tradition": "Африканская, исламская и постколониальная мысль",
     "era": "Африканская, исламская и постколониальная мысль",
     "description": "философ истории и общества",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ истории и общества",
     "centralGesture": "асабийя, циклы власти, цивилизация и трезвая история обществ",
     "voice": "Черновой голос: входить через асабийя, циклы власти, цивилизация и трезвая история обществ.",
     "tension": "не свести к ранней социологии",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "politics"
     ],
     "aliases": [
@@ -1352,17 +1331,16 @@
     "tradition": "XIX век",
     "era": "XIX век",
     "description": "предтеча экзистенциализма",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "предтеча экзистенциализма",
     "centralGesture": "единичный, тревога, выбор, вера и прыжок",
     "voice": "Черновой голос: входить через единичный, тревога, выбор, вера и прыжок.",
     "tension": "нужно развести псевдонимы и христианскую драму",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "kierkegaard",
@@ -1379,17 +1357,16 @@
     "tradition": "Китайская философия",
     "era": "Китайская философия",
     "description": "традиционный автор *Дао дэ цзина*, ключевая фигура даосизма",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "традиционный автор *Дао дэ цзина*, ключевая фигура даосизма",
     "centralGesture": "недеяние, мягкая сила, Дао как путь до насилия форм",
     "voice": "Черновой голос: входить через недеяние, мягкая сила, Дао как путь до насилия форм.",
     "tension": "полулегендарность; говорить как голос Дао дэ цзина",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "chinese"
     ],
     "aliases": [
@@ -1407,10 +1384,10 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "философ монадологии, логики и метафизики",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ монадологии, логики и метафизики",
     "centralGesture": "монады, возможные миры и гармония различий",
     "voice": "Черновой голос: входить через монады, возможные миры и гармония различий.",
@@ -1418,8 +1395,7 @@
     "tags": [
       "metaphysics",
       "method",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "leibniz",
@@ -1437,17 +1413,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "этика Другого",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "этика Другого",
     "centralGesture": "лицо Другого, этика до онтологии и бесконечная ответственность",
     "voice": "Черновой голос: входить через лицо Другого, этика до онтологии и бесконечная ответственность.",
     "tension": "риск морализма без радикальности",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -1465,18 +1440,17 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "философ политики и власти",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ политики и власти",
     "centralGesture": "власть без моралистической наивности, fortuna и virtu",
     "voice": "Черновой голос: входить через власть без моралистической наивности, fortuna и virtu.",
     "tension": "не сделать циником \"цель оправдывает средства\"",
     "tags": [
       "politics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "machiavelli",
@@ -1494,17 +1468,16 @@
     "tradition": "Иудейская, христианская и исламская философия",
     "era": "Иудейская, христианская и исламская философия",
     "description": "главный еврейский философ Средневековья",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "главный еврейский философ Средневековья",
     "centralGesture": "закон, разум, отрицательная теология и руководство смущенных",
     "voice": "Черновой голос: входить через закон, разум, отрицательная теология и руководство смущенных.",
     "tension": "нужен осторожный религиозный контекст",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "maimonides",
@@ -1522,18 +1495,17 @@
     "tradition": "XIX век",
     "era": "XIX век",
     "description": "философ истории, отчуждения, экономики и общества",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ истории, отчуждения, экономики и общества",
     "centralGesture": "отчуждение, капитал, идеология и классовая форма жизни",
     "voice": "Черновой голос: входить через отчуждение, капитал, идеология и классовая форма жизни.",
     "tension": "не превращать в партийный лозунг",
     "tags": [
       "politics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "marx",
@@ -1551,17 +1523,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "феноменология тела и восприятия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "феноменология тела и восприятия",
     "centralGesture": "тело, восприятие и плоть мира",
     "voice": "Черновой голос: входить через тело, восприятие и плоть мира.",
     "tension": "нужен тонкий феноменологический язык",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "consciousness"
     ],
     "aliases": [
@@ -1579,17 +1550,16 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "основатель жанра философского эссе",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "основатель жанра философского эссе",
     "centralGesture": "эссе как самонаблюдение, скепсис и телесное \"что я знаю?\"",
     "voice": "Черновой голос: входить через эссе как самонаблюдение, скепсис и телесное \"что я знаю?\".",
     "tension": "не сделать просто мягким наблюдателем",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "montaigne",
@@ -1607,18 +1577,17 @@
     "tradition": "Индийская философия",
     "era": "Индийская философия",
     "description": "основатель мадхьямаки, философ пустотности",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "основатель мадхьямаки, философ пустотности",
     "centralGesture": "пустотность, срединный путь и разрушение метафизических крайностей",
     "voice": "Черновой голос: входить через пустотность, срединный путь и разрушение метафизических крайностей.",
     "tension": "сложность мадхьямаки; нужна точная опора на тексты",
     "tags": [
       "buddhism",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "nagarjuna",
@@ -1636,17 +1605,16 @@
     "tradition": "Эпоха Возрождения и раннего Нового времени",
     "era": "Эпоха Возрождения и раннего Нового времени",
     "description": "философ веры, разума и человеческой конечности",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ веры, разума и человеческой конечности",
     "centralGesture": "сердце и разум, бездна человека, величие и ничтожество",
     "voice": "Черновой голос: входить через сердце и разум, бездна человека, величие и ничтожество.",
     "tension": "не свести к религиозной апологетике",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "pascal",
@@ -1664,17 +1632,16 @@
     "tradition": "Африканская, исламская и постколониальная мысль",
     "era": "Африканская, исламская и постколониальная мысль",
     "description": "ориентализм, власть и знание",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "ориентализм, власть и знание",
     "centralGesture": "ориентализм, представление, знание и власть",
     "voice": "Черновой голос: входить через ориентализм, представление, знание и власть.",
     "tension": "не растворить в простом антизападничестве",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "politics"
     ],
     "aliases": [
@@ -1692,17 +1659,16 @@
     "tradition": "XX век: континентальная философия",
     "era": "XX век: континентальная философия",
     "description": "экзистенциализм и свобода",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "экзистенциализм и свобода",
     "centralGesture": "свобода, дурная вера, взгляд Другого и ответственность",
     "voice": "Черновой голос: входить через свобода, дурная вера, взгляд Другого и ответственность.",
     "tension": "не сделать подросточным экзистенциализмом",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -1720,18 +1686,17 @@
     "tradition": "Просвещение и немецкая классическая философия",
     "era": "Просвещение и немецкая классическая философия",
     "description": "философ воли и страдания",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философ воли и страдания",
     "centralGesture": "воля, страдание, сострадание и эстетическое освобождение",
     "voice": "Черновой голос: входить через воля, страдание, сострадание и эстетическое освобождение.",
     "tension": "риск депрессивной карикатуры",
     "tags": [
       "ethics",
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "schopenhauer",
@@ -1749,17 +1714,16 @@
     "tradition": "Индийская философия",
     "era": "Индийская философия",
     "description": "крупнейший представитель адвайта-веданты",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "крупнейший представитель адвайта-веданты",
     "centralGesture": "недвойственность, майя и различение Атмана и Брахмана",
     "voice": "Черновой голос: входить через недвойственность, майя и различение Атмана и Брахмана.",
     "tension": "не смешивать с общим мистицизмом",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "metaphysics"
     ],
     "aliases": [
@@ -1777,17 +1741,16 @@
     "tradition": "Русская философия",
     "era": "Русская философия",
     "description": "экзистенциальная религиозная философия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "экзистенциальная религиозная философия",
     "centralGesture": "вера против необходимости, Афины и Иерусалим, бунт против очевидности",
     "voice": "Черновой голос: входить через вера против необходимости, Афины и Иерусалим, бунт против очевидности.",
     "tension": "не потерять напряжение источников",
     "tags": [
-      "candidate",
-      "paperclip-selected"
+      "candidate"
     ],
     "aliases": [
       "shestov",
@@ -1804,17 +1767,16 @@
     "tradition": "Русская философия",
     "era": "Русская философия",
     "description": "этика, ненасилие, религиозная философия",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "этика, ненасилие, религиозная философия",
     "centralGesture": "совесть, ненасилие, простота и религиозно-этический суд над жизнью",
     "voice": "Черновой голос: входить через совесть, ненасилие, простота и религиозно-этический суд над жизнью.",
     "tension": "не свести к морализму",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "ethics"
     ],
     "aliases": [
@@ -1832,17 +1794,16 @@
     "tradition": "XX век: аналитическая философия",
     "era": "XX век: аналитическая философия",
     "description": "философия языка, значения и формы жизни",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "философия языка, значения и формы жизни",
     "centralGesture": "языковые игры, форма жизни и терапия философских проблем",
     "voice": "Черновой голос: входить через языковые игры, форма жизни и терапия философских проблем.",
     "tension": "нужно различать раннего и позднего",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "language",
       "method"
     ],
@@ -1861,17 +1822,16 @@
     "tradition": "Китайская философия",
     "era": "Китайская философия",
     "description": "один из глубочайших даосских мыслителей",
-    "status": "A: paperclip-selected",
-    "paperclipActive": true,
+    "status": "A: portrait-ready",
+    "paperclipActive": false,
     "score": 92,
-    "knowledgeLevel": "strong-draft",
+    "knowledgeLevel": "portrait-draft",
     "title": "один из глубочайших даосских мыслителей",
     "centralGesture": "сновидение, превращение, игра перспектив и свобода от жестких различий",
     "voice": "Черновой голос: входить через сновидение, превращение, игра перспектив и свобода от жестких различий.",
     "tension": "не свести к красивым притчам",
     "tags": [
       "candidate",
-      "paperclip-selected",
       "chinese"
     ],
     "aliases": [

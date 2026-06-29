@@ -18,12 +18,14 @@ const PROFILE_YAML_PATH = path.join(PROFILE_DIR, "profile.yaml");
 const PLUGIN_SOURCE = path.join(ROOT, "hermes-plugins", "inner-agora-commands");
 const PLUGIN_TARGET = path.join(PROFILE_DIR, "plugins", "inner-agora-commands");
 const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
+const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const HERMES_BASE_URL = process.env.INNER_AGORA_HERMES_BASE_URL || "http://192.168.1.229:1234/v1";
 
 function configTemplate() {
   return `model:
   provider: custom
-  default: google/gemma-4-26b-a4b-qat
-  base_url: http://192.168.1.229:1234/v1
+  default: ${HERMES_MODEL}
+  base_url: ${HERMES_BASE_URL}
   api_key: no-key-required
   context_length: 131072
   api_mode: chat_completions
@@ -66,31 +68,43 @@ mcp_discovery_timeout: 1.5
 `;
 }
 
-function transformConfig(text) {
+function setNestedYamlValue(text, section, key, value) {
   const lines = text.split(/\r?\n/);
-  let inTerminal = false;
-  let replacedCwd = false;
-  const next = [];
+  const sectionLine = `${section}:`;
+  let start = lines.findIndex((line) => line.trim() === sectionLine && !/^\s/.test(line));
 
-  for (const line of lines) {
-    if (/^\S/.test(line)) inTerminal = line.trim() === "terminal:";
-    if (inTerminal && /^\s+cwd:\s*/.test(line)) {
-      next.push(`  cwd: ${ROOT}`);
-      replacedCwd = true;
-    } else {
-      next.push(line);
+  if (start === -1) {
+    if (lines.at(-1) === "") lines.pop();
+    lines.push(sectionLine, `  ${key}: ${value}`, "");
+    return lines.join("\n");
+  }
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^\S/.test(lines[index])) {
+      end = index;
+      break;
     }
   }
 
-  if (!replacedCwd) {
-    next.push("");
-    next.push("terminal:");
-    next.push("  backend: local");
-    next.push(`  cwd: ${ROOT}`);
-    next.push("  timeout: 180");
+  for (let index = start + 1; index < end; index += 1) {
+    if (new RegExp(`^\\s+${key}:\\s*`).test(lines[index])) {
+      lines[index] = `  ${key}: ${value}`;
+      return lines.join("\n");
+    }
   }
 
-  return ensurePluginConfig(`${next.join("\n").trim()}\n`);
+  lines.splice(end, 0, `  ${key}: ${value}`);
+  return lines.join("\n");
+}
+
+function transformConfig(text) {
+  let next = `${text.trim()}\n`;
+  next = setNestedYamlValue(next, "model", "default", HERMES_MODEL);
+  next = setNestedYamlValue(next, "model", "base_url", HERMES_BASE_URL);
+  next = setNestedYamlValue(next, "agent", "reasoning_effort", "none");
+  next = setNestedYamlValue(next, "terminal", "cwd", ROOT);
+  return ensurePluginConfig(`${next.trim()}\n`);
 }
 
 function ensurePluginConfig(text) {

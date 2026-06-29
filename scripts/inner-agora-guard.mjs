@@ -15,6 +15,7 @@ const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const PLUGIN_PATH = path.join(PROFILE_DIR, "plugins", "inner-agora-commands", "plugin.yaml");
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
+const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const JSON_OUTPUT = process.argv.includes("--json");
 const FIX = process.argv.includes("--fix");
 
@@ -118,6 +119,9 @@ function checkFiles(summary) {
   if (!config) record(summary, "error", "Hermes config.yaml is missing", { path: CONFIG_PATH });
   if (cwd !== ROOT) record(summary, "warn", `Hermes terminal.cwd is ${cwd || "(missing)"}, expected ${ROOT}`);
   if (!model) record(summary, "warn", "Hermes model.default is missing");
+  if (model && model !== EXPECTED_HERMES_MODEL) {
+    record(summary, "warn", `Hermes model.default is ${model}, expected ${EXPECTED_HERMES_MODEL}`);
+  }
   if (reasoning && reasoning !== "none") record(summary, "warn", `Hermes reasoning_effort is ${reasoning}, expected none`);
   if (soulBytes === null) record(summary, "error", "Hermes SOUL.md is missing", { path: SOUL_PATH });
   if (memoryBytes === null) record(summary, "warn", "Hermes MEMORY.md is missing", { path: MEMORY_PATH });

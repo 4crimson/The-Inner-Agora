@@ -24,6 +24,14 @@ function writeFile(filePath, content) {
   fs.writeFileSync(filePath, `${content.replace(/\s+$/u, "")}\n`, "utf8");
 }
 
+function removeIfGenerated(filePath, marker) {
+  if (!fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf8");
+  if (!content.includes(marker)) return false;
+  fs.rmSync(filePath);
+  return true;
+}
+
 function languagePolicy() {
   return [
     "ОБЯЗАТЕЛЬНАЯ ЯЗЫКОВАЯ ПОЛИТИКА:",
@@ -371,6 +379,12 @@ function main() {
       writeFile(path.join(ACTIVE_PROMPTS_DIR, `${item.key}.md`), activePromptMarkdown(item));
       writeFile(path.join(ACTIVE_RESEARCH_DIR, `${item.key}.md`), researchMarkdown(item));
     }
+  }
+
+  for (const item of candidates) {
+    if (item.paperclipActive || item.existingActive) continue;
+    removeIfGenerated(path.join(ACTIVE_PROMPTS_DIR, `${item.key}.md`), "Draft v0 из candidate bank");
+    removeIfGenerated(path.join(ACTIVE_RESEARCH_DIR, `${item.key}.md`), "Черновое досье создано из большого candidate bank");
   }
 
   writeFile(ACTIVE_PATH, JSON.stringify(mergedActive, null, 2));

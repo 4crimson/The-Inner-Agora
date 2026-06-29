@@ -167,11 +167,10 @@ socrates, plato, aristotle, parmenides, pyrrho, epicurus,
 diogenes, epictetus, marcus-aurelius, plotinus, augustine, aquinas,
 cusanus, descartes, spinoza, rousseau, kant, hegel,
 nietzsche, heidegger, barthes, baudrillard, deleuze,
-foucault, dugin, buddha, confucius, laozi, zhuangzi,
-nagarjuna, shankara, avicenna, al-ghazali, averroes,
-machiavelli, hobbes, hume, marx, wittgenstein, arendt,
-derrida, dostoevsky, bakhtin
+foucault, dugin
 ```
+
+Расширенный список лежит в `philosophers/candidates/`, но эти кандидаты не импортируются в Paperclip, пока мы не включим их осознанно.
 
 ## Hermes
 
@@ -188,6 +187,9 @@ inneragora gateway status
 ```
 
 Сейчас профиль `inneragora` настроен как отдельный Telegram gateway. Токен хранится локально в `~/.hermes/profiles/inneragora/.env` и не входит в git.
+
+Для стабильной работы через LM Studio держи reasoning/thinking выключенным в настройках модели:
+`Enable Thinking = off`, `Preserve Thinking = off`. Проектный Hermes-профиль также проверяет, что `reasoning_effort: none` и модель по умолчанию `google/gemma-4-26b-a4b-qat`.
 
 Telegram slash-команды используют `_`, потому что Telegram не принимает дефисы в именах команд:
 

@@ -3,8 +3,8 @@
 В Paperclip импортируется только `data/philosophers.json`. Этот файл фиксирует, кто из большого банка туда добавлен.
 
 - Total candidates: 163
-- Paperclip active after expansion: 65
-- Candidate-only / reference pool: 98
+- Paperclip active after expansion: 25
+- Candidate-only / reference pool: 138
 
 ## Active
 
@@ -35,51 +35,51 @@
 | `rousseau` | Руссо | 100 | active |
 | `socrates` | Сократ | 100 | active |
 | `spinoza` | Спиноза | 100 | active |
-| `al-ghazali` | Аль-Газали | 92 | A: paperclip-selected |
-| `arendt` | Ханна Арендт | 92 | A: paperclip-selected |
-| `averroes` | Ибн Рушд / Аверроэс | 92 | A: paperclip-selected |
-| `avicenna` | Ибн Сина / Авиценна | 92 | A: paperclip-selected |
-| `bakhtin` | Михаил Бахтин | 92 | A: paperclip-selected |
-| `beauvoir` | Симона де Бовуар | 92 | A: paperclip-selected |
-| `berdyaev` | Николай Бердяев | 92 | A: paperclip-selected |
-| `bergson` | Анри Бергсон | 92 | A: paperclip-selected |
-| `buddha` | Гаутама Будда | 92 | A: paperclip-selected |
-| `camus` | Альбер Камю | 92 | A: paperclip-selected |
-| `confucius` | Конфуций | 92 | A: paperclip-selected |
-| `derrida` | Жак Деррида | 92 | A: paperclip-selected |
-| `dogen` | Догэн | 92 | A: paperclip-selected |
-| `dostoevsky` | Фёдор Достоевский | 92 | A: paperclip-selected |
-| `fanon` | Франц Фанон | 92 | A: paperclip-selected |
-| `freire` | Паулу Фрейре | 92 | A: paperclip-selected |
-| `hobbes` | Томас Гоббс | 92 | A: paperclip-selected |
-| `hume` | Дэвид Юм | 92 | A: paperclip-selected |
-| `husserl` | Эдмунд Гуссерль | 92 | A: paperclip-selected |
-| `ibn-arabi` | Ибн Араби | 92 | A: paperclip-selected |
-| `ibn-khaldun` | Ибн Хальдун | 92 | A: paperclip-selected |
-| `kierkegaard` | Сёрен Кьеркегор | 92 | A: paperclip-selected |
-| `laozi` | Лао-цзы | 92 | A: paperclip-selected |
-| `leibniz` | Готфрид Вильгельм Лейбниц | 92 | A: paperclip-selected |
-| `levinas` | Эммануэль Левинас | 92 | A: paperclip-selected |
-| `machiavelli` | Никколо Макиавелли | 92 | A: paperclip-selected |
-| `maimonides` | Маймонид | 92 | A: paperclip-selected |
-| `marx` | Карл Маркс | 92 | A: paperclip-selected |
-| `merleau-ponty` | Морис Мерло-Понти | 92 | A: paperclip-selected |
-| `montaigne` | Мишель де Монтень | 92 | A: paperclip-selected |
-| `nagarjuna` | Нагарджуна | 92 | A: paperclip-selected |
-| `pascal` | Блез Паскаль | 92 | A: paperclip-selected |
-| `said` | Эдвард Саид | 92 | A: paperclip-selected |
-| `sartre` | Жан-Поль Сартр | 92 | A: paperclip-selected |
-| `schopenhauer` | Артур Шопенгауэр | 92 | A: paperclip-selected |
-| `shankara` | Шанкара / Ади Шанкарачарья | 92 | A: paperclip-selected |
-| `shestov` | Лев Шестов | 92 | A: paperclip-selected |
-| `tolstoy` | Лев Толстой | 92 | A: paperclip-selected |
-| `wittgenstein` | Людвиг Витгенштейн | 92 | A: paperclip-selected |
-| `zhuangzi` | Чжуан-цзы | 92 | A: paperclip-selected |
 
 ## Candidate-only
 
 | Key | Name | Score | Status |
 |-----|------|-------|--------|
+| `al-ghazali` | Аль-Газали | 92 | A: portrait-ready |
+| `arendt` | Ханна Арендт | 92 | A: portrait-ready |
+| `averroes` | Ибн Рушд / Аверроэс | 92 | A: portrait-ready |
+| `avicenna` | Ибн Сина / Авиценна | 92 | A: portrait-ready |
+| `bakhtin` | Михаил Бахтин | 92 | A: portrait-ready |
+| `beauvoir` | Симона де Бовуар | 92 | A: portrait-ready |
+| `berdyaev` | Николай Бердяев | 92 | A: portrait-ready |
+| `bergson` | Анри Бергсон | 92 | A: portrait-ready |
+| `buddha` | Гаутама Будда | 92 | A: portrait-ready |
+| `camus` | Альбер Камю | 92 | A: portrait-ready |
+| `confucius` | Конфуций | 92 | A: portrait-ready |
+| `derrida` | Жак Деррида | 92 | A: portrait-ready |
+| `dogen` | Догэн | 92 | A: portrait-ready |
+| `dostoevsky` | Фёдор Достоевский | 92 | A: portrait-ready |
+| `fanon` | Франц Фанон | 92 | A: portrait-ready |
+| `freire` | Паулу Фрейре | 92 | A: portrait-ready |
+| `hobbes` | Томас Гоббс | 92 | A: portrait-ready |
+| `hume` | Дэвид Юм | 92 | A: portrait-ready |
+| `husserl` | Эдмунд Гуссерль | 92 | A: portrait-ready |
+| `ibn-arabi` | Ибн Араби | 92 | A: portrait-ready |
+| `ibn-khaldun` | Ибн Хальдун | 92 | A: portrait-ready |
+| `kierkegaard` | Сёрен Кьеркегор | 92 | A: portrait-ready |
+| `laozi` | Лао-цзы | 92 | A: portrait-ready |
+| `leibniz` | Готфрид Вильгельм Лейбниц | 92 | A: portrait-ready |
+| `levinas` | Эммануэль Левинас | 92 | A: portrait-ready |
+| `machiavelli` | Никколо Макиавелли | 92 | A: portrait-ready |
+| `maimonides` | Маймонид | 92 | A: portrait-ready |
+| `marx` | Карл Маркс | 92 | A: portrait-ready |
+| `merleau-ponty` | Морис Мерло-Понти | 92 | A: portrait-ready |
+| `montaigne` | Мишель де Монтень | 92 | A: portrait-ready |
+| `nagarjuna` | Нагарджуна | 92 | A: portrait-ready |
+| `pascal` | Блез Паскаль | 92 | A: portrait-ready |
+| `said` | Эдвард Саид | 92 | A: portrait-ready |
+| `sartre` | Жан-Поль Сартр | 92 | A: portrait-ready |
+| `schopenhauer` | Артур Шопенгауэр | 92 | A: portrait-ready |
+| `shankara` | Шанкара / Ади Шанкарачарья | 92 | A: portrait-ready |
+| `shestov` | Лев Шестов | 92 | A: portrait-ready |
+| `tolstoy` | Лев Толстой | 92 | A: portrait-ready |
+| `wittgenstein` | Людвиг Витгенштейн | 92 | A: portrait-ready |
+| `zhuangzi` | Чжуан-цзы | 92 | A: portrait-ready |
 | `al-farabi` | Аль-Фараби | 82 | A: portrait-ready |
 | `butler` | Джудит Батлер | 82 | A: portrait-ready |
 | `fedorov` | Николай Фёдоров | 82 | A: portrait-ready |
