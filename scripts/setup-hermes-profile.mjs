@@ -15,7 +15,8 @@ const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const PROFILE_YAML_PATH = path.join(PROFILE_DIR, "profile.yaml");
-const PLUGINS = ["inner-agora-commands", "paperclip-commands"].map((name) => ({
+const DEPRECATED_PLUGINS = ["paperclip-commands"];
+const PLUGINS = ["inner-agora-commands", "paperclip-cockpit"].map((name) => ({
   name,
   source: path.join(ROOT, "hermes-plugins", name),
   target: path.join(PROFILE_DIR, "plugins", name),
@@ -151,6 +152,7 @@ Preferred deterministic slash commands:
 /pc task ISSUE
 /pc comments ISSUE
 /pc move ISSUE STATUS
+/pc capabilities
 /agora_prepare [local|balanced|max]
 /agora_status
 /agora_philosophers
@@ -165,7 +167,7 @@ Preferred deterministic slash commands:
 /agora_guard
 \`\`\`
 
-\`/pc\` is the universal Paperclip control surface. \`/agora_*\` is the project-specific philosophical layer.
+\`/pc\` is the universal Paperclip Cockpit control surface. Reads are safe by default; \`/pc move\` requires \`PAPERCLIP_COCKPIT_ENABLE_WRITES=1\`. \`/agora_*\` is the project-specific philosophical layer.
 
 Russian prompt-routed commands:
 
@@ -255,6 +257,9 @@ function main() {
   for (const plugin of PLUGINS) {
     fs.rmSync(plugin.target, { recursive: true, force: true });
     fs.cpSync(plugin.source, plugin.target, { recursive: true });
+  }
+  for (const name of DEPRECATED_PLUGINS) {
+    fs.rmSync(path.join(PROFILE_DIR, "plugins", name), { recursive: true, force: true });
   }
 
   writeFileIfChanged(WRAPPER_PATH, `#!/bin/sh\nexec hermes -p ${PROFILE_NAME} "$@"\n`, 0o755);

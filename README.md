@@ -202,6 +202,7 @@ Telegram slash-команды используют `_`, потому что Tele
 /pc task ISSUE
 /pc comments ISSUE
 /pc move ISSUE STATUS
+/pc capabilities
 /agora help
 /agora philosophers
 /agora status
@@ -221,7 +222,7 @@ Telegram slash-команды используют `_`, потому что Tele
 /agora_guard
 ```
 
-`/pc` — универсальный Paperclip-интерфейс для Telegram. Он не зависит от The Inner Agora и может жить в других Hermes-профилях: список организаций, сотрудники, задачи, карточка задачи, комментарии, смена статуса. `/agora` и `/agora_*` — слой специфичный для философского совета.
+`/pc` — универсальный Paperclip Cockpit-интерфейс для Telegram. Он не зависит от The Inner Agora и может жить в других Hermes-профилях: список организаций, сотрудники, задачи, карточка задачи, комментарии, смена статуса. Запись через `/pc move` выключена по умолчанию и включается переменной `PAPERCLIP_COCKPIT_ENABLE_WRITES=1`. `/agora` и `/agora_*` — слой специфичный для философского совета.
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
 
@@ -237,7 +238,7 @@ node --check scripts/import-inner-agora.mjs
 node --check scripts/setup-hermes-profile.mjs
 node --check scripts/inner-agora-guard.mjs
 python3 -m py_compile hermes-plugins/inner-agora-commands/__init__.py
-python3 -m py_compile hermes-plugins/paperclip-commands/__init__.py
+python3 -m py_compile hermes-plugins/paperclip-cockpit/__init__.py
 node scripts/inner-agora-guard.mjs
 node scripts/agora.mjs council --dry-run "Что такое свобода?"
 node scripts/agora.mjs ask --dry-run --philosophers socrates,kant,foucault "Что такое свобода?"

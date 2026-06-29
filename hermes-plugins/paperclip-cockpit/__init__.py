@@ -12,37 +12,40 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+PLUGIN_NAME = "paperclip-cockpit"
+VERSION = "0.1.0"
+
 API_BASE = os.environ.get("PAPERCLIP_API_BASE", "http://127.0.0.1:3100/api").rstrip("/")
+PUBLIC_BASE = os.environ.get("PAPERCLIP_PUBLIC_BASE", API_BASE.removesuffix("/api")).rstrip("/")
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+
 TASK_STATUSES = {"todo", "in_progress", "blocked", "done", "cancelled"}
 OPEN_STATUSES = {"todo", "in_progress", "blocked"}
-
-PC_HELP = """Usage:
-/pc help
-/pc companies
-/pc health
-/pc agents [--company NAME]
-/pc tasks [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
-/pc task ISSUE
-/pc comments ISSUE
-/pc move ISSUE <todo|in_progress|blocked|done|cancelled>
-
-Short aliases:
-/pc orgs
-/pc people
-/pc list
-/pc t ISSUE
-/pc m ISSUE STATUS
-
-Company selection:
-- env PAPERCLIP_DEFAULT_COMPANY or PAPERCLIP_COMPANY_NAME
-- otherwise Hermes terminal.cwd is fuzzy-matched to a Paperclip company
-- pass --company "Company Name" when needed
-"""
+ISSUE_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,12}-\d+)\b", re.IGNORECASE)
 
 
 class PaperclipError(RuntimeError):
     pass
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _env_csv(name: str) -> set[str]:
+    raw = os.environ.get(name, "")
+    return {item.strip().casefold() for item in raw.split(",") if item.strip()}
+
+
+def _writes_enabled() -> bool:
+    return _env_bool("PAPERCLIP_COCKPIT_ENABLE_WRITES", False)
+
+
+def _nl_writes_enabled() -> bool:
+    return _env_bool("PAPERCLIP_COCKPIT_NL_WRITES", False)
 
 
 def _clip(text: str, limit: int = 12000) -> str:
@@ -200,6 +203,19 @@ def _agent_name(agent_by_id: dict[str, dict[str, Any]], agent_id: str | None) ->
     return str(agent.get("name", agent_id)) if agent else str(agent_id)
 
 
+def _issue_ref(raw_args: str) -> str:
+    match = ISSUE_RE.search(raw_args or "")
+    if match:
+        return match.group(1).upper()
+    words = _parse_words(raw_args)
+    return words[0] if words else ""
+
+
+def _issue_url(issue: dict[str, Any]) -> str:
+    issue_id = issue.get("id") or issue.get("identifier") or ""
+    return f"{PUBLIC_BASE}/issues/{issue_id}"
+
+
 def _format_companies(companies: list[dict[str, Any]]) -> str:
     lines = ["# Paperclip companies"]
     for company in sorted(companies, key=lambda item: str(item.get("name", "")).casefold()):
@@ -207,6 +223,38 @@ def _format_companies(companies: list[dict[str, Any]]) -> str:
         status = company.get("status") or "unknown"
         lines.append(f"- {company.get('name')} ({prefix}) status={status} id={_compact_id(company.get('id'))}")
     return "\n".join(lines)
+
+
+def _help(_: str = "") -> str:
+    writes = "enabled" if _writes_enabled() else "disabled"
+    nl_writes = "enabled" if _nl_writes_enabled() else "disabled"
+    return f"""Usage:
+/pc help
+/pc companies
+/pc health
+/pc agents [--company NAME]
+/pc tasks [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
+/pc task ISSUE
+/pc comments ISSUE
+/pc move ISSUE <todo|in_progress|blocked|done|cancelled>
+/pc capabilities
+
+Aliases:
+/pc orgs
+/pc people
+/pc list
+/pc t ISSUE
+/pc m ISSUE STATUS
+
+Safety:
+- slash-command writes: {writes}
+- natural-language writes: {nl_writes}
+
+Company selection:
+- env PAPERCLIP_DEFAULT_COMPANY or PAPERCLIP_COMPANY_NAME
+- otherwise Hermes terminal.cwd is fuzzy-matched to a Paperclip company
+- pass --company "Company Name" when needed
+"""
 
 
 def _health(_: str) -> str:
@@ -274,9 +322,9 @@ def _tasks_cmd(raw_args: str) -> str:
 
 
 def _task_cmd(raw_args: str) -> str:
-    issue_ref = raw_args.strip()
+    issue_ref = _issue_ref(raw_args)
     if not issue_ref:
-        return "Usage: /pc_task ISSUE"
+        return "Usage: /pc task ISSUE"
     issue = _api(f"/issues/{issue_ref}")
     agents = _api(f"/companies/{issue['companyId']}/agents")
     agent_by_id = {agent["id"]: agent for agent in agents}
@@ -287,7 +335,7 @@ def _task_cmd(raw_args: str) -> str:
         f"- priority: {issue.get('priority') or '-'}",
         f"- assignee: {_agent_name(agent_by_id, issue.get('assigneeAgentId'))}",
         f"- parent: {issue.get('parentId') or '-'}",
-        f"- url: http://127.0.0.1:3100/issues/{issue.get('id')}",
+        f"- url: {_issue_url(issue)}",
         "",
         "## Description",
         _clip(issue.get("description") or "", 2000) or "-",
@@ -303,9 +351,9 @@ def _task_cmd(raw_args: str) -> str:
 
 
 def _comments_cmd(raw_args: str) -> str:
-    issue_ref = raw_args.strip()
+    issue_ref = _issue_ref(raw_args)
     if not issue_ref:
-        return "Usage: /pc_comments ISSUE"
+        return "Usage: /pc comments ISSUE"
     issue = _api(f"/issues/{issue_ref}")
     comments = [item for item in _api(f"/issues/{issue['id']}/comments") if not item.get("deletedAt")]
     lines = [f"# Comments: {issue.get('identifier') or issue.get('id')}", issue.get("title") or ""]
@@ -317,9 +365,14 @@ def _comments_cmd(raw_args: str) -> str:
 
 
 def _move_cmd(raw_args: str) -> str:
+    if not _writes_enabled():
+        return (
+            "Paperclip writes are disabled. Set PAPERCLIP_COCKPIT_ENABLE_WRITES=1 "
+            "in the Hermes environment to enable /pc move."
+        )
     words = _parse_words(raw_args)
     if len(words) != 2 or words[1] not in TASK_STATUSES:
-        return "Usage: /pc_move ISSUE <todo|in_progress|blocked|done|cancelled>"
+        return "Usage: /pc move ISSUE <todo|in_progress|blocked|done|cancelled>"
     issue_ref, next_status = words
     issue = _api(f"/issues/{issue_ref}")
     old_status = issue.get("status")
@@ -330,30 +383,45 @@ def _move_cmd(raw_args: str) -> str:
         _api(
             f"/issues/{issue['id']}/comments",
             method="POST",
-            body={"body": f"Status changed via Paperclip Telegram bridge: {old_status} -> {next_status}."},
+            body={"body": f"Status changed via Paperclip Cockpit: {old_status} -> {next_status}."},
         )
     except Exception as exc:
         logger.info("Paperclip comment after move failed: %s", exc)
     ident = updated.get("identifier") or issue.get("identifier") or issue.get("id")
-    return f"Moved {ident}: {old_status} -> {next_status}\nOpen: http://127.0.0.1:3100/issues/{issue['id']}"
+    return f"Moved {ident}: {old_status} -> {next_status}\nOpen: {_issue_url(issue)}"
+
+
+def _capabilities_cmd(_: str) -> str:
+    lines = [
+        "# Paperclip Cockpit capabilities",
+        f"- plugin: {PLUGIN_NAME} {VERSION}",
+        f"- api_base: {API_BASE}",
+        f"- profile: {HERMES_HOME}",
+        f"- default_company_hints: {', '.join(_company_hints()) or '-'}",
+        f"- natural_language_rewrite: {_env_bool('PAPERCLIP_COCKPIT_NL_REWRITE', True)}",
+        f"- slash_command_writes: {_writes_enabled()}",
+        f"- natural_language_writes: {_nl_writes_enabled()}",
+        f"- explicit_commands_registered: {_env_bool('PAPERCLIP_COCKPIT_REGISTER_EXPLICIT', False)}",
+    ]
+    return "\n".join(lines)
 
 
 def _router(raw_args: str) -> str:
     raw = raw_args.strip()
     if not raw:
-        return PC_HELP.strip()
+        return _help().strip()
     words = _parse_words(raw)
     head = words[0].casefold()
     tail = " ".join(words[1:]).strip()
 
     try:
         if head in {"help", "помощь", "commands", "?"}:
-            return PC_HELP.strip()
+            return _help(tail).strip()
         if head in {"health", "ping", "здоровье"}:
             return _health(tail)
         if head in {"companies", "company", "orgs", "org", "организации", "компании"}:
             return _companies_cmd(tail)
-        if head in {"agents", "people", "staff", "агенты", "сотрудники"}:
+        if head in {"agents", "people", "staff", "philosophers", "агенты", "сотрудники", "философы"}:
             return _agents_cmd(tail)
         if head in {"tasks", "issues", "list", "таски", "задачи"}:
             return _tasks_cmd(tail)
@@ -363,10 +431,101 @@ def _router(raw_args: str) -> str:
             return _comments_cmd(tail)
         if head in {"move", "m", "двинь", "перемести"}:
             return _move_cmd(tail)
+        if head in {"capabilities", "caps", "config", "settings", "возможности", "настройки"}:
+            return _capabilities_cmd(tail)
     except PaperclipError as exc:
         return str(exc)
 
-    return PC_HELP.strip()
+    return _help().strip()
+
+
+def _contains_any(text: str, needles: set[str]) -> bool:
+    return any(needle in text for needle in needles)
+
+
+def _status_from_text(text: str) -> str:
+    status_aliases = {
+        "todo": {"todo", "to do", "backlog", "новая", "новое", "в план", "в очередь"},
+        "in_progress": {"in_progress", "in progress", "doing", "работа", "в работу", "делается"},
+        "blocked": {"blocked", "block", "заблок", "блок", "стоп"},
+        "done": {"done", "complete", "completed", "закрой", "закрыть", "готово", "сделано", "выполнено"},
+        "cancelled": {"cancelled", "canceled", "cancel", "отмени", "отменить", "отменено"},
+    }
+    for status, aliases in status_aliases.items():
+        if _contains_any(text, aliases):
+            return status
+    return ""
+
+
+def _rewrite_text(text: str) -> str | None:
+    if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
+        return None
+    raw = re.sub(r"\s+", " ", (text or "").strip())
+    if not raw or raw.startswith("/"):
+        return None
+
+    lowered = raw.casefold()
+    issue_match = ISSUE_RE.search(raw)
+    issue_ref = issue_match.group(1).upper() if issue_match else ""
+    pc_marker = _contains_any(lowered, {"paperclip", "пеперклип", "перклип", "pc", "пер клип"})
+
+    if issue_ref and _nl_writes_enabled() and _contains_any(lowered, {"move", "перемести", "двинь", "поставь", "закрой", "отмени"}):
+        status = _status_from_text(lowered)
+        if status:
+            return f"/pc move {issue_ref} {status}"
+
+    if issue_ref and _contains_any(lowered, {"comments", "comment", "комменты", "комментарии", "обсуждение"}):
+        return f"/pc comments {issue_ref}"
+
+    if issue_ref and (pc_marker or _contains_any(lowered, {"task", "issue", "задача", "покажи", "что по", "show"})):
+        return f"/pc task {issue_ref}"
+
+    if _contains_any(lowered, {"health", "ping", "статус paperclip", "статус перклип", "работает paperclip", "работает перклип"}):
+        return "/pc health"
+
+    if pc_marker and _contains_any(lowered, {"companies", "orgs", "organizations", "организации", "компании"}):
+        return "/pc companies"
+
+    if _contains_any(lowered, {"paperclip companies", "paperclip orgs", "перклип организации", "пеперклип организации"}):
+        return "/pc companies"
+
+    if _contains_any(lowered, {"agents", "people", "staff", "агенты", "сотрудники"}) or (
+        pc_marker and _contains_any(lowered, {"философ", "кто в организации", "состав"})
+    ):
+        return "/pc agents"
+
+    if _contains_any(lowered, {"tasks", "issues", "таски", "задачи"}) or (
+        pc_marker and _contains_any(lowered, {"список дел", "что делать"})
+    ):
+        return "/pc tasks"
+
+    return None
+
+
+def _event_allowed(event: Any) -> bool:
+    allowed_platforms = _env_csv("PAPERCLIP_COCKPIT_ALLOWED_PLATFORMS")
+    allowed_chats = _env_csv("PAPERCLIP_COCKPIT_ALLOWED_CHATS")
+    source = getattr(event, "source", None)
+    platform_obj = getattr(source, "platform", None)
+    platform = getattr(platform_obj, "value", platform_obj)
+    platform_text = str(platform or "").casefold()
+    chat_id = str(getattr(source, "chat_id", "") or "").casefold()
+
+    if allowed_platforms and platform_text not in allowed_platforms:
+        return False
+    if allowed_chats and chat_id not in allowed_chats:
+        return False
+    return True
+
+
+def _pre_gateway_dispatch(event: Any, **_: Any) -> dict[str, str] | None:
+    if not _event_allowed(event):
+        return None
+    rewritten = _rewrite_text(getattr(event, "text", "") or "")
+    if not rewritten:
+        return None
+    logger.info("Paperclip Cockpit rewrote inbound text to %s", rewritten.split()[0])
+    return {"action": "rewrite", "text": rewritten}
 
 
 def _safe(handler: Any, raw_args: str) -> str:
@@ -379,13 +538,7 @@ def _safe(handler: Any, raw_args: str) -> str:
         return f"Paperclip command failed: {exc}"
 
 
-def register(ctx: Any) -> None:
-    ctx.register_command(
-        name="pc",
-        handler=lambda raw: _safe(_router, raw),
-        description="Universal Paperclip command router.",
-        args_hint="<companies|agents|tasks|task|comments|move|health>",
-    )
+def _register_explicit_commands(ctx: Any) -> None:
     ctx.register_command(
         name="pc-companies",
         handler=lambda raw: _safe(_companies_cmd, raw),
@@ -428,3 +581,18 @@ def register(ctx: Any) -> None:
         description="Move a Paperclip task/issue to another status.",
         args_hint="ISSUE <todo|in_progress|blocked|done|cancelled>",
     )
+
+
+def register(ctx: Any) -> None:
+    ctx.register_command(
+        name="pc",
+        handler=lambda raw: _safe(_router, raw),
+        description="Paperclip cockpit: companies, agents, tasks, comments, and safe issue moves.",
+        args_hint="",
+    )
+
+    if _env_bool("PAPERCLIP_COCKPIT_REGISTER_EXPLICIT", False):
+        _register_explicit_commands(ctx)
+
+    if _env_bool("PAPERCLIP_COCKPIT_PRE_GATEWAY", True) and hasattr(ctx, "register_hook"):
+        ctx.register_hook("pre_gateway_dispatch", _pre_gateway_dispatch)
