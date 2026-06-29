@@ -204,6 +204,8 @@ Telegram menu показывает одну команду проекта: `/ago
 
 В `paperclip-cockpit.json` включен `gateway.reset_on_gateway_shutdown`: если Hermes прислал `Gateway shutting down — Your current task will be interrupted` и пометил сессию как interrupted/resume-pending, следующий входящий Telegram-turn начнется с чистого Hermes-контекста, а не с автопродолжения старого.
 
+Для Telegram-профиля `inneragora` отключены toolsets `delegation` и `code_execution`, а авто-review памяти/скиллов выключен через интервалы `0`. Долгие исследования должны создаваться как Paperclip-сессии через `/agora ask`, чтобы у них были видимые issue, а не невидимые фоновые subagents.
+
 ```text
 /agora help
 /agora health
