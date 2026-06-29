@@ -5,8 +5,10 @@ author: The Inner Agora
 hooks: []
 provides:
   commands:
+    - agora
     - agora-prepare
     - agora-status
+    - agora-philosophers
     - agora-tasks
     - agora-task
     - agora-move

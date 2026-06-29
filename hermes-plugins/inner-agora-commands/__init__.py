@@ -12,6 +12,34 @@ logger = logging.getLogger(__name__)
 ROOT = Path("/Users/admin/Documents/The Inner Agora")
 NODE = "node"
 TASK_STATUSES = {"todo", "in_progress", "blocked", "done", "cancelled"}
+AGORA_HELP = """Usage:
+/agora help
+/agora status
+/agora philosophers
+/agora tasks [open|all] [limit]
+/agora task ISSUE
+/agora move ISSUE <todo|in_progress|blocked|done|cancelled>
+/agora council QUESTION
+/agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
+/agora min QUESTION
+/agora max QUESTION
+/agora all QUESTION
+/agora dialogue PHILOSOPHER QUESTION
+/agora synth ISSUE
+/agora memory ISSUE
+/agora guard
+
+Russian aliases:
+/agora статус
+/agora философы
+/agora задачи [все] [limit]
+/agora совет QUESTION
+/agora мин QUESTION
+/agora макс QUESTION
+/agora все QUESTION
+/agora диалог PHILOSOPHER QUESTION
+/agora синтез ISSUE
+"""
 
 
 def _clip(text: str, limit: int = 12000) -> str:
@@ -77,7 +105,129 @@ def _parse_words(raw_args: str) -> list[str]:
         return raw_args.split()
 
 
+def _looks_like_roster_request(raw_args: str) -> bool:
+    text = raw_args.casefold()
+    return any(
+        phrase in text
+        for phrase in [
+            "философ",
+            "кто в перклип",
+            "кто в paperclip",
+            "список",
+            "roster",
+            "philosopher",
+            "paperclip agents",
+        ]
+    )
+
+
+def _strip_head(words: list[str]) -> str:
+    return " ".join(words[1:]).strip()
+
+
 def register(ctx: Any) -> None:
+    def agora(raw_args: str) -> str:
+        raw = raw_args.strip()
+        if not raw:
+            return AGORA_HELP.strip()
+
+        words = _parse_words(raw)
+        head = words[0].casefold() if words else ""
+
+        if head in {"help", "помощь", "команды", "commands", "?"}:
+            return AGORA_HELP.strip()
+
+        if head in {"status", "статус"}:
+            return _agora_script("status")
+
+        if head in {"philosophers", "philosopher", "философы", "агенты", "roster"} or _looks_like_roster_request(raw):
+            return _agora_script("philosophers")
+
+        if head in {"tasks", "задачи"}:
+            tail = words[1:]
+            scope = "all" if tail and tail[0].casefold() in {"all", "все", "всё"} else "open"
+            if tail and tail[0].casefold() in {"all", "open", "все", "всё", "открытые"}:
+                tail = tail[1:]
+            limit = tail[0] if tail else "10"
+            if not limit.isdigit():
+                return "Usage: /agora tasks [open|all] [limit]"
+            return _agora_script("tasks", f"--{scope}", "--limit", limit)
+
+        if head in {"task", "задача"}:
+            issue = _strip_head(words)
+            if not issue:
+                return "Usage: /agora task ISSUE"
+            return _agora_script("task", issue)
+
+        if head in {"move", "двинь", "перемести"}:
+            tail = words[1:]
+            if len(tail) != 2 or tail[1] not in TASK_STATUSES:
+                return "Usage: /agora move ISSUE <todo|in_progress|blocked|done|cancelled>"
+            return _agora_script("move", tail[0], tail[1])
+
+        if head in {"prepare", "подготовь"}:
+            mode = words[1] if len(words) > 1 else "balanced"
+            return _agora_script("prepare", mode, timeout=240)
+
+        if head in {"council", "совет"}:
+            question = _strip_head(words)
+            if not question:
+                return "Usage: /agora council QUESTION"
+            return _agora_script("council", question, timeout=900)
+
+        if head in {"ask", "агора", "вопрос"}:
+            tail = words[1:]
+            if not tail:
+                return "Usage: /agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION"
+            return _agora_script("ask", *tail, timeout=900)
+
+        if head in {"min", "мин", "минимум"}:
+            question = _strip_head(words)
+            if not question:
+                return "Usage: /agora min QUESTION"
+            return _agora_script("ask", "--min", question, timeout=900)
+
+        if head in {"balanced", "balance", "баланс"}:
+            question = _strip_head(words)
+            if not question:
+                return "Usage: /agora balanced QUESTION"
+            return _agora_script("ask", "--balanced", question, timeout=900)
+
+        if head in {"max", "макс", "максимум"}:
+            question = _strip_head(words)
+            if not question:
+                return "Usage: /agora max QUESTION"
+            return _agora_script("ask", "--max", question, timeout=900)
+
+        if head in {"all", "все", "всё"}:
+            question = _strip_head(words)
+            if not question:
+                return "Usage: /agora all QUESTION"
+            return _agora_script("ask", "--all", question, timeout=900)
+
+        if head in {"dialogue", "dialog", "диалог"}:
+            tail = words[1:]
+            if len(tail) < 2:
+                return "Usage: /agora dialogue PHILOSOPHER QUESTION"
+            return _agora_script("dialogue", *tail, timeout=600)
+
+        if head in {"synth", "synthesize", "синтез"}:
+            issue = _strip_head(words)
+            if not issue:
+                return "Usage: /agora synth ISSUE"
+            return _agora_script("synthesize", issue, timeout=900)
+
+        if head in {"memory", "память"}:
+            issue = _strip_head(words)
+            if not issue:
+                return "Usage: /agora memory ISSUE"
+            return _agora_script("export-memory", issue)
+
+        if head in {"guard", "check", "проверка"}:
+            return _guard_script()
+
+        return AGORA_HELP.strip()
+
     def prepare(raw_args: str) -> str:
         words = _parse_words(raw_args)
         mode = words[0] if words else "balanced"
@@ -146,6 +296,12 @@ def register(ctx: Any) -> None:
     def guard(_: str) -> str:
         return _guard_script()
 
+    ctx.register_command(
+        name="agora",
+        handler=agora,
+        description="Route The Inner Agora Paperclip commands through one deterministic command.",
+        args_hint="<help|status|philosophers|tasks|ask|dialogue|synth|memory|guard>",
+    )
     ctx.register_command(
         name="agora-prepare",
         handler=prepare,

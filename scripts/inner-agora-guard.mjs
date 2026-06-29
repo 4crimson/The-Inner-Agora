@@ -13,7 +13,7 @@ const PROFILE_DIR =
 const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
-const PLUGIN_PATH = path.join(PROFILE_DIR, "plugins", "inner-agora-commands", "plugin.yaml");
+const PLUGIN_NAMES = ["inner-agora-commands", "paperclip-commands"];
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
 const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const JSON_OUTPUT = process.argv.includes("--json");
@@ -99,8 +99,15 @@ function checkFiles(summary) {
   const reasoning = nestedYamlValue(config, "agent", "reasoning_effort");
   const soulBytes = fileBytes(SOUL_PATH);
   const memoryBytes = fileBytes(MEMORY_PATH);
-  const pluginExists = fs.existsSync(PLUGIN_PATH);
-  const pluginEnabled = /^\s*-\s+inner-agora-commands\s*$/m.test(config);
+  const plugins = PLUGIN_NAMES.map((name) => {
+    const pluginPath = path.join(PROFILE_DIR, "plugins", name, "plugin.yaml");
+    return {
+      name,
+      path: pluginPath,
+      exists: fs.existsSync(pluginPath),
+      enabled: new RegExp(`^\\s*-\\s+${name}\\s*$`, "m").test(config),
+    };
+  });
 
   summary.config = { model, cwd, reasoning };
   summary.files = {
@@ -110,10 +117,8 @@ function checkFiles(summary) {
     memoryBytes,
   };
   summary.plugin = {
-    ok: pluginExists && pluginEnabled,
-    exists: pluginExists,
-    enabled: pluginEnabled,
-    path: PLUGIN_PATH,
+    ok: plugins.every((plugin) => plugin.exists && plugin.enabled),
+    plugins,
   };
 
   if (!config) record(summary, "error", "Hermes config.yaml is missing", { path: CONFIG_PATH });
@@ -125,8 +130,10 @@ function checkFiles(summary) {
   if (reasoning && reasoning !== "none") record(summary, "warn", `Hermes reasoning_effort is ${reasoning}, expected none`);
   if (soulBytes === null) record(summary, "error", "Hermes SOUL.md is missing", { path: SOUL_PATH });
   if (memoryBytes === null) record(summary, "warn", "Hermes MEMORY.md is missing", { path: MEMORY_PATH });
-  if (!pluginExists) record(summary, "error", "inner-agora-commands plugin is missing", { path: PLUGIN_PATH });
-  if (pluginExists && !pluginEnabled) record(summary, "error", "inner-agora-commands plugin is not enabled");
+  for (const plugin of plugins) {
+    if (!plugin.exists) record(summary, "error", `${plugin.name} plugin is missing`, { path: plugin.path });
+    if (plugin.exists && !plugin.enabled) record(summary, "error", `${plugin.name} plugin is not enabled`);
+  }
 }
 
 function printSummary(summary) {

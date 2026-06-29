@@ -194,6 +194,20 @@ inneragora gateway status
 Telegram slash-команды используют `_`, потому что Telegram не принимает дефисы в именах команд:
 
 ```text
+/pc help
+/pc companies
+/pc health
+/pc agents [--company "Company Name"]
+/pc tasks [--company "Company Name"] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
+/pc task ISSUE
+/pc comments ISSUE
+/pc move ISSUE STATUS
+/agora help
+/agora philosophers
+/agora status
+/agora min QUESTION
+/agora max QUESTION
+/agora dialogue PHILOSOPHER QUESTION
 /agora_prepare
 /agora_status
 /agora_philosophers
@@ -206,6 +220,8 @@ Telegram slash-команды используют `_`, потому что Tele
 /agora_memory THE-3
 /agora_guard
 ```
+
+`/pc` — универсальный Paperclip-интерфейс для Telegram. Он не зависит от The Inner Agora и может жить в других Hermes-профилях: список организаций, сотрудники, задачи, карточка задачи, комментарии, смена статуса. `/agora` и `/agora_*` — слой специфичный для философского совета.
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
 
@@ -221,6 +237,7 @@ node --check scripts/import-inner-agora.mjs
 node --check scripts/setup-hermes-profile.mjs
 node --check scripts/inner-agora-guard.mjs
 python3 -m py_compile hermes-plugins/inner-agora-commands/__init__.py
+python3 -m py_compile hermes-plugins/paperclip-commands/__init__.py
 node scripts/inner-agora-guard.mjs
 node scripts/agora.mjs council --dry-run "Что такое свобода?"
 node scripts/agora.mjs ask --dry-run --philosophers socrates,kant,foucault "Что такое свобода?"

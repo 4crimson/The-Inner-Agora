@@ -1,0 +1,15 @@
+name: paperclip-commands
+version: 0.1.0
+description: "Universal Hermes slash commands for controlling Paperclip companies, agents, tasks, comments, and issue status from Telegram."
+author: The Inner Agora
+hooks: []
+provides:
+  commands:
+    - pc
+    - pc-companies
+    - pc-health
+    - pc-agents
+    - pc-tasks
+    - pc-task
+    - pc-comments
+    - pc-move

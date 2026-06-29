@@ -15,8 +15,11 @@ const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const PROFILE_YAML_PATH = path.join(PROFILE_DIR, "profile.yaml");
-const PLUGIN_SOURCE = path.join(ROOT, "hermes-plugins", "inner-agora-commands");
-const PLUGIN_TARGET = path.join(PROFILE_DIR, "plugins", "inner-agora-commands");
+const PLUGINS = ["inner-agora-commands", "paperclip-commands"].map((name) => ({
+  name,
+  source: path.join(ROOT, "hermes-plugins", name),
+  target: path.join(PROFILE_DIR, "plugins", name),
+}));
 const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
 const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const HERMES_BASE_URL = process.env.INNER_AGORA_HERMES_BASE_URL || "http://192.168.1.229:1234/v1";
@@ -111,7 +114,7 @@ function ensurePluginConfig(text) {
   const pluginBlock = [
     "plugins:",
     "  enabled:",
-    "    - inner-agora-commands",
+    ...PLUGINS.map((plugin) => `    - ${plugin.name}`),
     "  disabled: []",
     "",
   ].join("\n");
@@ -141,6 +144,13 @@ Unknown command = show \`помощь\`. Never reveal secrets.
 Preferred deterministic slash commands:
 
 \`\`\`text
+/pc help
+/pc companies
+/pc agents [--company "Company Name"]
+/pc tasks [--company "Company Name"] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
+/pc task ISSUE
+/pc comments ISSUE
+/pc move ISSUE STATUS
 /agora_prepare [local|balanced|max]
 /agora_status
 /agora_philosophers
@@ -154,6 +164,8 @@ Preferred deterministic slash commands:
 /agora_memory ISSUE
 /agora_guard
 \`\`\`
+
+\`/pc\` is the universal Paperclip control surface. \`/agora_*\` is the project-specific philosophical layer.
 
 Russian prompt-routed commands:
 
@@ -240,8 +252,10 @@ function main() {
     [`name: ${PROFILE_NAME}`, "display_name: The Inner Agora", `root: ${PROFILE_DIR}`, ""].join("\n"),
   );
 
-  fs.rmSync(PLUGIN_TARGET, { recursive: true, force: true });
-  fs.cpSync(PLUGIN_SOURCE, PLUGIN_TARGET, { recursive: true });
+  for (const plugin of PLUGINS) {
+    fs.rmSync(plugin.target, { recursive: true, force: true });
+    fs.cpSync(plugin.source, plugin.target, { recursive: true });
+  }
 
   writeFileIfChanged(WRAPPER_PATH, `#!/bin/sh\nexec hermes -p ${PROFILE_NAME} "$@"\n`, 0o755);
   fs.chmodSync(WRAPPER_PATH, 0o755);
@@ -251,7 +265,7 @@ function main() {
   console.log(`Dir: ${PROFILE_DIR}`);
   console.log(`Config: ${CONFIG_PATH}`);
   console.log(`SOUL: ${SOUL_PATH}`);
-  console.log(`Plugin: ${PLUGIN_TARGET}`);
+  for (const plugin of PLUGINS) console.log(`Plugin: ${plugin.target}`);
   console.log(`Wrapper: ${WRAPPER_PATH}`);
   console.log("");
   console.log("Telegram/env secrets were not copied automatically.");

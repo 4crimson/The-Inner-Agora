@@ -4,6 +4,12 @@ Deterministic Hermes slash commands for The Inner Agora.
 
 Commands:
 
+- `/agora help`
+- `/agora philosophers`
+- `/agora status`
+- `/agora min QUESTION`
+- `/agora max QUESTION`
+- `/agora dialogue <philosopher> QUESTION`
 - `/agora_prepare [local|balanced|max]`
 - `/agora_status`
 - `/agora_philosophers`
