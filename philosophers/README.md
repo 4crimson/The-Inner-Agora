@@ -7,6 +7,7 @@ Paperclip-синхронизация устроена так: при `node scrip
 Рабочие материалы:
 
 - [research/](research/) — источниковые досье и сырье для портретов.
+- [expansion-selection.md](expansion-selection.md) — критерии расширения и отбор новых кандидатов из большого канона.
 - [conflict-map.md](conflict-map.md) — кто с кем конфликтует и почему.
 - [voice-tests.md](voice-tests.md) — тесты узнаваемости голосов.
 
