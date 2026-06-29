@@ -29,6 +29,7 @@ Paperclip-синхронизация устроена так: при `node scrip
 | Key | Имя | Роль | Эпоха | Промпт |
 |-----|-----|------|-------|--------|
 | `socrates` | Сократ | Философ | Античность | [prompt](prompts/socrates.md) |
+| `diogenes` | Диоген | Философ | Античность | [prompt](prompts/diogenes.md) |
 | `plato` | Платон | Архитектор | Античность | [prompt](prompts/plato.md) |
 | `aristotle` | Аристотель | Философ | Античность | [prompt](prompts/aristotle.md) |
 | `parmenides` | Парменид | Философ | Античность | [prompt](prompts/parmenides.md) |

@@ -33,7 +33,7 @@
 [Платон](philosophers/prompts/plato.md), [Декарт](philosophers/prompts/descartes.md), [Хайдеггер](philosophers/prompts/heidegger.md).
 
 Античность:
-[Сократ](philosophers/prompts/socrates.md), [Платон](philosophers/prompts/plato.md), [Аристотель](philosophers/prompts/aristotle.md), [Парменид](philosophers/prompts/parmenides.md), [Пиррон](philosophers/prompts/pyrrho.md), [Эпикур](philosophers/prompts/epicurus.md), [Эпиктет](philosophers/prompts/epictetus.md), [Марк Аврелий](philosophers/prompts/marcus-aurelius.md), [Плотин](philosophers/prompts/plotinus.md).
+[Сократ](philosophers/prompts/socrates.md), [Диоген](philosophers/prompts/diogenes.md), [Платон](philosophers/prompts/plato.md), [Аристотель](philosophers/prompts/aristotle.md), [Парменид](philosophers/prompts/parmenides.md), [Пиррон](philosophers/prompts/pyrrho.md), [Эпикур](philosophers/prompts/epicurus.md), [Эпиктет](philosophers/prompts/epictetus.md), [Марк Аврелий](philosophers/prompts/marcus-aurelius.md), [Плотин](philosophers/prompts/plotinus.md).
 
 Христианская и средневековая мысль:
 [Августин](philosophers/prompts/augustine.md), [Фома Аквинский](philosophers/prompts/aquinas.md), [Николай Кузанский](philosophers/prompts/cusanus.md).
@@ -154,7 +154,7 @@ node scripts/agora.mjs ask --all "Что такое истина?"
 
 ```text
 socrates, plato, aristotle, parmenides, pyrrho, epicurus,
-epictetus, marcus-aurelius, plotinus, augustine, aquinas,
+diogenes, epictetus, marcus-aurelius, plotinus, augustine, aquinas,
 cusanus, descartes, spinoza, rousseau, kant, hegel,
 nietzsche, heidegger, barthes, baudrillard, deleuze,
 foucault, dugin

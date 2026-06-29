@@ -429,7 +429,10 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   add("socrates");
 
   if (/морал|этик|добродетел|долг|вина|счаст|жизнь|страдан|выбор|ценност/.test(text)) {
-    add("aristotle", "kant", "epictetus", "marcus-aurelius", "epicurus", "augustine", "nietzsche");
+    add("aristotle", "diogenes", "kant", "epictetus", "marcus-aurelius", "epicurus", "augustine", "nietzsche");
+  }
+  if (/свобод|условн|обыча|стыд|роскош|аскез|циник|киник|провокац|простот/.test(text)) {
+    add("diogenes", "epictetus", "epicurus", "nietzsche", "rousseau");
   }
   if (/быт|существ|реальн|метафиз|бог|единое|душ|субстанц|природ/.test(text)) {
     add("parmenides", "plotinus", "spinoza", "aquinas", "cusanus");
@@ -438,7 +441,7 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
     add("pyrrho", "kant", "spinoza", "aquinas");
   }
   if (/истор|обще|полит|государ|власт|культур|цивилизац|либерал|модерн|традиц/.test(text)) {
-    add("rousseau", "hegel", "nietzsche", "foucault", "dugin");
+    add("diogenes", "rousseau", "hegel", "nietzsche", "foucault", "dugin");
   }
   if (/язык|текст|знак|медиа|симулякр|постмодерн|дискурс|нарратив|культура/.test(text)) {
     add("barthes", "baudrillard", "deleuze", "foucault");
@@ -447,7 +450,7 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
     add("deleuze", "nietzsche", "spinoza");
   }
 
-  add("aristotle", "nietzsche", "foucault");
+  add("aristotle", "diogenes", "nietzsche", "foucault");
 
   const limits = {
     min: 3,
