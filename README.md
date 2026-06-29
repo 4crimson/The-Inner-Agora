@@ -9,7 +9,8 @@
 - Paperclip company: `The Inner Agora`
 - Project: `Agora Sessions`
 - Hermes profile: `inneragora`
-- Hermes plugin: `inner-agora-commands`
+- Hermes plugin: `paperclip-cockpit`
+- Cockpit config: `paperclip-cockpit.json`
 - CLI bridge: `scripts/agora.mjs`
 - Состав философов: `data/philosophers.json`
 - Markdown-каталог философов и промптов: `philosophers/README.md`
@@ -191,38 +192,32 @@ inneragora gateway status
 Для стабильной работы через LM Studio держи reasoning/thinking выключенным в настройках модели:
 `Enable Thinking = off`, `Preserve Thinking = off`. Проектный Hermes-профиль также проверяет, что `reasoning_effort: none` и модель по умолчанию `google/gemma-4-26b-a4b-qat`.
 
-Telegram slash-команды используют `_`, потому что Telegram не принимает дефисы в именах команд:
+Telegram menu показывает одну команду проекта: `/agora`. Это универсальный `paperclip-cockpit`, настроенный через `paperclip-cockpit.json`; generic `/pc` в этом проекте не регистрируется.
 
 ```text
-/pc help
-/pc companies
-/pc health
-/pc agents [--company "Company Name"]
-/pc tasks [--company "Company Name"] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
-/pc task ISSUE
-/pc comments ISSUE
-/pc move ISSUE STATUS
-/pc capabilities
 /agora help
+/agora health
+/agora agoras
 /agora philosophers
+/agora sessions [open|all|todo|in_progress|blocked|done|cancelled] [limit]
+/agora session THE-1
+/agora notes THE-1
+/agora capabilities
+/agora prepare [local|balanced|max]
 /agora status
+/agora mode [get|set MODE]
+/agora council QUESTION
+/agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora min QUESTION
 /agora max QUESTION
+/agora all QUESTION
 /agora dialogue PHILOSOPHER QUESTION
-/agora_prepare
-/agora_status
-/agora_philosophers
-/agora_tasks
-/agora_task THE-1
-/agora_council QUESTION
-/agora_ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
-/agora_dialogue PHILOSOPHER QUESTION
-/agora_synth THE-1
-/agora_memory THE-3
-/agora_guard
+/agora synth THE-1
+/agora memory THE-3
+/agora guard
 ```
 
-`/pc` — универсальный Paperclip Cockpit-интерфейс для Telegram. Он не зависит от The Inner Agora и может жить в других Hermes-профилях: список организаций, сотрудники, задачи, карточка задачи, комментарии, смена статуса. Запись через `/pc move` выключена по умолчанию и включается переменной `PAPERCLIP_COCKPIT_ENABLE_WRITES=1`. `/agora` и `/agora_*` — слой специфичный для философского совета.
+`/agora philosophers`, `/agora sessions`, `/agora notes` — это не отдельный Agora-плагин. Это словарь The Inner Agora поверх универсального `paperclip-cockpit`.
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
 
@@ -237,7 +232,6 @@ node --check scripts/agora.mjs
 node --check scripts/import-inner-agora.mjs
 node --check scripts/setup-hermes-profile.mjs
 node --check scripts/inner-agora-guard.mjs
-python3 -m py_compile hermes-plugins/inner-agora-commands/__init__.py
 python3 -m py_compile hermes-plugins/paperclip-cockpit/__init__.py
 node scripts/inner-agora-guard.mjs
 node scripts/agora.mjs council --dry-run "Что такое свобода?"

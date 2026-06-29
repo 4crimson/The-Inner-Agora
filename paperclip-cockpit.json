@@ -1,0 +1,124 @@
+{
+  "command": {
+    "name": "agora",
+    "description": "The Inner Agora cockpit for Paperclip.",
+    "register_pc_fallback": false
+  },
+  "cwd": "/Users/admin/Documents/The Inner Agora",
+  "company_hints": ["The Inner Agora"],
+  "labels": {
+    "company": "agora",
+    "companies": "agoras",
+    "agent": "philosopher",
+    "agents": "philosophers",
+    "task": "session",
+    "tasks": "sessions",
+    "comment": "note",
+    "comments": "notes"
+  },
+  "terms": {
+    "companies": "agoras",
+    "agents": "philosophers",
+    "tasks": "sessions",
+    "task": "session",
+    "comments": "notes",
+    "move": "move",
+    "health": "health",
+    "capabilities": "capabilities"
+  },
+  "aliases": {
+    "companies": ["agoras", "агора", "агоры", "проект"],
+    "agents": ["philosophers", "voices", "roster", "философы", "мыслители", "голоса", "состав", "список философов", "кто в перклипе", "кто в агоре"],
+    "tasks": ["sessions", "research", "queue", "задачи", "сессии", "исследования", "очередь"],
+    "task": ["session", "issue", "задача", "сессия"],
+    "comments": ["notes", "comments", "комментарии", "комменты", "заметки"]
+  },
+  "markers": ["agora", "inner agora", "агора", "в агоре", "перклип", "paperclip"],
+  "actions": {
+    "prepare": {
+      "usage": "prepare [local|balanced|max]",
+      "aliases": ["подготовь"],
+      "natural_aliases": ["подготовь агору", "обнови философов"],
+      "exec": ["node", "scripts/agora.mjs", "prepare"],
+      "timeout": 240
+    },
+    "status": {
+      "usage": "status",
+      "aliases": ["статус"],
+      "natural_aliases": ["статус", "статус агоры"],
+      "exec": ["node", "scripts/agora.mjs", "status"],
+      "timeout": 180
+    },
+    "mode": {
+      "usage": "mode [get|set MODE]",
+      "aliases": ["режим"],
+      "natural_aliases": ["режим", "режим агоры"],
+      "exec": ["node", "scripts/agora.mjs", "mode"],
+      "timeout": 180
+    },
+    "council": {
+      "usage": "council QUESTION",
+      "aliases": ["совет"],
+      "natural_aliases": ["совет", "совет философов"],
+      "exec": ["node", "scripts/agora.mjs", "council"],
+      "timeout": 900
+    },
+    "ask": {
+      "usage": "ask [--min|--balanced|--max|--all|--philosophers list] QUESTION",
+      "aliases": ["question", "вопрос"],
+      "natural_aliases": ["агора", "вопрос агоре"],
+      "exec": ["node", "scripts/agora.mjs", "ask"],
+      "timeout": 900
+    },
+    "min": {
+      "usage": "min QUESTION",
+      "aliases": ["мин", "минимум"],
+      "natural_aliases": ["агора-мин", "агора минимум"],
+      "exec": ["node", "scripts/agora.mjs", "ask", "--min"],
+      "timeout": 900
+    },
+    "max": {
+      "usage": "max QUESTION",
+      "aliases": ["макс", "максимум"],
+      "natural_aliases": ["агора-макс", "агора максимум"],
+      "exec": ["node", "scripts/agora.mjs", "ask", "--max"],
+      "timeout": 900
+    },
+    "all": {
+      "usage": "all QUESTION",
+      "aliases": ["все", "всё"],
+      "natural_aliases": ["агора-все", "агора все"],
+      "exec": ["node", "scripts/agora.mjs", "ask", "--all"],
+      "timeout": 900
+    },
+    "dialogue": {
+      "usage": "dialogue PHILOSOPHER QUESTION",
+      "aliases": ["dialog", "диалог"],
+      "natural_aliases": ["диалог"],
+      "exec": ["node", "scripts/agora.mjs", "dialogue"],
+      "timeout": 600
+    },
+    "synth": {
+      "usage": "synth ISSUE",
+      "aliases": ["synthesize", "синтез"],
+      "natural_aliases": ["синтез"],
+      "exec": ["node", "scripts/agora.mjs", "synthesize"],
+      "timeout": 900
+    },
+    "memory": {
+      "usage": "memory ISSUE",
+      "aliases": ["память"],
+      "natural_aliases": ["память"],
+      "exec": ["node", "scripts/agora.mjs", "export-memory"],
+      "timeout": 180
+    },
+    "guard": {
+      "usage": "guard",
+      "aliases": ["check", "проверка"],
+      "natural_aliases": ["проверка агоры"],
+      "exec": ["node", "scripts/inner-agora-guard.mjs"],
+      "append_args": false,
+      "timeout": 60
+    }
+  }
+}

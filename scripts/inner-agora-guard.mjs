@@ -13,7 +13,8 @@ const PROFILE_DIR =
 const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
-const PLUGIN_NAMES = ["inner-agora-commands", "paperclip-cockpit"];
+const COCKPIT_CONFIG_PATH = path.join(ROOT, "paperclip-cockpit.json");
+const PLUGIN_NAMES = ["paperclip-cockpit"];
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
 const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const JSON_OUTPUT = process.argv.includes("--json");
@@ -115,6 +116,8 @@ function checkFiles(summary) {
     soulBytes,
     memoryPath: MEMORY_PATH,
     memoryBytes,
+    cockpitConfigPath: COCKPIT_CONFIG_PATH,
+    cockpitConfigBytes: fileBytes(COCKPIT_CONFIG_PATH),
   };
   summary.plugin = {
     ok: plugins.every((plugin) => plugin.exists && plugin.enabled),
@@ -130,6 +133,9 @@ function checkFiles(summary) {
   if (reasoning && reasoning !== "none") record(summary, "warn", `Hermes reasoning_effort is ${reasoning}, expected none`);
   if (soulBytes === null) record(summary, "error", "Hermes SOUL.md is missing", { path: SOUL_PATH });
   if (memoryBytes === null) record(summary, "warn", "Hermes MEMORY.md is missing", { path: MEMORY_PATH });
+  if (summary.files.cockpitConfigBytes === null) {
+    record(summary, "error", "paperclip-cockpit.json is missing", { path: COCKPIT_CONFIG_PATH });
+  }
   for (const plugin of plugins) {
     if (!plugin.exists) record(summary, "error", `${plugin.name} plugin is missing`, { path: plugin.path });
     if (plugin.exists && !plugin.enabled) record(summary, "error", `${plugin.name} plugin is not enabled`);
@@ -149,6 +155,7 @@ function printSummary(summary) {
   console.log(`- reasoning_effort: ${summary.config?.reasoning || "missing"}`);
   console.log(`- SOUL.md: ${summary.files?.soulBytes ?? "missing"} bytes`);
   console.log(`- MEMORY.md: ${summary.files?.memoryBytes ?? "missing"} bytes`);
+  console.log(`- paperclip-cockpit.json: ${summary.files?.cockpitConfigBytes ?? "missing"} bytes`);
   console.log(`- plugin: ${summary.plugin?.ok ? "ok" : "failed"}`);
   if (summary.paperclip) {
     console.log(`- Paperclip: ${summary.paperclip.ok ? "ok" : "failed"}${summary.paperclip.version ? ` (${summary.paperclip.version})` : ""}`);

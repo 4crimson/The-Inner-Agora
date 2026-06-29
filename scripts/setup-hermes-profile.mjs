@@ -15,8 +15,8 @@ const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const PROFILE_YAML_PATH = path.join(PROFILE_DIR, "profile.yaml");
-const DEPRECATED_PLUGINS = ["paperclip-commands"];
-const PLUGINS = ["inner-agora-commands", "paperclip-cockpit"].map((name) => ({
+const DEPRECATED_PLUGINS = ["paperclip-commands", "inner-agora-commands"];
+const PLUGINS = ["paperclip-cockpit"].map((name) => ({
   name,
   source: path.join(ROOT, "hermes-plugins", name),
   target: path.join(PROFILE_DIR, "plugins", name),
@@ -145,54 +145,52 @@ Unknown command = show \`помощь\`. Never reveal secrets.
 Preferred deterministic slash commands:
 
 \`\`\`text
-/pc help
-/pc companies
-/pc agents [--company "Company Name"]
-/pc tasks [--company "Company Name"] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
-/pc task ISSUE
-/pc comments ISSUE
-/pc move ISSUE STATUS
-/pc capabilities
-/agora_prepare [local|balanced|max]
-/agora_status
-/agora_philosophers
-/agora_tasks [open|all] [limit]
-/agora_task ISSUE
-/agora_move ISSUE STATUS
-/agora_council QUESTION
-/agora_ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
-/agora_dialogue PHILOSOPHER QUESTION
-/agora_synth ISSUE
-/agora_memory ISSUE
-/agora_guard
+/agora help
+/agora health
+/agora agoras
+/agora philosophers [--company "The Inner Agora"]
+/agora sessions [open|all|todo|in_progress|blocked|done|cancelled] [limit]
+/agora session ISSUE
+/agora notes ISSUE
+/agora capabilities
+/agora prepare [local|balanced|max]
+/agora status
+/agora mode [get|set MODE]
+/agora council QUESTION
+/agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
+/agora min QUESTION
+/agora max QUESTION
+/agora all QUESTION
+/agora dialogue PHILOSOPHER QUESTION
+/agora synth ISSUE
+/agora memory ISSUE
+/agora guard
 \`\`\`
 
-\`/pc\` is the universal Paperclip Cockpit control surface. Reads are safe by default; \`/pc move\` requires \`PAPERCLIP_COCKPIT_ENABLE_WRITES=1\`. \`/agora_*\` is the project-specific philosophical layer.
+\`/agora\` is provided by the universal Paperclip Cockpit plugin through \`paperclip-cockpit.json\`. The generic fallback \`/pc\` is intentionally not registered for this project.
 
 Russian prompt-routed commands:
 
 \`\`\`text
 помощь                         show commands, no tools
-статус                         node scripts/agora.mjs status
-философы                       node scripts/agora.mjs philosophers
-список философов               node scripts/agora.mjs philosophers
-кто в перклипе                 node scripts/agora.mjs philosophers
-узнай список философов в перклипе  node scripts/agora.mjs philosophers
-кто есть в Paperclip           node scripts/agora.mjs philosophers
-задачи                         node scripts/agora.mjs tasks --open --limit 20
-задачи все                     node scripts/agora.mjs tasks --all --limit 20
-задача: ISSUE                  node scripts/agora.mjs task ISSUE
-двинь: ISSUE STATUS            node scripts/agora.mjs move ISSUE STATUS
-режим                          node scripts/agora.mjs mode
-режим: MODE                    node scripts/agora.mjs mode set MODE
-совет: QUESTION                node scripts/agora.mjs council "QUESTION"
-агора: QUESTION                node scripts/agora.mjs prepare && node scripts/agora.mjs ask "QUESTION"
-агора-мин: QUESTION            node scripts/agora.mjs ask --min "QUESTION"
-агора-макс: QUESTION           node scripts/agora.mjs ask --max "QUESTION"
-агора-все: QUESTION            node scripts/agora.mjs ask --all "QUESTION"
-диалог: PHILOSOPHER QUESTION   node scripts/agora.mjs dialogue PHILOSOPHER "QUESTION"
-синтез: ISSUE                  node scripts/agora.mjs synthesize ISSUE
-память: ISSUE                  node scripts/agora.mjs export-memory ISSUE
+статус                         /agora status
+философы                       /agora philosophers
+список философов               /agora philosophers
+кто в перклипе                 /agora philosophers
+узнай список философов в перклипе  /agora philosophers
+задачи                         /agora sessions
+задачи все                     /agora sessions all 20
+задача: ISSUE                  /agora session ISSUE
+режим                          /agora mode
+режим: MODE                    /agora mode set MODE
+совет: QUESTION                /agora council QUESTION
+агора: QUESTION                /agora ask QUESTION
+агора-мин: QUESTION            /agora min QUESTION
+агора-макс: QUESTION           /agora max QUESTION
+агора-все: QUESTION            /agora all QUESTION
+диалог: PHILOSOPHER QUESTION   /agora dialogue PHILOSOPHER QUESTION
+синтез: ISSUE                  /agora synth ISSUE
+память: ISSUE                  /agora memory ISSUE
 \`\`\`
 
 Allowed move statuses: \`todo\`, \`in_progress\`, \`blocked\`, \`done\`, \`cancelled\`.
