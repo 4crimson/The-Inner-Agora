@@ -126,6 +126,7 @@ Preferred deterministic slash commands:
 /agora-tasks [open|all] [limit]
 /agora-task ISSUE
 /agora-move ISSUE STATUS
+/agora-council QUESTION
 /agora-ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora-dialogue PHILOSOPHER QUESTION
 /agora-synth ISSUE
@@ -144,6 +145,7 @@ Russian prompt-routed commands:
 двинь: ISSUE STATUS            node scripts/agora.mjs move ISSUE STATUS
 режим                          node scripts/agora.mjs mode
 режим: MODE                    node scripts/agora.mjs mode set MODE
+совет: QUESTION                node scripts/agora.mjs council "QUESTION"
 агора: QUESTION                node scripts/agora.mjs prepare && node scripts/agora.mjs ask "QUESTION"
 агора-мин: QUESTION            node scripts/agora.mjs ask --min "QUESTION"
 агора-макс: QUESTION           node scripts/agora.mjs ask --max "QUESTION"

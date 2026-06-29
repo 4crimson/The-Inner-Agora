@@ -10,6 +10,7 @@ provides:
     - agora-tasks
     - agora-task
     - agora-move
+    - agora-council
     - agora-ask
     - agora-dialogue
     - agora-synth

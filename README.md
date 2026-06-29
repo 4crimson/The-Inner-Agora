@@ -74,6 +74,15 @@ node scripts/agora.mjs status
 
 ## Основные команды
 
+Минимально работающий совет:
+
+```bash
+node scripts/agora.mjs council "Что такое свобода в цифровой среде?"
+```
+
+Он всегда вызывает трех архитекторов: Платон, Декарт, Хайдеггер.
+Цель и критерии MVP описаны в `docs/MINIMUM_COUNCIL.md`.
+
 Создать совет из автоматически выбранных философов:
 
 ```bash
@@ -162,6 +171,7 @@ Slash-команды для Hermes gateway:
 /agora-status
 /agora-tasks
 /agora-task THE-1
+/agora-council QUESTION
 /agora-ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora-dialogue PHILOSOPHER QUESTION
 /agora-synth THE-1
@@ -184,6 +194,7 @@ node --check scripts/setup-hermes-profile.mjs
 node --check scripts/inner-agora-guard.mjs
 python3 -m py_compile hermes-plugins/inner-agora-commands/__init__.py
 node scripts/inner-agora-guard.mjs
+node scripts/agora.mjs council --dry-run "Что такое свобода?"
 node scripts/agora.mjs ask --dry-run --philosophers socrates,kant,foucault "Что такое свобода?"
 ```
 

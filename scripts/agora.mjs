@@ -17,6 +17,7 @@ const DEFAULT_MODE = "balanced";
 const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
 const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
+const MINIMUM_COUNCIL_KEYS = ["plato", "descartes", "heidegger"];
 
 const philosophers = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
 const philosopherByKey = new Map(philosophers.map((item) => [item.key, item]));
@@ -24,6 +25,7 @@ const philosopherByKey = new Map(philosophers.map((item) => [item.key, item]));
 function usage(exitCode = 0) {
   console.log(`Usage:
   node scripts/agora.mjs prepare [local|balanced|max]
+  node scripts/agora.mjs council [--dry-run] "question"
   node scripts/agora.mjs ask [--min|--balanced|--max|--all] [--philosophers list] "question"
   node scripts/agora.mjs ask --dry-run --philosophers socrates,kant "question"
   node scripts/agora.mjs dialogue <philosopher> "question"
@@ -37,6 +39,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs comments <issue-id-or-key>
 
 Modes:
+  council   fixed MVP council: Plato, Descartes, Heidegger
   min       3 voices, usually architects or explicitly selected philosophers
   balanced 7 voices by default
   max       12 voices by default
@@ -363,11 +366,45 @@ function parseAskArgs(args) {
   return { request, mode, dryRun, all, noArchitects, philosopherList };
 }
 
+function parseCouncilArgs(args) {
+  let dryRun = false;
+  const textParts = [];
+
+  for (const arg of args) {
+    if (arg === "--dry-run") {
+      dryRun = true;
+    } else if (arg === "--help" || arg === "-h") {
+      usage(0);
+    } else {
+      textParts.push(arg);
+    }
+  }
+
+  return {
+    dryRun,
+    request: textParts.join(" ").trim(),
+  };
+}
+
 function detectMode(request, fallback) {
   if (/всех|все философы|full agora|all voices/i.test(request)) return "all";
   if (/максимальн|макс|deep|глубок/i.test(request)) return "max";
   if (/быстро|коротко|мин/i.test(request)) return "min";
   return fallback;
+}
+
+async function minimumCouncil(args) {
+  const { request, dryRun } = parseCouncilArgs(args);
+  if (!request) throw new Error('Usage: node scripts/agora.mjs council [--dry-run] "your question"');
+
+  const forwarded = [
+    "--min",
+    "--philosophers",
+    MINIMUM_COUNCIL_KEYS.join(","),
+    ...(dryRun ? ["--dry-run"] : []),
+    request,
+  ];
+  return ask(forwarded);
 }
 
 function selectPhilosophers(request, mode, philosopherList, options = {}) {
@@ -974,6 +1011,7 @@ async function main() {
 
   if (command === "prepare") return prepare(args);
   if (command === "mode") return modeCommand(args);
+  if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
   if (command === "dialogue") return dialogue(args);
   if (command === "synthesize" || command === "synth") return synthesize(args);

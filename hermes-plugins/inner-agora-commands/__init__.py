@@ -116,6 +116,12 @@ def register(ctx: Any) -> None:
             return "Usage: /agora-ask [--min|--balanced|--max|--all|--philosophers list] <question>"
         return _agora_script("ask", *words, timeout=900)
 
+    def council(raw_args: str) -> str:
+        words = _parse_words(raw_args)
+        if not words:
+            return "Usage: /agora-council <question>"
+        return _agora_script("council", *words, timeout=900)
+
     def dialogue(raw_args: str) -> str:
         words = _parse_words(raw_args)
         if len(words) < 2:
@@ -166,6 +172,12 @@ def register(ctx: Any) -> None:
         handler=move,
         description="Move a The Inner Agora task.",
         args_hint="ISSUE <status>",
+    )
+    ctx.register_command(
+        name="agora-council",
+        handler=council,
+        description="Create the minimum working council: Plato, Descartes, Heidegger.",
+        args_hint="<question>",
     )
     ctx.register_command(
         name="agora-ask",
