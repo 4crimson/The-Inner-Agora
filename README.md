@@ -194,6 +194,8 @@ inneragora gateway status
 
 Telegram menu показывает одну команду проекта: `/agora`. Это универсальный `paperclip-cockpit`, настроенный через `paperclip-cockpit.json`; generic `/pc` в этом проекте не регистрируется.
 
+В `paperclip-cockpit.json` включен `gateway.reset_on_gateway_shutdown`: если Hermes прислал `Gateway shutting down — Your current task will be interrupted` и пометил сессию как interrupted/resume-pending, следующий входящий Telegram-turn начнется с чистого Hermes-контекста, а не с автопродолжения старого.
+
 ```text
 /agora help
 /agora health

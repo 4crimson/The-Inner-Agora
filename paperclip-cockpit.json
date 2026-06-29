@@ -4,6 +4,9 @@
     "description": "The Inner Agora cockpit for Paperclip.",
     "register_pc_fallback": false
   },
+  "gateway": {
+    "reset_on_gateway_shutdown": true
+  },
   "cwd": "/Users/admin/Documents/The Inner Agora",
   "company_hints": ["The Inner Agora"],
   "labels": {
