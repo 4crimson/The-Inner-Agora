@@ -14,6 +14,7 @@ This is complementary to [NousResearch/hermes-paperclip-adapter](https://github.
 - Lists Paperclip companies, agents, tasks, task details, and comments.
 - Can move an issue between Paperclip statuses when writes are explicitly enabled.
 - Can rewrite simple natural-language Telegram messages into `/pc ...` commands before the LLM is called.
+- Can route project-specific natural-language intents into configured project actions.
 - Keeps Paperclip control out of the model context, which helps avoid slow or bloated prompts.
 - Ships a model-facing skill note in `skills/paperclip-control/SKILL.md`.
 
@@ -68,6 +69,18 @@ If a config defines a command name, that command replaces `/pc` in the Telegram 
 
 See `examples/paperclip-cockpit.example.json` for a generic placeholder config. The plugin itself should not contain project-specific nouns, scripts, or prompts.
 
+Optional gateway behavior:
+
+```json
+{
+  "gateway": {
+    "reset_on_gateway_shutdown": true
+  }
+}
+```
+
+When enabled, the plugin resets Hermes gateway sessions that Hermes marked as `resume_pending` after an interrupted gateway shutdown. This is useful for command-cockpit profiles where a fresh Telegram turn is safer than automatic continuation.
+
 Company selection order:
 
 1. `--company "Company Name"` in a command.
@@ -82,7 +95,7 @@ Company selection order:
 /pc help
 /pc companies
 /pc health
-/pc agents [--company NAME]
+/pc agents [--company NAME] [--tags|--tag TAG]
 /pc tasks [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
 /pc task ISSUE
 /pc comments ISSUE
@@ -111,6 +124,31 @@ who is in paperclip           -> /pc agents
 what about ABC-9              -> /pc task ABC-9
 comments ABC-9                -> /pc comments ABC-9
 ```
+
+If agents carry `metadata.tags`, the agents command displays them. Use `/pc agents --tags` for a tag summary or `/pc agents --tag research` to filter agents by one tag.
+
+Project configs can also map explicit natural-language intents to project actions:
+
+```json
+{
+  "actions": {
+    "research": {
+      "usage": "research QUESTION",
+      "exec": ["./scripts/research"]
+    }
+  },
+  "intents": {
+    "create_research": {
+      "action": "research",
+      "aliases": ["start research", "create research task"],
+      "require_tail": true,
+      "min_tail_chars": 10
+    }
+  }
+}
+```
+
+This keeps project words in `paperclip-cockpit.json`: the plugin only knows how to route an intent to an action. Use `require_tail` and `min_tail_chars` for actions that create work, so vague confirmations do not become empty tasks.
 
 Write rewrites are disabled by default. To allow phrases like `move THE-9 done`, set both:
 

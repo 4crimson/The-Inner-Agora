@@ -37,6 +37,26 @@
     "comments": ["notes", "comments", "комментарии", "комменты", "заметки"]
   },
   "markers": ["agora", "inner agora", "агора", "в агоре", "перклип", "paperclip"],
+  "intents": {
+    "create_research_session": {
+      "action": "ask",
+      "aliases": [
+        "поставь задачу",
+        "создай задачу",
+        "запусти исследование",
+        "создай исследование",
+        "создай сессию",
+        "запусти сессию",
+        "запусти совет",
+        "сделай совет",
+        "start research",
+        "create research task",
+        "create session"
+      ],
+      "require_tail": true,
+      "min_tail_chars": 20
+    }
+  },
   "actions": {
     "prepare": {
       "usage": "prepare [local|balanced|max]",

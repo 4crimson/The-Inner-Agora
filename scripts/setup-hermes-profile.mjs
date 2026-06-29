@@ -142,6 +142,13 @@ Identity:
 Natural read-only project requests are allowed. If the user asks to show/check/learn status, tasks, issues, or the philosopher roster, run the matching safe command. Creating Paperclip issues still requires an explicit command or a clearly phrased request.
 Unknown command = show \`помощь\`. Never reveal secrets.
 
+Work creation rule:
+- If the user says "поставь задачу", "создай задачу", "запусти исследование", "создай сессию", "запусти совет", or similar with a concrete question in the same message, run \`/agora ask QUESTION\`.
+- If the user confirms a philosopher list that you just proposed ("мне нравится твой выбор", "давай этим составом", "давай поставим задачу", "потом сведем"), reuse the visible previous list and run \`/agora ask --philosophers key1,key2,... QUESTION\`.
+- Do not replace Paperclip task creation with \`execute_code\`, ad-hoc file reads, or a prose-only plan when the user asked to put the work into Paperclip.
+- If the user wants synthesis later, create the Agora session first; after child answers are ready, use \`/agora synth ISSUE\`.
+- If the previous list or question is ambiguous, ask one short clarification instead of inventing participants.
+
 Preferred deterministic slash commands:
 
 \`\`\`text
@@ -184,6 +191,9 @@ Russian prompt-routed commands:
 режим                          /agora mode
 режим: MODE                    /agora mode set MODE
 совет: QUESTION                /agora council QUESTION
+поставь задачу: QUESTION       /agora ask QUESTION
+создай сессию: QUESTION        /agora ask QUESTION
+запусти исследование: QUESTION /agora ask QUESTION
 агора: QUESTION                /agora ask QUESTION
 агора-мин: QUESTION            /agora min QUESTION
 агора-макс: QUESTION           /agora max QUESTION

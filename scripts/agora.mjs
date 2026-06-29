@@ -394,6 +394,18 @@ function detectMode(request, fallback) {
   return fallback;
 }
 
+function requestedVoiceLimit(request) {
+  const text = request.toLowerCase();
+  const countContext = /философ|голос|участ|подход|сильн|выбор|voices|thinkers|participants/.test(text);
+  if (!countContext) return null;
+
+  const range = text.match(/\b([2-9]|1[0-9])\s*[-–—]\s*([2-9]|1[0-9])\b/);
+  if (range) return Math.max(Number(range[1]), Number(range[2]));
+
+  const single = text.match(/\b([2-9]|1[0-9])\s*(?:философ|голос|участ|подход|сильн|voices|thinkers|participants)\b/);
+  return single ? Number(single[1]) : null;
+}
+
 async function minimumCouncil(args) {
   const { request, dryRun } = parseCouncilArgs(args);
   if (!request) throw new Error('Usage: node scripts/agora.mjs council [--dry-run] "your question"');
@@ -425,6 +437,10 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   const add = (...keys) => {
     for (const key of keys) selected.push(philosopherByKey.get(key));
   };
+
+  if (/врем|темпорал|длит|dur[eé]e|duration|uji|аничч|anicca|момент|мгновен|вечност|циклич|прошл|будущ|настоящ/.test(text)) {
+    add("buddha", "dogen", "laozi", "bergson", "heidegger", "augustine", "nagarjuna");
+  }
 
   if (!options.noArchitects) add("plato", "descartes", "heidegger");
   add("socrates");
@@ -502,7 +518,10 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
     balanced: 7,
     max: 12,
   };
-  return uniquePhilosophers(selected).slice(0, limits[mode] || limits.balanced);
+  const modeLimit = limits[mode] || limits.balanced;
+  const requestedLimit = requestedVoiceLimit(request);
+  const limit = requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
+  return uniquePhilosophers(selected).slice(0, limit);
 }
 
 function modePolicy(mode) {
