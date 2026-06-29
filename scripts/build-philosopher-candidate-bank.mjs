@@ -191,6 +191,7 @@ function candidateMarkdown(item) {
 }
 
 function activePromptMarkdown(item) {
+  const activeTags = [...new Set([...(item.tags || []).filter((tag) => tag !== "candidate"), "expanded"])];
   return [
     `# ${item.name}`,
     "",
@@ -200,7 +201,7 @@ function activePromptMarkdown(item) {
     `- Эпоха: ${item.era}`,
     `- Оптика: ${item.title}`,
     `- Алиасы: ${(item.aliases || [item.key]).map((alias) => `\`${alias}\``).join(", ")}`,
-    `- Теги: ${(item.tags || []).map((tag) => `\`${tag}\``).join(", ")}`,
+    `- Теги: ${activeTags.map((tag) => `\`${tag}\``).join(", ")}`,
     "",
     "## Рабочий Paperclip-промпт",
     "",

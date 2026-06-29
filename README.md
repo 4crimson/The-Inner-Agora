@@ -12,7 +12,7 @@
 - Hermes plugin: `paperclip-cockpit`
 - Cockpit config: `paperclip-cockpit.json`
 - CLI bridge: `scripts/agora.mjs`
-- Состав философов: `data/philosophers.json`
+- Активный состав философов: 84 машины в `data/philosophers.json`
 - Markdown-каталог философов и промптов: `philosophers/README.md`
 - Активный Paperclip roster: `philosophers/active-roster.md`
 - Большой банк кандидатов, рейтинги и draft-промпты: `philosophers/candidates/`

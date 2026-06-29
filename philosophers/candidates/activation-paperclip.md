@@ -3,8 +3,8 @@
 В Paperclip импортируется только `data/philosophers.json`. Этот файл фиксирует, кто из большого банка туда добавлен.
 
 - Total candidates: 163
-- Paperclip active after expansion: 25
-- Candidate-only / reference pool: 138
+- Paperclip active after expansion: 84
+- Candidate-only / reference pool: 79
 
 ## Active
 
@@ -35,11 +35,6 @@
 | `rousseau` | Руссо | 100 | active |
 | `socrates` | Сократ | 100 | active |
 | `spinoza` | Спиноза | 100 | active |
-
-## Candidate-only
-
-| Key | Name | Score | Status |
-|-----|------|-------|--------|
 | `al-ghazali` | Аль-Газали | 92 | A: portrait-ready |
 | `arendt` | Ханна Арендт | 92 | A: portrait-ready |
 | `averroes` | Ибн Рушд / Аверроэс | 92 | A: portrait-ready |
@@ -99,6 +94,11 @@
 | `spivak` | Гаятри Спивак | 82 | A: portrait-ready |
 | `william-james` | Уильям Джеймс | 82 | A: portrait-ready |
 | `xunzi` | Сюнь-цзы | 82 | A: portrait-ready |
+
+## Candidate-only
+
+| Key | Name | Score | Status |
+|-----|------|-------|--------|
 | `dzhiva-gosvami` | Дживa Госвами | 68 | B: research-first |
 | `gotlob-frege` | Готлоб Фреге | 68 | B: research-first |
 | `kapila` | Капила | 68 | B: research-first |
