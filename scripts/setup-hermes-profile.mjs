@@ -70,6 +70,19 @@ checkpoints:
 context_file_max_chars: null
 file_read_max_chars: 100000
 mcp_discovery_timeout: 1.5
+compression:
+  enabled: true
+  threshold: 0.5
+  target_ratio: 0.2
+auxiliary:
+  compression:
+    provider: auto
+    model: ''
+    context_length: 131072
+session_reset:
+  mode: both
+  idle_minutes: 30
+  at_hour: 4
 `;
 }
 
@@ -103,6 +116,58 @@ function setNestedYamlValue(text, section, key, value) {
   return lines.join("\n");
 }
 
+function setDoubleNestedYamlValue(text, section, subsection, key, value) {
+  const lines = text.split(/\r?\n/);
+  const sectionLine = `${section}:`;
+  let sectionStart = lines.findIndex((line) => line.trim() === sectionLine && !/^\s/.test(line));
+
+  if (sectionStart === -1) {
+    if (lines.at(-1) === "") lines.pop();
+    lines.push(sectionLine, `  ${subsection}:`, `    ${key}: ${value}`, "");
+    return lines.join("\n");
+  }
+
+  let sectionEnd = lines.length;
+  for (let index = sectionStart + 1; index < lines.length; index += 1) {
+    if (/^\S/.test(lines[index])) {
+      sectionEnd = index;
+      break;
+    }
+  }
+
+  const subsectionPattern = new RegExp(`^\\s{2}${subsection}:\\s*$`);
+  let subsectionStart = -1;
+  for (let index = sectionStart + 1; index < sectionEnd; index += 1) {
+    if (subsectionPattern.test(lines[index])) {
+      subsectionStart = index;
+      break;
+    }
+  }
+
+  if (subsectionStart === -1) {
+    lines.splice(sectionEnd, 0, `  ${subsection}:`, `    ${key}: ${value}`);
+    return lines.join("\n");
+  }
+
+  let subsectionEnd = sectionEnd;
+  for (let index = subsectionStart + 1; index < sectionEnd; index += 1) {
+    if (/^\s{2}\S/.test(lines[index])) {
+      subsectionEnd = index;
+      break;
+    }
+  }
+
+  for (let index = subsectionStart + 1; index < subsectionEnd; index += 1) {
+    if (new RegExp(`^\\s{4}${key}:\\s*`).test(lines[index])) {
+      lines[index] = `    ${key}: ${value}`;
+      return lines.join("\n");
+    }
+  }
+
+  lines.splice(subsectionEnd, 0, `    ${key}: ${value}`);
+  return lines.join("\n");
+}
+
 function transformConfig(text) {
   let next = `${text.trim()}\n`;
   next = setNestedYamlValue(next, "model", "default", HERMES_MODEL);
@@ -113,6 +178,11 @@ function transformConfig(text) {
   next = setNestedYamlValue(next, "memory", "nudge_interval", "0");
   next = setNestedYamlValue(next, "memory", "flush_min_turns", "0");
   next = setNestedYamlValue(next, "skills", "creation_nudge_interval", "0");
+  next = setNestedYamlValue(next, "compression", "enabled", "true");
+  next = setDoubleNestedYamlValue(next, "auxiliary", "compression", "context_length", "131072");
+  next = setNestedYamlValue(next, "session_reset", "mode", "both");
+  next = setNestedYamlValue(next, "session_reset", "idle_minutes", "30");
+  next = setNestedYamlValue(next, "session_reset", "at_hour", "4");
   return ensurePluginConfig(`${next.trim()}\n`);
 }
 
