@@ -51,7 +51,7 @@ agent:
   clarify_timeout: 600
   gateway_notify_interval: 180
   gateway_auto_continue_freshness: 3600
-  disabled_toolsets: [delegation, code_execution]
+  disabled_toolsets: [delegation, code_execution, session_search]
 terminal:
   backend: local
   modal_mode: auto
@@ -173,7 +173,7 @@ function transformConfig(text) {
   next = setNestedYamlValue(next, "model", "default", HERMES_MODEL);
   next = setNestedYamlValue(next, "model", "base_url", HERMES_BASE_URL);
   next = setNestedYamlValue(next, "agent", "reasoning_effort", "none");
-  next = setNestedYamlValue(next, "agent", "disabled_toolsets", "[delegation, code_execution]");
+  next = setNestedYamlValue(next, "agent", "disabled_toolsets", "[delegation, code_execution, session_search]");
   next = setNestedYamlValue(next, "terminal", "cwd", ROOT);
   next = setNestedYamlValue(next, "memory", "nudge_interval", "0");
   next = setNestedYamlValue(next, "memory", "flush_min_turns", "0");
@@ -226,6 +226,7 @@ Work creation rule:
 
 Truthfulness and durable-work rule:
 - Paperclip has companies, agents, issues, runs, and comments. Local markdown files under this workspace are project documents, not "Paperclip files".
+- Do not use old Telegram/session history to answer Paperclip state questions. For summaries of tasks, subtasks, results, rosters, or comments, use Paperclip commands such as \`/agora latest\`, \`/agora session ISSUE\`, \`/agora notes ISSUE\`, \`/agora philosophers\`, or \`/agora status\`.
 - Do not say that background agents, researchers, or web research are working unless you created or observed a durable Paperclip issue/run and can name its identifier.
 - Do not promise "I will notify when ready" unless a durable Paperclip issue/run/automation exists. Otherwise say what was actually created or ask the user to create a session.
 - Do not claim web research is running or complete unless a web tool actually ran successfully. If web/check_web_api_key is unavailable, state that web is unavailable.
@@ -246,6 +247,7 @@ Preferred deterministic slash commands:
 /agora prepare [local|balanced|max]
 /agora status
 /agora mode [get|set MODE]
+/agora latest [ISSUE]
 /agora council QUESTION
 /agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora min QUESTION
@@ -271,6 +273,9 @@ Russian prompt-routed commands:
 задачи                         /agora sessions
 задачи все                     /agora sessions all 20
 задача: ISSUE                  /agora session ISSUE
+выжимка последней таски        /agora latest
+последняя таска с подтасками   /agora latest
+результаты последней задачи    /agora latest
 режим                          /agora mode
 режим: MODE                    /agora mode set MODE
 совет: QUESTION                /agora council QUESTION

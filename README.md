@@ -206,7 +206,7 @@ Telegram menu показывает одну команду проекта: `/ago
 
 Также включены stale-context guards: `reset_session_age_minutes: 60` и `reset_idle_minutes: 15`. Если Telegram-сессия слишком старая или простаивала, cockpit сбросит Hermes-контекст до вызова модели, чтобы старые обещания про фоновых агентов не жили часами.
 
-Для Telegram-профиля `inneragora` отключены toolsets `delegation` и `code_execution`, а авто-review памяти/скиллов выключен через интервалы `0`. Долгие исследования должны создаваться как Paperclip-сессии через `/agora ask`, чтобы у них были видимые issue, а не невидимые фоновые subagents.
+Для Telegram-профиля `inneragora` отключены toolsets `delegation`, `code_execution` и `session_search`, а авто-review памяти/скиллов выключен через интервалы `0`. Долгие исследования должны создаваться как Paperclip-сессии через `/agora ask`, чтобы у них были видимые issue, а не невидимые фоновые subagents. Запросы про последнюю задачу, подтаски и результаты должны идти в Paperclip через `/agora latest`, а не в старую историю Telegram.
 
 ```text
 /agora help
@@ -220,6 +220,7 @@ Telegram menu показывает одну команду проекта: `/ago
 /agora prepare [local|balanced|max]
 /agora status
 /agora mode [get|set MODE]
+/agora latest [THE-18]
 /agora council QUESTION
 /agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora min QUESTION

@@ -35,6 +35,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
+  node scripts/agora.mjs latest [issue-id-or-key]
   node scripts/agora.mjs task <issue-id-or-key>
   node scripts/agora.mjs move <issue-id-or-key> <todo|in_progress|blocked|done|cancelled>
   node scripts/agora.mjs comments <issue-id-or-key>
@@ -827,6 +828,140 @@ function compactIssueLine(issue, agentById = new Map()) {
   return `- ${String(issue.status || "unknown").padEnd(11)} ${id.padEnd(7)}${parent} assignee=${assignee} ${issue.title}`;
 }
 
+function issueNumber(issue) {
+  const direct = Number(issue?.issueNumber);
+  if (Number.isFinite(direct)) return direct;
+  const match = String(issue?.identifier || "").match(/-(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function byIssueNumber(left, right) {
+  const delta = issueNumber(left) - issueNumber(right);
+  if (delta) return delta;
+  return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+}
+
+function latestIssueRef(args) {
+  const raw = args.join(" ");
+  const match = raw.match(/\b[A-Z][A-Z0-9]{1,12}-\d+\b/i);
+  return match ? match[0].toUpperCase() : "";
+}
+
+async function resolveRootIssue(args, allIssues) {
+  const explicitRef = latestIssueRef(args);
+  if (explicitRef) {
+    const issue = await api(`/issues/${explicitRef}`);
+    if (!issue.parentId) return issue;
+    return api(`/issues/${issue.parentId}`);
+  }
+
+  const roots = allIssues
+    .filter((issue) => !issue.hiddenAt && !issue.parentId)
+    .sort((left, right) => byIssueNumber(right, left));
+  if (!roots.length) throw new Error("No root Agora sessions found in Paperclip.");
+  return roots[0];
+}
+
+function oneLine(text, limit = 420) {
+  const value = String(text || "").replace(/\s+/g, " ").trim();
+  if (value.length <= limit) return value;
+  return `${value.slice(0, Math.max(0, limit - 15)).trim()} ... [clipped]`;
+}
+
+function rootQuestion(issue) {
+  const body = String(issue.description || "");
+  const match = body.match(/Исходный вопрос:\s*\n([\s\S]*?)(?:\n\n|$)/);
+  return oneLine(match ? match[1] : issue.title, 900);
+}
+
+function sectionBody(text, number) {
+  const pattern = new RegExp(`(?:^|\\n)${number}\\.\\s+[^\\n]*\\n\\n([\\s\\S]*?)(?=\\n\\d+\\.\\s+|\\nПометки:|$)`);
+  const match = String(text || "").match(pattern);
+  return match ? match[1].trim() : "";
+}
+
+function bulletLines(text, limit = 5) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .slice(0, limit)
+    .map((line) => oneLine(line, 520));
+}
+
+function paragraphLines(text, limit = 2) {
+  return String(text || "")
+    .split(/\n\s*\n/)
+    .map((line) => oneLine(line, 620))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function synthesisComment(commentsList) {
+  const visible = commentsList.filter((item) => !item.deletedAt && String(item.body || "").trim());
+  const scored = visible
+    .map((comment) => {
+      const body = String(comment.body || "");
+      let score = body.length;
+      if (/Какой вопрос реально исследовался|Карта позиций|Главные линии конфликта/i.test(body)) score += 100000;
+      if (comment.authorType === "agent" && /Задача .* завершена/i.test(body)) score -= 50000;
+      return { comment, score };
+    })
+    .sort((left, right) => right.score - left.score);
+  return scored[0]?.comment || null;
+}
+
+function printSynthesisDigest(comment) {
+  const body = String(comment?.body || "").trim();
+  if (!body) {
+    console.log("- Содержательного синтеза пока нет.");
+    return;
+  }
+
+  const question = paragraphLines(sectionBody(body, 1), 1);
+  const positions = bulletLines(sectionBody(body, 3), 6);
+  const conflicts = bulletLines(sectionBody(body, 4), 5);
+  const unresolved = bulletLines(sectionBody(body, 6), 3);
+  const next = paragraphLines(sectionBody(body, 7), 1);
+  const notes = body.match(/Пометки:\s*([\s\S]*)$/)?.[1] || "";
+  const noteLines = bulletLines(notes, 5);
+
+  if (question.length) {
+    console.log("Реальный вопрос:");
+    for (const line of question) console.log(`- ${line}`);
+    console.log("");
+  }
+
+  if (positions.length) {
+    console.log("Позиции:");
+    for (const line of positions) console.log(line);
+    console.log("");
+  }
+
+  if (conflicts.length) {
+    console.log("Линии конфликта:");
+    for (const line of conflicts) console.log(line);
+    console.log("");
+  }
+
+  if (unresolved.length) {
+    console.log("Осталось нерешенным:");
+    for (const line of unresolved) console.log(line);
+    console.log("");
+  }
+
+  if (next.length) {
+    console.log("Следующий шаг:");
+    for (const line of next) console.log(`- ${line}`);
+    console.log("");
+  }
+
+  if (noteLines.length) {
+    console.log("Пометки:");
+    for (const line of noteLines) console.log(line);
+  }
+}
+
 async function status() {
   const { company, agents } = await getAgora();
   const [issues, runs] = await Promise.all([
@@ -967,6 +1102,54 @@ async function tasks(args) {
     return;
   }
   for (const issue of selected) console.log(compactIssueLine(issue, agentById));
+}
+
+async function latest(args) {
+  const agora = await getAgora();
+  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
+  const root = await resolveRootIssue(args, allIssues);
+  const children = allIssues
+    .filter((issue) => issue.parentId === root.id && !issue.hiddenAt)
+    .sort(byIssueNumber);
+  const synthesis = [...children]
+    .reverse()
+    .find((issue) => issue.assigneeAgentId === agora.assistant.id || /^Синтез:/i.test(issue.title || ""));
+  const philosopherChildren = children.filter((issue) => issue.id !== synthesis?.id);
+
+  console.log(`# Последняя Paperclip-сессия: ${root.identifier || root.id}`);
+  console.log(root.title);
+  console.log(`- status: ${root.status}`);
+  console.log(`- created: ${root.createdAt || "-"}`);
+  console.log(`- updated: ${root.updatedAt || "-"}`);
+  console.log(`- url: http://127.0.0.1:3100/issues/${root.id}`);
+  console.log("");
+  console.log("## Вопрос");
+  console.log(rootQuestion(root));
+  console.log("");
+  console.log("## Подтаски");
+  if (!children.length) {
+    console.log("- Подтасок нет.");
+  } else {
+    for (const child of children) console.log(compactIssueLine(child, agentById));
+  }
+  console.log("");
+
+  if (!synthesis) {
+    console.log("## Выжимка");
+    console.log("- Синтез-задача пока не найдена. Ниже только состояние философских child-задач.");
+    for (const child of philosopherChildren) console.log(compactIssueLine(child, agentById));
+    return;
+  }
+
+  const commentsList = await api(`/issues/${synthesis.id}/comments`);
+  const digestSource = synthesisComment(commentsList);
+
+  console.log("## Выжимка");
+  console.log(`Синтез: ${synthesis.identifier || synthesis.id}, status=${synthesis.status}`);
+  if (digestSource?.createdAt) console.log(`Источник выжимки: comment ${digestSource.authorType || "unknown"} ${digestSource.createdAt}`);
+  console.log("");
+  printSynthesisDigest(digestSource);
 }
 
 async function taskDetails(args) {
@@ -1196,6 +1379,7 @@ async function main() {
   if (command === "philosophers" || command === "agents") return listPhilosophers(args);
   if (command === "status") return status();
   if (command === "tasks") return tasks(args);
+  if (command === "latest" || command === "last" || command === "brief") return latest(args);
   if (command === "task") return taskDetails(args);
   if (command === "move") return moveIssue(args);
   if (command === "comments") return comments(args);
