@@ -15,7 +15,7 @@ const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const PLUGIN_PATH = path.join(PROFILE_DIR, "plugins", "inner-agora-commands", "plugin.yaml");
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
-const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "qwen/qwen3.6-35b-a3b";
 const JSON_OUTPUT = process.argv.includes("--json");
 const FIX = process.argv.includes("--fix");
 

@@ -189,7 +189,7 @@ inneragora gateway status
 Сейчас профиль `inneragora` настроен как отдельный Telegram gateway. Токен хранится локально в `~/.hermes/profiles/inneragora/.env` и не входит в git.
 
 Для стабильной работы через LM Studio держи reasoning/thinking выключенным в настройках модели:
-`Enable Thinking = off`, `Preserve Thinking = off`. Проектный Hermes-профиль также проверяет, что `reasoning_effort: none` и модель по умолчанию `google/gemma-4-26b-a4b-qat`.
+`Enable Thinking = off`, `Preserve Thinking = off`. Проектный Hermes-профиль также проверяет, что `reasoning_effort: none` и модель по умолчанию `qwen/qwen3.6-35b-a3b`.
 
 Telegram slash-команды используют `_`, потому что Telegram не принимает дефисы в именах команд:
 

@@ -15,7 +15,7 @@ const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
 const GOAL_TITLE = process.env.INNER_AGORA_GOAL_TITLE || "Run philosophical research dialogues with The Inner Agora";
 const DEFAULT_MODE = "balanced";
 const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
-const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "qwen/qwen3.6-35b-a3b";
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
 const MINIMUM_COUNCIL_KEYS = ["plato", "descartes", "heidegger"];
 
