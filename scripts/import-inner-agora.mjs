@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_PATH = path.join(ROOT, "data", "philosophers.json");
+const PROMPTS_DIR = path.join(ROOT, "philosophers", "prompts");
+const PROMPT_START = "<!-- INNER_AGORA_PROMPT_START -->";
+const PROMPT_END = "<!-- INNER_AGORA_PROMPT_END -->";
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const COMPANY_NAME = process.env.INNER_AGORA_COMPANY_NAME || "The Inner Agora";
 const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
@@ -173,6 +176,28 @@ function philosopherInstructions(item) {
     .join("\n");
 }
 
+function extractPromptMarkdown(text) {
+  const start = text.indexOf(PROMPT_START);
+  const end = text.indexOf(PROMPT_END);
+  if (start === -1 || end === -1 || end <= start) return text.trim();
+  return text.slice(start + PROMPT_START.length, end).trim();
+}
+
+async function loadPhilosopherPrompts(philosophers) {
+  const prompts = new Map();
+  for (const item of philosophers) {
+    const promptPath = path.join(PROMPTS_DIR, `${item.key}.md`);
+    try {
+      const text = await fs.readFile(promptPath, "utf8");
+      const prompt = extractPromptMarkdown(text);
+      if (prompt) prompts.set(item.key, prompt);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  return prompts;
+}
+
 async function api(pathname, options = {}) {
   const response = await fetch(`${API_BASE}${pathname}`, {
     ...options,
@@ -226,7 +251,7 @@ async function ensureCompany() {
   return company;
 }
 
-function roleDefs(philosophers) {
+function roleDefs(philosophers, promptOverrides = new Map()) {
   return [
     {
       key: "agora-assistant",
@@ -249,7 +274,7 @@ function roleDefs(philosophers) {
       reportsTo: "agora-assistant",
       canCreateAgents: false,
       capabilities: `${item.era}. ${item.title}. Теги: ${(item.tags || []).join(", ")}.`,
-      instructions: philosopherInstructions(item),
+      instructions: promptOverrides.get(item.key) || philosopherInstructions(item),
     })),
   ];
 }
@@ -491,10 +516,11 @@ async function main() {
   await api("/health");
 
   const philosophers = await loadPhilosophers();
+  const promptOverrides = await loadPhilosopherPrompts(philosophers);
   const company = await ensureCompany();
   const createdByKey = new Map();
 
-  for (const roleDef of roleDefs(philosophers)) {
+  for (const roleDef of roleDefs(philosophers, promptOverrides)) {
     const agent = await ensureAgent(company.id, roleDef, createdByKey);
     createdByKey.set(roleDef.key, agent);
   }

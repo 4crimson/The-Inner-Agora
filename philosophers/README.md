@@ -1,0 +1,100 @@
+# Философы и промпты
+
+Эта папка — рабочая карта личностей The Inner Agora. Каждый markdown-файл в `prompts/` содержит Paperclip-промпт конкретного философа и место для дальнейшей ручной проработки.
+
+Paperclip-синхронизация устроена так: при `node scripts/agora.mjs prepare` импортер читает блок между `INNER_AGORA_PROMPT_START` и `INNER_AGORA_PROMPT_END` и записывает его в инструкции соответствующего агента. Если файла нет, используется базовый шаблон из `data/philosophers.json`.
+
+## Архитекторы
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `plato` | Платон | Архитектор | Античность | [prompt](prompts/plato.md) |
+| `descartes` | Декарт | Архитектор | Новое время | [prompt](prompts/descartes.md) |
+| `heidegger` | Хайдеггер | Архитектор | XX век | [prompt](prompts/heidegger.md) |
+
+## Античность
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `socrates` | Сократ | Философ | Античность | [prompt](prompts/socrates.md) |
+| `plato` | Платон | Архитектор | Античность | [prompt](prompts/plato.md) |
+| `aristotle` | Аристотель | Философ | Античность | [prompt](prompts/aristotle.md) |
+| `parmenides` | Парменид | Философ | Античность | [prompt](prompts/parmenides.md) |
+| `pyrrho` | Пиррон | Философ | Античность | [prompt](prompts/pyrrho.md) |
+| `epicurus` | Эпикур | Философ | Античность | [prompt](prompts/epicurus.md) |
+| `epictetus` | Эпиктет | Философ | Античность | [prompt](prompts/epictetus.md) |
+| `marcus-aurelius` | Марк Аврелий | Философ | Античность | [prompt](prompts/marcus-aurelius.md) |
+
+## Поздняя античность
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `plotinus` | Плотин | Философ | Поздняя античность | [prompt](prompts/plotinus.md) |
+
+## Христианская мысль
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `augustine` | Августин | Философ | Христианская мысль | [prompt](prompts/augustine.md) |
+
+## Средневековье
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `aquinas` | Фома Аквинский | Философ | Средневековье | [prompt](prompts/aquinas.md) |
+
+## Переход к Новому времени
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `cusanus` | Николай Кузанский | Философ | Переход к Новому времени | [prompt](prompts/cusanus.md) |
+
+## Новое время
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `descartes` | Декарт | Архитектор | Новое время | [prompt](prompts/descartes.md) |
+| `spinoza` | Спиноза | Философ | Новое время | [prompt](prompts/spinoza.md) |
+
+## Просвещение
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `rousseau` | Руссо | Философ | Просвещение | [prompt](prompts/rousseau.md) |
+
+## Немецкая классика
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `kant` | Кант | Философ | Немецкая классика | [prompt](prompts/kant.md) |
+| `hegel` | Гегель | Философ | Немецкая классика | [prompt](prompts/hegel.md) |
+
+## XIX век
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `nietzsche` | Ницше | Философ | XIX век | [prompt](prompts/nietzsche.md) |
+
+## XX век
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `heidegger` | Хайдеггер | Архитектор | XX век | [prompt](prompts/heidegger.md) |
+| `barthes` | Ролан Барт | Философ | XX век | [prompt](prompts/barthes.md) |
+| `baudrillard` | Бодрийяр | Философ | XX век | [prompt](prompts/baudrillard.md) |
+| `deleuze` | Делез | Философ | XX век | [prompt](prompts/deleuze.md) |
+| `foucault` | Фуко | Философ | XX век | [prompt](prompts/foucault.md) |
+
+## Современность
+
+| Key | Имя | Роль | Эпоха | Промпт |
+|-----|-----|------|-------|--------|
+| `dugin` | Дугин | Философ | Современность | [prompt](prompts/dugin.md) |
+
+## Как дорабатывать
+
+- Открыть нужный файл в `philosophers/prompts/`.
+- Менять основной промпт только внутри маркеров `INNER_AGORA_PROMPT_START` / `INNER_AGORA_PROMPT_END`.
+- Вносить исследовательские заметки ниже, в разделе "Заметки для дальнейшей проработки".
+- Запустить `node scripts/agora.mjs prepare`, чтобы обновить Paperclip-агентов.
+- Проверить одного философа через `node scripts/agora.mjs dialogue <key> "вопрос"`.

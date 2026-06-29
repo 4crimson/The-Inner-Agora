@@ -12,6 +12,7 @@
 - Hermes plugin: `inner-agora-commands`
 - CLI bridge: `scripts/agora.mjs`
 - Состав философов: `data/philosophers.json`
+- Markdown-каталог философов и промптов: `philosophers/README.md`
 - Память экспортов: `memory/sessions/` (не коммитится в git)
 
 ## Как устроено
@@ -26,19 +27,26 @@
 
 ## Состав
 
+Полная рабочая папка для проработки личностей: [philosophers/README.md](philosophers/README.md).
+
+Архитекторы над пространством:
+[Платон](philosophers/prompts/plato.md), [Декарт](philosophers/prompts/descartes.md), [Хайдеггер](philosophers/prompts/heidegger.md).
+
 Античность:
-Сократ, Платон, Аристотель, Парменид, Пиррон, Эпикур, Эпиктет, Марк Аврелий, Плотин.
+[Сократ](philosophers/prompts/socrates.md), [Платон](philosophers/prompts/plato.md), [Аристотель](philosophers/prompts/aristotle.md), [Парменид](philosophers/prompts/parmenides.md), [Пиррон](philosophers/prompts/pyrrho.md), [Эпикур](philosophers/prompts/epicurus.md), [Эпиктет](philosophers/prompts/epictetus.md), [Марк Аврелий](philosophers/prompts/marcus-aurelius.md), [Плотин](philosophers/prompts/plotinus.md).
 
 Христианская и средневековая мысль:
-Августин, Фома Аквинский, Николай Кузанский.
+[Августин](philosophers/prompts/augustine.md), [Фома Аквинский](philosophers/prompts/aquinas.md), [Николай Кузанский](philosophers/prompts/cusanus.md).
 
 Новое время и немецкая классика:
-Декарт, Спиноза, Руссо, Кант, Гегель.
+[Декарт](philosophers/prompts/descartes.md), [Спиноза](philosophers/prompts/spinoza.md), [Руссо](philosophers/prompts/rousseau.md), [Кант](philosophers/prompts/kant.md), [Гегель](philosophers/prompts/hegel.md).
 
 Современность и постструктурализм:
-Ницше, Хайдеггер, Ролан Барт, Бодрийяр, Делез, Фуко, Дугин.
+[Ницше](philosophers/prompts/nietzsche.md), [Хайдеггер](philosophers/prompts/heidegger.md), [Ролан Барт](philosophers/prompts/barthes.md), [Бодрийяр](philosophers/prompts/baudrillard.md), [Делез](philosophers/prompts/deleuze.md), [Фуко](philosophers/prompts/foucault.md), [Дугин](philosophers/prompts/dugin.md).
 
 Для современных публичных фигур система работает как реконструкция интеллектуальной оптики по публичным идеям, а не как утверждение, что говорит сам человек.
+
+Редактируемые Paperclip-промпты лежат в `philosophers/prompts/`. После правок запусти `node scripts/agora.mjs prepare`, чтобы обновить агентов в Paperclip.
 
 ## Быстрый старт
 
