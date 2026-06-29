@@ -200,7 +200,7 @@ Telegram menu показывает одну команду проекта: `/ago
 /agora help
 /agora health
 /agora agoras
-/agora philosophers
+/agora philosophers [--tags|--tag TAG]
 /agora sessions [open|all|todo|in_progress|blocked|done|cancelled] [limit]
 /agora session THE-1
 /agora notes THE-1
@@ -220,6 +220,8 @@ Telegram menu показывает одну команду проекта: `/ago
 ```
 
 `/agora philosophers`, `/agora sessions`, `/agora notes` — это не отдельный Agora-плагин. Это словарь The Inner Agora поверх универсального `paperclip-cockpit`.
+
+Философы размечены структурно в `agent.metadata.tags`. Команды `/agora philosophers --tags` и `/agora philosophers --tag ethics` позволяют смотреть словарь тегов и фильтровать состав.
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
 

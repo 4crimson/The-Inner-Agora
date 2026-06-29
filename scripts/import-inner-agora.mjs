@@ -283,6 +283,10 @@ function roleDefs(philosophers, promptOverrides = new Map()) {
       capabilities:
         "Собирает философские заседания, выбирает участников, удерживает конфликт и создает синтез без сглаживания разногласий.",
       instructions: assistantInstructions(),
+      metadata: {
+        source: "inner-agora-import",
+        roleKey: "agora-assistant",
+      },
     },
     ...philosophers.map((item) => ({
       key: item.key,
@@ -294,6 +298,14 @@ function roleDefs(philosophers, promptOverrides = new Map()) {
       canCreateAgents: false,
       capabilities: `${item.era}. ${item.title}. Теги: ${(item.tags || []).join(", ")}.`,
       instructions: promptOverrides.get(item.key) || philosopherInstructions(item),
+      metadata: {
+        source: "inner-agora-import",
+        roleKey: item.key,
+        tags: item.tags || [],
+        era: item.era,
+        architect: Boolean(item.architect),
+        candidateGenerated: Boolean(item.candidateGenerated),
+      },
     })),
   ];
 }
@@ -335,10 +347,7 @@ async function ensureAgent(companyId, roleDef, createdByKey) {
       permissions: {
         canCreateAgents: Boolean(roleDef.canCreateAgents),
       },
-      metadata: {
-        source: "inner-agora-import",
-        roleKey: roleDef.key,
-      },
+      metadata: roleDef.metadata,
     }),
   });
 
@@ -351,6 +360,10 @@ async function syncAgent(agentId, roleDef) {
   await api(`/agents/${agentId}`, {
     method: "PATCH",
     body: JSON.stringify({
+      title: roleDef.title,
+      icon: roleDef.icon,
+      capabilities: roleDef.capabilities,
+      metadata: roleDef.metadata,
       adapterType: AGENT_ADAPTER,
       adapterConfig: selectedAdapterConfig(),
       replaceAdapterConfig: true,

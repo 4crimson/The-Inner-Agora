@@ -31,7 +31,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs dialogue <philosopher> "question"
   node scripts/agora.mjs synthesize <root-issue-id-or-key> [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
-  node scripts/agora.mjs philosophers
+  node scripts/agora.mjs philosophers [--tags|--tag TAG]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
@@ -845,23 +845,83 @@ async function status() {
   }
 }
 
-async function listPhilosophers() {
+function tagList(item) {
+  return Array.isArray(item.tags) ? item.tags.filter(Boolean) : [];
+}
+
+function normalizeTag(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function tagSummary() {
+  const counts = new Map();
+  for (const item of philosophers) {
+    for (const tag of tagList(item)) counts.set(tag, (counts.get(tag) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function parsePhilosophersArgs(args) {
+  const options = {
+    showTags: false,
+    tag: "",
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--tags" || arg === "tags" || arg === "теги") {
+      options.showTags = true;
+    } else if (arg === "--tag" || arg === "--тег") {
+      options.tag = normalizeTag(args[++index]);
+      if (!options.tag) throw new Error("Usage: node scripts/agora.mjs philosophers --tag TAG");
+    } else if (arg.startsWith("--tag=")) {
+      options.tag = normalizeTag(arg.slice("--tag=".length));
+      if (!options.tag) throw new Error("Usage: node scripts/agora.mjs philosophers --tag TAG");
+    } else if (arg === "--help" || arg === "-h") {
+      console.log("Usage: node scripts/agora.mjs philosophers [--tags|--tag TAG]");
+      process.exit(0);
+    } else {
+      throw new Error(`Unknown philosophers option: ${arg}`);
+    }
+  }
+
+  return options;
+}
+
+async function listPhilosophers(args = []) {
+  const options = parsePhilosophersArgs(args);
   const { agents } = await getAgora();
   const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
   const expectedNames = new Set(philosophers.map((item) => item.name));
-  const present = philosophers.filter((item) => agentsByName.has(item.name));
+  const filteredPhilosophers = options.tag
+    ? philosophers.filter((item) => tagList(item).map(normalizeTag).includes(options.tag))
+    : philosophers;
+  const present = filteredPhilosophers.filter((item) => agentsByName.has(item.name));
   const extra = agents.filter((agent) => agent.name !== ASSISTANT_NAME && !expectedNames.has(agent.name));
   const assistant = agentsByName.get(ASSISTANT_NAME);
 
-  console.log("# Философы в Paperclip");
-  for (const item of philosophers) {
+  if (options.showTags) {
+    console.log("# Теги философов");
+    for (const [tag, count] of tagSummary()) console.log(`- ${tag}: ${count}`);
+    console.log("");
+    console.log(`Всего тегов: ${tagSummary().length}`);
+    console.log(`Философов: ${philosophers.length}`);
+    return;
+  }
+
+  console.log(options.tag ? `# Философы в Paperclip: tag=${options.tag}` : "# Философы в Paperclip");
+  for (const item of filteredPhilosophers) {
     const agent = agentsByName.get(item.name);
     const statusLabel = agent ? String(agent.status || "unknown").padEnd(8) : "missing ";
-    console.log(`- ${statusLabel} ${item.name} (${item.key})`);
+    const dataTags = tagList(item);
+    const paperclipTags = Array.isArray(agent?.metadata?.tags) ? agent.metadata.tags : [];
+    const tagSync = agent && JSON.stringify(dataTags) !== JSON.stringify(paperclipTags) ? " metadata-tags=stale" : "";
+    console.log(`- ${statusLabel} ${item.name} (${item.key}) tags=${dataTags.join(", ")}${tagSync}`);
   }
 
   console.log("");
-  console.log(`Итого философов: ${present.length}/${philosophers.length}`);
+  console.log(`Итого философов: ${present.length}/${filteredPhilosophers.length}`);
+  if (options.tag) console.log(`Фильтр tag=${options.tag}; всего в roster: ${philosophers.length}`);
   console.log(`Agora Assistant: ${assistant ? assistant.status || "unknown" : "missing"}`);
   console.log(`Всего агентов в Paperclip: ${agents.length}`);
 
@@ -1114,7 +1174,7 @@ async function main() {
   if (command === "dialogue") return dialogue(args);
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
-  if (command === "philosophers" || command === "agents") return listPhilosophers();
+  if (command === "philosophers" || command === "agents") return listPhilosophers(args);
   if (command === "status") return status();
   if (command === "tasks") return tasks(args);
   if (command === "task") return taskDetails(args);
