@@ -187,6 +187,14 @@ inneragora status
 inneragora gateway status
 ```
 
+Если Telegram молчит, а Paperclip жив, сначала проверь проектный guard:
+
+```bash
+node scripts/inner-agora-guard.mjs --fix
+```
+
+Этот случай уже встречался: `inneragora gateway status` показывал зарегистрированный launchd-service без PID и `last exit code = 75: EX_TEMPFAIL` после planned restart. `--fix` поднимает профиль через `inneragora gateway start` и проверяет PID повторно.
+
 Сейчас профиль `inneragora` настроен как отдельный Telegram gateway. Токен хранится локально в `~/.hermes/profiles/inneragora/.env` и не входит в git.
 
 Для стабильной работы через LM Studio держи reasoning/thinking выключенным в настройках модели:
@@ -238,6 +246,7 @@ node --check scripts/setup-hermes-profile.mjs
 node --check scripts/inner-agora-guard.mjs
 python3 -m py_compile hermes-plugins/paperclip-cockpit/__init__.py
 node scripts/inner-agora-guard.mjs
+node scripts/inner-agora-guard.mjs --fix
 node scripts/agora.mjs council --dry-run "Что такое свобода?"
 node scripts/agora.mjs ask --dry-run --philosophers socrates,kant,foucault "Что такое свобода?"
 ```

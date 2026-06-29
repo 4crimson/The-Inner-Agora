@@ -17,6 +17,7 @@ const COCKPIT_CONFIG_PATH = path.join(ROOT, "paperclip-cockpit.json");
 const PLUGIN_NAMES = ["paperclip-cockpit"];
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
 const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
 const JSON_OUTPUT = process.argv.includes("--json");
 const FIX = process.argv.includes("--fix");
 
@@ -66,6 +67,82 @@ function runSetup(summary) {
   record(summary, result.status === 0 ? "fix" : "error", "ran setup-hermes-profile", {
     status: result.status,
     stderr: String(result.stderr || result.error?.message || "").trim(),
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function hermesCommand() {
+  return fs.existsSync(WRAPPER_PATH) ? WRAPPER_PATH : "inneragora";
+}
+
+function runGatewayCommand(args, timeout = 20000) {
+  const result = spawnSync(hermesCommand(), args, {
+    cwd: ROOT,
+    encoding: "utf8",
+    timeout,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return {
+    status: result.status,
+    stdout: String(result.stdout || "").trim(),
+    stderr: String(result.stderr || result.error?.message || "").trim(),
+  };
+}
+
+function parseGatewayStatus(output) {
+  const pidMatch =
+    output.match(/Gateway is supervised by launchd \(PID\s+(\d+)\)/) ||
+    output.match(/\binneragora\s+[^—]*—\s+PID\s+(\d+)/) ||
+    output.match(/\bpid\s*=\s*(\d+)/i);
+  return {
+    ok: Boolean(pidMatch),
+    pid: pidMatch ? Number(pidMatch[1]) : null,
+    registered: /Gateway service is registered with launchd|Service definition matches|Launchd plist:/i.test(output),
+  };
+}
+
+async function checkGateway(summary) {
+  const status = runGatewayCommand(["gateway", "status"]);
+  const parsed = parseGatewayStatus(`${status.stdout}\n${status.stderr}`);
+  summary.gateway = {
+    ok: parsed.ok,
+    pid: parsed.pid,
+    registered: parsed.registered,
+    status: status.status,
+  };
+
+  if (parsed.ok) return;
+
+  if (FIX) {
+    const start = runGatewayCommand(["gateway", "start"]);
+    summary.changed = true;
+    record(summary, start.status === 0 ? "fix" : "error", "started Hermes gateway", {
+      status: start.status,
+      stderr: start.stderr,
+    });
+    await sleep(5000);
+    const retry = runGatewayCommand(["gateway", "status"]);
+    const retryParsed = parseGatewayStatus(`${retry.stdout}\n${retry.stderr}`);
+    summary.gateway = {
+      ok: retryParsed.ok,
+      pid: retryParsed.pid,
+      registered: retryParsed.registered,
+      status: retry.status,
+    };
+    if (!retryParsed.ok) {
+      record(summary, "error", "Hermes gateway is still not running after start", {
+        status: retry.status,
+        stderr: retry.stderr,
+      });
+    }
+    return;
+  }
+
+  record(summary, "error", "Hermes gateway is not running", {
+    hint: "Run: node scripts/inner-agora-guard.mjs --fix",
   });
 }
 
@@ -160,6 +237,9 @@ function printSummary(summary) {
   if (summary.paperclip) {
     console.log(`- Paperclip: ${summary.paperclip.ok ? "ok" : "failed"}${summary.paperclip.version ? ` (${summary.paperclip.version})` : ""}`);
   }
+  if (summary.gateway) {
+    console.log(`- Hermes gateway: ${summary.gateway.ok ? `ok (PID ${summary.gateway.pid})` : "failed"}`);
+  }
   for (const event of summary.events) {
     console.log(`  ${event.level}: ${event.message}`);
   }
@@ -176,6 +256,7 @@ const summary = {
 if (FIX) runSetup(summary);
 checkFiles(summary);
 await checkPaperclip(summary);
+await checkGateway(summary);
 
 summary.ok = !summary.events.some((event) => event.level === "error") && !summary.events.some((event) => event.level === "warn");
 printSummary(summary);
