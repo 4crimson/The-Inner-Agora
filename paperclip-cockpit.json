@@ -10,7 +10,49 @@
     "reset_idle_minutes": 15
   },
   "cwd": "/Users/admin/Documents/The Inner Agora",
+  "language": "ru",
   "company_hints": ["The Inner Agora"],
+  "presentation": {
+    "language": "ru",
+    "home": {
+      "title": "The Inner Agora",
+      "intro": "Агора подключена к Paperclip.",
+      "items": [
+        { "action": "status", "text": "кратко показать состояние" },
+        { "action": "result", "text": "последний содержательный итог" },
+        { "action": "philosophers", "text": "список философов" },
+        { "action": "tasks", "text": "сессии и задачи" }
+      ],
+      "more": [
+        { "command": "help full", "text": "полная справка" },
+        { "action": "guard", "text": "проверка проекта" }
+      ]
+    },
+    "sections": {
+      "useful_commands": "Команды:",
+      "more": "Еще:",
+      "details": "Детали:",
+      "recent_comments": "Последние заметки:",
+      "open_tasks": "Открытые сессии:",
+      "active_agents": "Активные:",
+      "idle_agents": "Ожидают:"
+    },
+    "help": {
+      "command_descriptions": {
+        "help": "показать справку по командам",
+        "companies": "список агор / рабочих пространств",
+        "health": "проверить доступность Paperclip API",
+        "agents": "список философов и их статусы",
+        "tasks": "список сессий и задач",
+        "task": "краткая карточка одной сессии или задачи",
+        "comments": "показать заметки / комментарии задачи",
+        "move": "изменить статус задачи",
+        "capabilities": "показать возможности и настройки cockpit",
+        "status": "кратко показать состояние The Inner Agora",
+        "debug": "техническая диагностика bridge"
+      }
+    }
+  },
   "labels": {
     "company": "agora",
     "companies": "agoras",
@@ -124,6 +166,7 @@
       "usage": "prepare [local|balanced|max]",
       "aliases": ["подготовь"],
       "natural_aliases": ["подготовь агору", "обнови философов"],
+      "description": "обновить структуру проекта и философов в Paperclip",
       "exec": ["node", "scripts/agora.mjs", "prepare"],
       "timeout": 240
     },
@@ -139,6 +182,7 @@
         "статус отличается",
         "другой статус"
       ],
+      "description": "заново сверить статус задачи прямо через Paperclip API",
       "exec": ["node", "scripts/agora.mjs", "recheck"],
       "timeout": 180
     },
@@ -146,6 +190,7 @@
       "usage": "status",
       "aliases": ["статус"],
       "natural_aliases": ["статус", "статус агоры"],
+      "description": "кратко показать состояние агоры",
       "exec": ["node", "scripts/agora.mjs", "status"],
       "timeout": 180
     },
@@ -162,6 +207,7 @@
         "результаты последней таски",
         "результаты последней задачи"
       ],
+      "description": "показать последнюю сессию с подзадачами и выжимкой",
       "exec": ["node", "scripts/agora.mjs", "latest"],
       "timeout": 180
     },
@@ -179,6 +225,7 @@
         "последняя выжимка",
         "итог синтеза"
       ],
+      "description": "показать содержательный итог или синтез",
       "exec": ["node", "scripts/agora.mjs", "result"],
       "timeout": 180
     },
@@ -186,6 +233,7 @@
       "usage": "mode [get|set MODE]",
       "aliases": ["режим"],
       "natural_aliases": ["режим", "режим агоры"],
+      "description": "показать или изменить режим выбора участников",
       "exec": ["node", "scripts/agora.mjs", "mode"],
       "timeout": 180
     },
@@ -193,6 +241,7 @@
       "usage": "council QUESTION",
       "aliases": ["совет"],
       "natural_aliases": ["совет", "совет философов"],
+      "description": "задать вопрос минимальному совету",
       "exec": ["node", "scripts/agora.mjs", "council"],
       "timeout": 900
     },
@@ -200,6 +249,7 @@
       "usage": "ask [--min|--balanced|--max|--all|--philosophers list] QUESTION",
       "aliases": ["question", "вопрос"],
       "natural_aliases": ["агора", "вопрос агоре"],
+      "description": "создать исследовательскую сессию",
       "exec": ["node", "scripts/agora.mjs", "ask"],
       "timeout": 900
     },
@@ -207,6 +257,7 @@
       "usage": "min QUESTION",
       "aliases": ["мин", "минимум"],
       "natural_aliases": ["агора-мин", "агора минимум"],
+      "description": "запустить короткую сессию",
       "exec": ["node", "scripts/agora.mjs", "ask", "--min"],
       "timeout": 900
     },
@@ -214,6 +265,7 @@
       "usage": "max QUESTION",
       "aliases": ["макс", "максимум"],
       "natural_aliases": ["агора-макс", "агора максимум"],
+      "description": "запустить расширенную сессию",
       "exec": ["node", "scripts/agora.mjs", "ask", "--max"],
       "timeout": 900
     },
@@ -221,6 +273,7 @@
       "usage": "all QUESTION",
       "aliases": ["все", "всё"],
       "natural_aliases": ["агора-все", "агора все"],
+      "description": "подключить всех философов из roster",
       "exec": ["node", "scripts/agora.mjs", "ask", "--all"],
       "timeout": 900
     },
@@ -228,6 +281,7 @@
       "usage": "dialogue PHILOSOPHER QUESTION",
       "aliases": ["dialog", "диалог"],
       "natural_aliases": ["диалог"],
+      "description": "начать диалог с одним философом",
       "exec": ["node", "scripts/agora.mjs", "dialogue"],
       "timeout": 600
     },
@@ -235,6 +289,7 @@
       "usage": "synth ISSUE",
       "aliases": ["synthesize", "синтез"],
       "natural_aliases": ["синтез"],
+      "description": "создать задачу синтеза для корневой сессии",
       "exec": ["node", "scripts/agora.mjs", "synthesize"],
       "timeout": 900
     },
@@ -242,6 +297,7 @@
       "usage": "finalize ISSUE",
       "aliases": ["close", "закрыть", "финализировать"],
       "natural_aliases": ["закрой пакет", "закрыть пакет", "закрой сессию", "закрыть сессию", "финализируй пакет"],
+      "description": "закрыть пакет, если все дочерние задачи завершены",
       "exec": ["node", "scripts/agora.mjs", "finalize"],
       "timeout": 180
     },
@@ -249,6 +305,7 @@
       "usage": "memory ISSUE",
       "aliases": ["память"],
       "natural_aliases": ["память"],
+      "description": "экспортировать сессию в markdown-память проекта",
       "exec": ["node", "scripts/agora.mjs", "export-memory"],
       "timeout": 180
     },
@@ -256,6 +313,7 @@
       "usage": "guard",
       "aliases": ["check", "проверка"],
       "natural_aliases": ["проверка агоры"],
+      "description": "проверить файлы и настройки The Inner Agora",
       "exec": ["node", "scripts/inner-agora-guard.mjs"],
       "append_args": false,
       "timeout": 60
