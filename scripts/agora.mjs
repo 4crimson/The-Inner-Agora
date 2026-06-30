@@ -36,7 +36,9 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs status
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
   node scripts/agora.mjs latest [issue-id-or-key]
+  node scripts/agora.mjs result [issue-id-or-key] [--full]
   node scripts/agora.mjs task <issue-id-or-key>
+  node scripts/agora.mjs finalize <issue-id-or-key> [--dry-run]
   node scripts/agora.mjs move <issue-id-or-key> <todo|in_progress|blocked|done|cancelled>
   node scripts/agora.mjs comments <issue-id-or-key>
 
@@ -862,6 +864,38 @@ async function resolveRootIssue(args, allIssues) {
   return roots[0];
 }
 
+async function resolveTopRootIssue(issue) {
+  let current = issue;
+  const seen = new Set();
+  while (current?.parentId && !seen.has(current.id)) {
+    seen.add(current.id);
+    current = await api(`/issues/${current.parentId}`);
+  }
+  return current;
+}
+
+function childrenOf(issue, allIssues) {
+  return allIssues.filter((item) => item.parentId === issue.id && !item.hiddenAt).sort(byIssueNumber);
+}
+
+function isSynthesisIssue(issue, assistantId = "") {
+  if (!issue) return false;
+  if (/^Синтез:/i.test(String(issue.title || ""))) return true;
+  return Boolean(assistantId && issue.assigneeAgentId === assistantId);
+}
+
+function latestSynthesisChild(issue, allIssues, agora) {
+  return [...childrenOf(issue, allIssues)]
+    .reverse()
+    .find((child) => isSynthesisIssue(child, agora.assistant.id));
+}
+
+function hasSynthesisShape(text) {
+  return /Какой вопрос реально исследовался|Карта позиций|Главные линии конфликта|Черновая матрица/i.test(
+    String(text || ""),
+  );
+}
+
 function oneLine(text, limit = 420) {
   const value = String(text || "").replace(/\s+/g, " ").trim();
   if (value.length <= limit) return value;
@@ -920,6 +954,7 @@ function printSynthesisDigest(comment) {
 
   const question = paragraphLines(sectionBody(body, 1), 1);
   const positions = bulletLines(sectionBody(body, 3), 6);
+  const positionParagraphs = positions.length ? [] : paragraphLines(sectionBody(body, 3), 5);
   const conflicts = bulletLines(sectionBody(body, 4), 5);
   const unresolved = bulletLines(sectionBody(body, 6), 3);
   const next = paragraphLines(sectionBody(body, 7), 1);
@@ -935,6 +970,12 @@ function printSynthesisDigest(comment) {
   if (positions.length) {
     console.log("Позиции:");
     for (const line of positions) console.log(line);
+    console.log("");
+  }
+
+  if (positionParagraphs.length) {
+    console.log("Позиции:");
+    for (const line of positionParagraphs) console.log(`- ${line}`);
     console.log("");
   }
 
@@ -960,6 +1001,15 @@ function printSynthesisDigest(comment) {
     console.log("Пометки:");
     for (const line of noteLines) console.log(line);
   }
+}
+
+function printFallbackDigest(comment) {
+  const body = String(comment?.body || "").trim();
+  if (!body) {
+    console.log("- Содержательного результата пока нет.");
+    return;
+  }
+  for (const line of paragraphLines(body, 6)) console.log(`- ${line}`);
 }
 
 async function status() {
@@ -1109,12 +1159,8 @@ async function latest(args) {
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
   const root = await resolveRootIssue(args, allIssues);
-  const children = allIssues
-    .filter((issue) => issue.parentId === root.id && !issue.hiddenAt)
-    .sort(byIssueNumber);
-  const synthesis = [...children]
-    .reverse()
-    .find((issue) => issue.assigneeAgentId === agora.assistant.id || /^Синтез:/i.test(issue.title || ""));
+  const children = childrenOf(root, allIssues);
+  const synthesis = latestSynthesisChild(root, allIssues, agora);
   const philosopherChildren = children.filter((issue) => issue.id !== synthesis?.id);
 
   console.log(`# Последняя Paperclip-сессия: ${root.identifier || root.id}`);
@@ -1150,6 +1196,68 @@ async function latest(args) {
   if (digestSource?.createdAt) console.log(`Источник выжимки: comment ${digestSource.authorType || "unknown"} ${digestSource.createdAt}`);
   console.log("");
   printSynthesisDigest(digestSource);
+}
+
+async function result(args) {
+  const full = args.includes("--full") || args.includes("full") || args.includes("полностью");
+  const filteredArgs = args.filter((arg) => !["--full", "full", "полностью"].includes(arg));
+  const agora = await getAgora();
+  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const explicitRef = latestIssueRef(filteredArgs);
+
+  let target;
+  let root = null;
+  let sourceNote = "";
+
+  if (explicitRef) {
+    const issue = await api(`/issues/${explicitRef}`);
+    if (!issue.parentId) {
+      root = issue;
+      target = latestSynthesisChild(root, allIssues, agora) || root;
+      if (target.id !== root.id) sourceNote = `Показан последний синтез пакета ${root.identifier || root.id}.`;
+    } else {
+      target = issue;
+      root = await resolveTopRootIssue(issue);
+    }
+  } else {
+    root = await resolveRootIssue([], allIssues);
+    target = latestSynthesisChild(root, allIssues, agora) || root;
+    if (target.id !== root.id) sourceNote = `Показан последний синтез пакета ${root.identifier || root.id}.`;
+  }
+
+  const nested = latestSynthesisChild(target, allIssues, agora);
+  let commentsList = await api(`/issues/${target.id}/comments`);
+  let digestSource = synthesisComment(commentsList);
+
+  if (nested) {
+    const nestedComments = await api(`/issues/${nested.id}/comments`);
+    const nestedSource = synthesisComment(nestedComments);
+    const targetBody = String(digestSource?.body || "");
+    const nestedBody = String(nestedSource?.body || "");
+    if (!hasSynthesisShape(targetBody) && hasSynthesisShape(nestedBody)) {
+      target = nested;
+      commentsList = nestedComments;
+      digestSource = nestedSource;
+      sourceNote = `Показан вложенный синтез ${nested.identifier || nested.id}; исходная задача была ${explicitRef || root?.identifier || root?.id}.`;
+    }
+  }
+
+  console.log(`# Результат: ${target.identifier || target.id}`);
+  console.log(target.title);
+  console.log(`- status: ${target.status}`);
+  if (root && root.id !== target.id) console.log(`- пакет: ${root.identifier || root.id}`);
+  console.log(`- url: http://127.0.0.1:3100/issues/${target.id}`);
+  if (digestSource?.createdAt) console.log(`- источник: comment ${digestSource.authorType || "unknown"} ${digestSource.createdAt}`);
+  if (sourceNote) console.log(`- примечание: ${sourceNote}`);
+  console.log("");
+
+  if (full) {
+    console.log(String(digestSource?.body || "").trim() || "Содержательного результата пока нет.");
+    return;
+  }
+
+  printSynthesisDigest(digestSource);
+  if (!hasSynthesisShape(String(digestSource?.body || ""))) printFallbackDigest(digestSource);
 }
 
 async function taskDetails(args) {
@@ -1251,10 +1359,26 @@ async function synthesize(args) {
 
   const agora = await getAgora();
   const root = await api(`/issues/${issueRef}`);
+  if (isSynthesisIssue(root, agora.assistant.id)) {
+    const parent = root.parentId ? await resolveTopRootIssue(root) : null;
+    console.log(`${root.identifier || root.id} уже является задачей синтеза.`);
+    console.log(`Результат: node scripts/agora.mjs result ${root.identifier || root.id}`);
+    if (parent && parent.id !== root.id) {
+      console.log(`Новый синтез всего пакета: node scripts/agora.mjs synthesize ${parent.identifier || parent.id}`);
+    }
+    return;
+  }
+
+  if (root.parentId) {
+    const parent = await resolveTopRootIssue(root);
+    console.log(`${root.identifier || root.id} является child-задачей, а synth ожидает корневой пакет.`);
+    console.log(`Новый синтез всего пакета: node scripts/agora.mjs synthesize ${parent.identifier || parent.id}`);
+    console.log(`Результат этой задачи: node scripts/agora.mjs result ${root.identifier || root.id}`);
+    return;
+  }
+
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
-  const children = allIssues
-    .filter((item) => item.parentId === root.id && !item.hiddenAt)
-    .sort((left, right) => Number(left.issueNumber || 0) - Number(right.issueNumber || 0));
+  const children = childrenOf(root, allIssues);
 
   const childBlocks = await Promise.all(children.map(childBlock));
   const description = [
@@ -1313,6 +1437,97 @@ async function synthesize(args) {
   console.log(`Created synthesis issue: ${synthesis.identifier || synthesis.id}`);
   console.log(wakeSummary(wake));
   console.log(`Open: http://127.0.0.1:3100/issues/${synthesis.id}`);
+}
+
+function collectSubtree(root, allIssues) {
+  const byParent = new Map();
+  for (const issue of allIssues.filter((item) => !item.hiddenAt)) {
+    if (!issue.parentId) continue;
+    const items = byParent.get(issue.parentId) || [];
+    items.push(issue);
+    byParent.set(issue.parentId, items);
+  }
+
+  const items = [];
+  function visit(issue, depth) {
+    for (const child of (byParent.get(issue.id) || []).sort(byIssueNumber)) {
+      items.push({ issue: child, depth });
+      visit(child, depth + 1);
+    }
+  }
+  visit(root, 1);
+  return { items, byParent };
+}
+
+async function finalize(args) {
+  const dryRun = args.includes("--dry-run");
+  const issueRef = latestIssueRef(args);
+  if (!issueRef) throw new Error("Usage: node scripts/agora.mjs finalize <issue-id-or-key> [--dry-run]");
+
+  const agora = await getAgora();
+  const start = await api(`/issues/${issueRef}`);
+  const root = await resolveTopRootIssue(start);
+  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
+  const { items, byParent } = collectSubtree(root, allIssues);
+  const issueById = new Map([[root.id, root], ...items.map(({ issue }) => [issue.id, issue])]);
+  const changed = [];
+
+  function visibleChildren(issue) {
+    return (byParent.get(issue.id) || []).filter((child) => !child.hiddenAt).sort(byIssueNumber);
+  }
+
+  for (const { issue } of [...items].sort((left, right) => right.depth - left.depth || byIssueNumber(right.issue, left.issue))) {
+    const kids = visibleChildren(issue);
+    if (!kids.length || terminalStatuses.has(issue.status)) continue;
+    if (!kids.every((child) => terminalStatuses.has(issueById.get(child.id)?.status || child.status))) continue;
+
+    if (!dryRun) {
+      await updateIssue(issue.id, { status: "done" });
+      await addComment(issue.id, "Пакет автоматически закрыт через Inner Agora bridge: все дочерние задачи в финальных статусах.");
+      issue.status = "done";
+    }
+    changed.push(issue);
+  }
+
+  const rootChildren = visibleChildren(root);
+  const openRootChildren = rootChildren.filter((child) => !terminalStatuses.has(issueById.get(child.id)?.status || child.status));
+
+  console.log(`# Закрытие пакета: ${root.identifier || root.id}`);
+  console.log(root.title);
+  console.log(`- dryRun: ${dryRun ? "yes" : "no"}`);
+  console.log(`- root status: ${root.status}`);
+  console.log(`- children: ${rootChildren.length}`);
+
+  if (openRootChildren.length) {
+    console.log("");
+    console.log("Не закрываю корневой пакет: есть незавершенные child-задачи.");
+    for (const child of openRootChildren) console.log(compactIssueLine(child, agentById));
+    if (changed.length) {
+      console.log("");
+      console.log("Закрытые вложенные пакеты:");
+      for (const issue of changed) console.log(`- ${issue.identifier || issue.id}`);
+    }
+    return;
+  }
+
+  if (rootChildren.length && !terminalStatuses.has(root.status)) {
+    if (!dryRun) {
+      await updateIssue(root.id, { status: "done" });
+      await addComment(root.id, "Пакет закрыт через Inner Agora bridge: все дочерние задачи завершены или находятся в финальном статусе.");
+      root.status = "done";
+    }
+    changed.push(root);
+  }
+
+  console.log("");
+  if (!changed.length) {
+    console.log("Изменений нет: пакет уже закрыт или не требует автозакрытия.");
+  } else {
+    console.log(dryRun ? "Можно закрыть:" : "Закрыто:");
+    for (const issue of changed) console.log(`- ${issue.identifier || issue.id}: ${issue.title}`);
+  }
+  console.log(`Open: http://127.0.0.1:3100/issues/${root.id}`);
 }
 
 function slugify(text, fallback = "session") {
@@ -1380,7 +1595,9 @@ async function main() {
   if (command === "status") return status();
   if (command === "tasks") return tasks(args);
   if (command === "latest" || command === "last" || command === "brief") return latest(args);
+  if (command === "result" || command === "outcome" || command === "итог" || command === "результат") return result(args);
   if (command === "task") return taskDetails(args);
+  if (command === "finalize" || command === "close" || command === "закрыть") return finalize(args);
   if (command === "move") return moveIssue(args);
   if (command === "comments") return comments(args);
 

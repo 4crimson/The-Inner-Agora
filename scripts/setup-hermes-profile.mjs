@@ -227,6 +227,7 @@ Work creation rule:
 Truthfulness and durable-work rule:
 - Paperclip has companies, agents, issues, runs, and comments. Local markdown files under this workspace are project documents, not "Paperclip files".
 - Do not use old Telegram/session history to answer Paperclip state questions. For summaries of tasks, subtasks, results, rosters, or comments, use Paperclip commands such as \`/agora latest\`, \`/agora session ISSUE\`, \`/agora notes ISSUE\`, \`/agora philosophers\`, or \`/agora status\`.
+- Never emit raw tool-call markup such as \`<|channel>\`, \`call:terminal{...}\`, or \`<tool_call|>\`. If command routing fails, answer in plain Russian and suggest the exact \`/agora ...\` command.
 - Do not say that background agents, researchers, or web research are working unless you created or observed a durable Paperclip issue/run and can name its identifier.
 - Do not promise "I will notify when ready" unless a durable Paperclip issue/run/automation exists. Otherwise say what was actually created or ask the user to create a session.
 - Do not claim web research is running or complete unless a web tool actually ran successfully. If web/check_web_api_key is unavailable, state that web is unavailable.
@@ -248,6 +249,7 @@ Preferred deterministic slash commands:
 /agora status
 /agora mode [get|set MODE]
 /agora latest [ISSUE]
+/agora result [ISSUE] [--full]
 /agora council QUESTION
 /agora ask [--min|--balanced|--max|--all|--philosophers list] QUESTION
 /agora min QUESTION
@@ -255,6 +257,7 @@ Preferred deterministic slash commands:
 /agora all QUESTION
 /agora dialogue PHILOSOPHER QUESTION
 /agora synth ISSUE
+/agora finalize ISSUE
 /agora memory ISSUE
 /agora guard
 \`\`\`
@@ -276,6 +279,10 @@ Russian prompt-routed commands:
 выжимка последней таски        /agora latest
 последняя таска с подтасками   /agora latest
 результаты последней задачи    /agora latest
+результат синтеза: ISSUE       /agora result ISSUE
+дай результат по синтезу ISSUE /agora result ISSUE
+последняя выжимка              /agora result
+закрой пакет: ISSUE            /agora finalize ISSUE
 режим                          /agora mode
 режим: MODE                    /agora mode set MODE
 совет: QUESTION                /agora council QUESTION
@@ -290,6 +297,8 @@ Russian prompt-routed commands:
 синтез: ISSUE                  /agora synth ISSUE
 память: ISSUE                  /agora memory ISSUE
 \`\`\`
+
+\`/agora synth\` is only for a root session. If the target is already a synthesis issue or a child issue, use \`/agora result ISSUE\` or synthesize the root parent instead.
 
 Allowed move statuses: \`todo\`, \`in_progress\`, \`blocked\`, \`done\`, \`cancelled\`.
 Allowed modes: \`min\`, \`local\`, \`balanced\`, \`max\`, \`all\`.

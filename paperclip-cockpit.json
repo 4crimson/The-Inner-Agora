@@ -58,6 +58,20 @@
       "require_tail": true,
       "min_tail_chars": 20
     },
+    "synthesis_result": {
+      "action": "result",
+      "aliases": [
+        "дай результат по синтезу",
+        "результат по синтезу",
+        "результат синтеза",
+        "дай результат синтеза",
+        "дай последнюю выжимку",
+        "последняя выжимка",
+        "итог синтеза",
+        "покажи итог синтеза"
+      ],
+      "match": "contains"
+    },
     "latest_task_summary": {
       "action": "latest",
       "aliases": [
@@ -105,6 +119,21 @@
         "результаты последней задачи"
       ],
       "exec": ["node", "scripts/agora.mjs", "latest"],
+      "timeout": 180
+    },
+    "result": {
+      "usage": "result [ISSUE] [--full]",
+      "aliases": ["result", "outcome", "итог", "результат"],
+      "natural_aliases": [
+        "дай результат",
+        "покажи результат",
+        "результат синтеза",
+        "дай результат по синтезу",
+        "дай последнюю выжимку",
+        "последняя выжимка",
+        "итог синтеза"
+      ],
+      "exec": ["node", "scripts/agora.mjs", "result"],
       "timeout": 180
     },
     "mode": {
@@ -162,6 +191,13 @@
       "natural_aliases": ["синтез"],
       "exec": ["node", "scripts/agora.mjs", "synthesize"],
       "timeout": 900
+    },
+    "finalize": {
+      "usage": "finalize ISSUE",
+      "aliases": ["close", "закрыть", "финализировать"],
+      "natural_aliases": ["закрой пакет", "закрыть пакет", "закрой сессию", "закрыть сессию", "финализируй пакет"],
+      "exec": ["node", "scripts/agora.mjs", "finalize"],
+      "timeout": 180
     },
     "memory": {
       "usage": "memory ISSUE",
