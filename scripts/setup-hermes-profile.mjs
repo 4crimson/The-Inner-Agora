@@ -247,6 +247,7 @@ Preferred deterministic slash commands:
 /agora capabilities
 /agora prepare [local|balanced|max]
 /agora status
+/agora recheck [ISSUE]
 /agora mode [get|set MODE]
 /agora latest [ISSUE]
 /agora result [ISSUE] [--full]
@@ -284,6 +285,8 @@ Russian prompt-routed commands:
 давай результат                /agora result
 последняя выжимка              /agora result
 какой статус ISSUE             /agora status ISSUE
+перепроверь статус ISSUE       /agora recheck ISSUE
+в вебе другой статус           /agora recheck
 закрой пакет: ISSUE            /agora finalize ISSUE
 режим                          /agora mode
 режим: MODE                    /agora mode set MODE
@@ -301,6 +304,7 @@ Russian prompt-routed commands:
 \`\`\`
 
 \`/agora synth\` is only for a root session. If the target is already a synthesis issue or a child issue, use \`/agora result ISSUE\` or synthesize the root parent instead.
+If the user challenges a Paperclip status, do not explain from memory. Run \`/agora recheck ISSUE\` or \`/agora recheck\` and report the fresh Paperclip value.
 
 Allowed move statuses: \`todo\`, \`in_progress\`, \`blocked\`, \`done\`, \`cancelled\`.
 Allowed modes: \`min\`, \`local\`, \`balanced\`, \`max\`, \`all\`.

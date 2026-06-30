@@ -86,6 +86,21 @@
       ],
       "match": "contains"
     },
+    "status_dispute": {
+      "action": "recheck",
+      "aliases": [
+        "в вебе вижу",
+        "в web вижу",
+        "web показывает",
+        "статус отличается",
+        "другой статус",
+        "не тот статус",
+        "откуда у тебя такой",
+        "почему такой статус",
+        "source of truth"
+      ],
+      "match": "contains"
+    },
     "latest_task_summary": {
       "action": "latest",
       "aliases": [
@@ -111,6 +126,21 @@
       "natural_aliases": ["подготовь агору", "обнови философов"],
       "exec": ["node", "scripts/agora.mjs", "prepare"],
       "timeout": 240
+    },
+    "recheck": {
+      "usage": "recheck [ISSUE]",
+      "aliases": ["recheck", "verify", "перепроверь", "сверь"],
+      "natural_aliases": [
+        "перепроверь статус",
+        "сверь статус",
+        "проверь статус заново",
+        "в вебе вижу другой статус",
+        "откуда у тебя такой статус",
+        "статус отличается",
+        "другой статус"
+      ],
+      "exec": ["node", "scripts/agora.mjs", "recheck"],
+      "timeout": 180
     },
     "status": {
       "usage": "status",

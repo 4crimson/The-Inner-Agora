@@ -34,6 +34,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
+  node scripts/agora.mjs recheck [issue-id-or-key]
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
   node scripts/agora.mjs latest [issue-id-or-key]
   node scripts/agora.mjs result [issue-id-or-key] [--full]
@@ -68,6 +69,18 @@ function writeState(patch) {
   };
   fs.writeFileSync(STATE_PATH, `${JSON.stringify(next, null, 2)}\n`);
   return next;
+}
+
+function rememberIssue(issue, patch = {}) {
+  if (!issue) return;
+  writeState({
+    ...patch,
+    lastIssueRef: issue.identifier || issue.id,
+    lastIssueId: issue.id,
+    lastIssueTitle: issue.title || "",
+    lastIssueStatus: issue.status || "",
+    lastIssueSeenAt: new Date().toISOString(),
+  });
 }
 
 function normalizeMode(value) {
@@ -1052,6 +1065,22 @@ async function status(args = []) {
   }
 }
 
+async function recheck(args = []) {
+  const state = readState();
+  const issueRef = latestIssueRef(args) || state.lastIssueRef || state.lastSynthesisRef || state.lastRootIssueRef || "";
+
+  if (issueRef) {
+    console.log(`Перепроверяю Paperclip API: ${issueRef}`);
+    console.log("Источник истины: текущий объект issue в Paperclip, не память Telegram/Hermes.");
+    console.log("");
+    return taskDetails([issueRef]);
+  }
+
+  console.log("Не нашел последнего issue в локальной памяти bridge. Показываю последнюю Paperclip-сессию.");
+  console.log("");
+  return latest([]);
+}
+
 function tagList(item) {
   return Array.isArray(item.tags) ? item.tags.filter(Boolean) : [];
 }
@@ -1165,6 +1194,12 @@ async function latest(args) {
   const children = childrenOf(root, allIssues);
   const synthesis = latestSynthesisChild(root, allIssues, agora);
   const philosopherChildren = children.filter((issue) => issue.id !== synthesis?.id);
+  rememberIssue(synthesis || root, {
+    lastRootIssueRef: root.identifier || root.id,
+    lastRootIssueId: root.id,
+    lastSynthesisRef: synthesis?.identifier || "",
+    lastSynthesisId: synthesis?.id || "",
+  });
 
   console.log(`# Последняя Paperclip-сессия: ${root.identifier || root.id}`);
   console.log(root.title);
@@ -1244,6 +1279,12 @@ async function result(args) {
       sourceNote = `Показан вложенный синтез ${nested.identifier || nested.id}; исходная задача была ${explicitRef || root?.identifier || root?.id}.`;
     }
   }
+  rememberIssue(target, {
+    lastRootIssueRef: root?.identifier || "",
+    lastRootIssueId: root?.id || "",
+    lastSynthesisRef: isSynthesisIssue(target, agora.assistant.id) ? target.identifier || target.id : "",
+    lastSynthesisId: isSynthesisIssue(target, agora.assistant.id) ? target.id : "",
+  });
 
   console.log(`# Результат: ${target.identifier || target.id}`);
   console.log(target.title);
@@ -1269,6 +1310,7 @@ async function taskDetails(args) {
 
   const agora = await getAgora();
   const issue = await api(`/issues/${issueRef}`);
+  rememberIssue(issue);
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const comments = await api(`/issues/${issue.id}/comments`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
@@ -1306,6 +1348,7 @@ async function moveIssue(args) {
   }
 
   const issue = await api(`/issues/${issueRef}`);
+  rememberIssue(issue);
   if (issue.status === nextStatus) {
     console.log(`${issue.identifier || issue.id} already ${nextStatus}`);
     return;
@@ -1322,6 +1365,7 @@ async function comments(args) {
   if (!issueRef) throw new Error("Usage: node scripts/agora.mjs comments <issue-id-or-key>");
 
   const issue = await api(`/issues/${issueRef}`);
+  rememberIssue(issue);
   const items = await api(`/issues/${issue.id}/comments`);
   console.log(`# ${issue.identifier || issue.id}: ${issue.title}`);
   console.log(`Status: ${issue.status}`);
@@ -1362,6 +1406,7 @@ async function synthesize(args) {
 
   const agora = await getAgora();
   const root = await api(`/issues/${issueRef}`);
+  rememberIssue(root, { lastRootIssueRef: root.identifier || root.id, lastRootIssueId: root.id });
   if (isSynthesisIssue(root, agora.assistant.id)) {
     const parent = root.parentId ? await resolveTopRootIssue(root) : null;
     console.log(`${root.identifier || root.id} уже является задачей синтеза.`);
@@ -1436,6 +1481,12 @@ async function synthesize(args) {
     root.id,
     [`Создана задача синтеза: ${synthesis.identifier || synthesis.id}.`, wakeSummary(wake)].join("\n"),
   );
+  rememberIssue(synthesis, {
+    lastRootIssueRef: root.identifier || root.id,
+    lastRootIssueId: root.id,
+    lastSynthesisRef: synthesis.identifier || synthesis.id,
+    lastSynthesisId: synthesis.id,
+  });
 
   console.log(`Created synthesis issue: ${synthesis.identifier || synthesis.id}`);
   console.log(wakeSummary(wake));
@@ -1470,6 +1521,7 @@ async function finalize(args) {
   const agora = await getAgora();
   const start = await api(`/issues/${issueRef}`);
   const root = await resolveTopRootIssue(start);
+  rememberIssue(root, { lastRootIssueRef: root.identifier || root.id, lastRootIssueId: root.id });
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
   const { items, byParent } = collectSubtree(root, allIssues);
@@ -1549,6 +1601,7 @@ async function exportMemory(args) {
   if (!issueRef) throw new Error("Usage: node scripts/agora.mjs export-memory <issue-id-or-key>");
 
   const issue = await api(`/issues/${issueRef}`);
+  rememberIssue(issue);
   const commentsList = await api(`/issues/${issue.id}/comments`);
   fs.mkdirSync(MEMORY_DIR, { recursive: true });
   const filePath = path.join(MEMORY_DIR, `${issue.identifier || issue.id}-${slugify(issue.title)}.md`);
@@ -1596,6 +1649,7 @@ async function main() {
   if (command === "export-memory") return exportMemory(args);
   if (command === "philosophers" || command === "agents") return listPhilosophers(args);
   if (command === "status") return status(args);
+  if (command === "recheck" || command === "verify" || command === "перепроверь" || command === "сверь") return recheck(args);
   if (command === "tasks") return tasks(args);
   if (command === "latest" || command === "last" || command === "brief") return latest(args);
   if (command === "result" || command === "outcome" || command === "итог" || command === "результат") return result(args);
