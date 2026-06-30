@@ -281,7 +281,9 @@ Russian prompt-routed commands:
 результаты последней задачи    /agora latest
 результат синтеза: ISSUE       /agora result ISSUE
 дай результат по синтезу ISSUE /agora result ISSUE
+давай результат                /agora result
 последняя выжимка              /agora result
+какой статус ISSUE             /agora status ISSUE
 закрой пакет: ISSUE            /agora finalize ISSUE
 режим                          /agora mode
 режим: MODE                    /agora mode set MODE

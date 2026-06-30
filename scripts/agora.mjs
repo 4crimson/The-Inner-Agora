@@ -1012,7 +1012,10 @@ function printFallbackDigest(comment) {
   for (const line of paragraphLines(body, 6)) console.log(`- ${line}`);
 }
 
-async function status() {
+async function status(args = []) {
+  const issueRef = latestIssueRef(args);
+  if (issueRef) return taskDetails([issueRef]);
+
   const { company, agents } = await getAgora();
   const [issues, runs] = await Promise.all([
     api(`/companies/${company.id}/issues`),
@@ -1592,7 +1595,7 @@ async function main() {
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
   if (command === "philosophers" || command === "agents") return listPhilosophers(args);
-  if (command === "status") return status();
+  if (command === "status") return status(args);
   if (command === "tasks") return tasks(args);
   if (command === "latest" || command === "last" || command === "brief") return latest(args);
   if (command === "result" || command === "outcome" || command === "итог" || command === "результат") return result(args);
