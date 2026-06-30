@@ -1025,6 +1025,53 @@ function printFallbackDigest(comment) {
   for (const line of paragraphLines(body, 6)) console.log(`- ${line}`);
 }
 
+function stripFullTokens(args = []) {
+  const fullWords = new Set(["--full", "full", "подробно", "полностью"]);
+  return {
+    full: args.some((arg) => fullWords.has(String(arg).toLowerCase())),
+    args: args.filter((arg) => !fullWords.has(String(arg).toLowerCase())),
+  };
+}
+
+function displayStatus(status) {
+  const labels = {
+    todo: "ожидает",
+    in_progress: "в работе",
+    blocked: "заблокировано",
+    done: "готово",
+    cancelled: "отменено",
+    queued: "в очереди",
+  };
+  return labels[status] ? `${labels[status]} (${status})` : status || "unknown";
+}
+
+function displayTitle(issue) {
+  let title = String(issue?.title || "").trim();
+  title = title.replace(/^(Синтез:\s*){2,}/i, "Синтез: ");
+  return oneLine(title, 220);
+}
+
+function issueKind(issue, assistantId = "") {
+  if (isSynthesisIssue(issue, assistantId)) return "синтез";
+  if (issue?.parentId) return "подзадача";
+  return "пакет";
+}
+
+function issueByIdMap(issues) {
+  return new Map(issues.map((issue) => [issue.id, issue]));
+}
+
+function rootFromMap(issue, byId) {
+  let current = issue;
+  const seen = new Set();
+  while (current?.parentId && !seen.has(current.id)) {
+    seen.add(current.id);
+    current = byId.get(current.parentId) || current;
+    if (seen.has(current.id)) break;
+  }
+  return current;
+}
+
 async function status(args = []) {
   const issueRef = latestIssueRef(args);
   if (issueRef) return taskDetails([issueRef]);
@@ -1305,18 +1352,37 @@ async function result(args) {
 }
 
 async function taskDetails(args) {
-  const issueRef = args[0];
+  const parsed = stripFullTokens(args);
+  const issueRef = parsed.args[0];
   if (!issueRef) throw new Error("Usage: node scripts/agora.mjs task <issue-id-or-key>");
 
   const agora = await getAgora();
   const issue = await api(`/issues/${issueRef}`);
   rememberIssue(issue);
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
-  const comments = await api(`/issues/${issue.id}/comments`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
-  const children = allIssues
-    .filter((item) => item.parentId === issue.id && !item.hiddenAt)
-    .sort((left, right) => Number(left.issueNumber || 0) - Number(right.issueNumber || 0));
+  const byId = issueByIdMap(allIssues);
+  const children = childrenOf(issue, allIssues);
+  const parent = issue.parentId ? byId.get(issue.parentId) : null;
+  const root = rootFromMap(issue, byId);
+
+  if (!parsed.full) {
+    const assignee = issue.assigneeAgentId ? agentById.get(issue.assigneeAgentId)?.name || issue.assigneeAgentId : "";
+    console.log(`${issue.identifier || issue.id} — ${issueKind(issue, agora.assistant.id)}`);
+    console.log(displayTitle(issue));
+    console.log(`Статус: ${displayStatus(issue.status)}`);
+    if (assignee) console.log(`Исполнитель: ${assignee}`);
+    if (parent) console.log(`Родитель: ${parent.identifier || parent.id}`);
+    if (root && root.id !== issue.id) console.log(`Пакет: ${root.identifier || root.id}`);
+    if (children.length) {
+      const done = children.filter((child) => terminalStatuses.has(child.status)).length;
+      console.log(`Подзадачи: ${done}/${children.length} в финальном статусе`);
+    }
+    console.log(`Открыть: http://127.0.0.1:3100/issues/${issue.id}`);
+    return;
+  }
+
+  const comments = await api(`/issues/${issue.id}/comments`);
 
   console.log(`# ${issue.identifier || issue.id}: ${issue.title}`);
   console.log(`- status: ${issue.status}`);
