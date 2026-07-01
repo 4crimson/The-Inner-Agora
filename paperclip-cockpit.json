@@ -95,10 +95,22 @@
         "сделай совет",
         "start research",
         "create research task",
-        "create session"
+        "create session",
+        "давай исследуем",
+        "исследуем",
+        "исследовать тему",
+        "сделай исследование",
+        "собери консилиум",
+        "сделай консилиум",
+        "создай консилиум",
+        "запусти консилиум",
+        "консилиум по",
+        "собери совет"
       ],
       "require_tail": true,
-      "min_tail_chars": 20
+      "min_tail_chars": 20,
+      "match": "contains",
+      "preserve_full_text": true
     },
     "synthesis_result": {
       "action": "result",
