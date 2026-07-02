@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -101,7 +102,7 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
             calls.append((method, payload, timeout))
             return {"ok": True}
 
-        def fake_run_action(name, action, raw_args):
+        def fake_run_action(name, action, raw_args, **_):
             runs.append((name, action, raw_args))
             return f"output for {raw_args}"
 
@@ -128,6 +129,76 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
             self.assertEqual(calls[1][1]["chat_id"], "chat-1")
             self.assertEqual(calls[1][1]["text"], "output for ticket=WK-7")
             self.assertEqual(adapter.auth_calls[0][0], "user-1")
+
+        self.with_config(config, assertions)
+
+    def test_callback_action_passes_chat_id_to_subprocess_env(self):
+        config = {
+            "telegram": {
+                "enabled": True,
+                "callback_prefix": "pc",
+                "callbacks": {"latest": {"action": "latest", "args": "{arg}", "answer": "Opening"}},
+            },
+            "actions": {"latest": {"exec": ["node", "-e", "console.log(process.env.INNER_AGORA_CHAT_ID || '')"]}},
+        }
+        calls = []
+        runs = []
+
+        def fake_api(method, payload, *, timeout=20):
+            calls.append((method, payload, timeout))
+            return {"ok": True}
+
+        def fake_run(args, cwd=None, text=None, capture_output=None, timeout=None, check=None, env=None):
+            runs.append(env)
+            return type("Result", (), {"stdout": "chat-2\n", "stderr": "", "returncode": 0})()
+
+        def assertions():
+            with MonkeyPatch(self.plugin, _telegram_api=fake_api), MonkeyPatch(subprocess, run=fake_run):
+                result = self.plugin._telegram_callback_query(
+                    adapter=FakeAdapter(),
+                    query=FakeQuery(),
+                    data="pc:latest:THE-900",
+                    chat_id="chat-2",
+                    user_id="user-2",
+                )
+
+            self.assertEqual(result, {"action": "handled"})
+            self.assertEqual(runs[0]["INNER_AGORA_CHAT_ID"], "chat-2")
+            self.assertEqual(calls[1][1]["text"], "chat-2")
+
+        self.with_config(config, assertions)
+
+    def test_pre_gateway_dispatch_passes_chat_id_to_natural_delegate(self):
+        config = {
+            "command": {"name": "agora"},
+            "natural_language": {
+                "delegate": {"exec": ["node", "scripts/agora.mjs", "natural", "--dry-run", "--json", "{text}"]}
+            },
+        }
+        runs = []
+
+        def fake_run(args, cwd=None, text=None, capture_output=None, timeout=None, check=None, env=None):
+            runs.append(env)
+            return type(
+                "Result",
+                (),
+                {"stdout": json.dumps({"action": "rewrite", "text": "/agora status"}), "stderr": "", "returncode": 0},
+            )()
+
+        def assertions():
+            with MonkeyPatch(subprocess, run=fake_run):
+                class Source:
+                    platform = "telegram"
+                    chat_id = "chat-a"
+
+                class Event:
+                    source = Source()
+                    text = "агора статус"
+
+                result = self.plugin._pre_gateway_dispatch(Event())
+
+            self.assertEqual(result, {"action": "rewrite", "text": "/agora status"})
+            self.assertEqual(runs[0]["INNER_AGORA_CHAT_ID"], "chat-a")
 
         self.with_config(config, assertions)
 
@@ -188,7 +259,7 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
             calls.append((method, payload, timeout))
             return {"ok": True}
 
-        def fake_run_action(name, action, raw_args):
+        def fake_run_action(name, action, raw_args, **_):
             runs.append((name, action, raw_args))
             return json.dumps(
                 {

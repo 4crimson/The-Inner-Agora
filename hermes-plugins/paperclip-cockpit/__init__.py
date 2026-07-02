@@ -285,6 +285,14 @@ def _api(path: str, *, method: str = "GET", body: dict[str, Any] | None = None, 
         raise PaperclipError(f"{method} {path} failed: {exc}") from exc
 
 
+def _subprocess_env(chat_id: Any = None) -> dict[str, str]:
+    env = dict(os.environ)
+    chat = str(chat_id or "").strip()
+    if chat:
+        env["INNER_AGORA_CHAT_ID"] = chat
+    return env
+
+
 def _parse_words(raw_args: str) -> list[str]:
     try:
         return shlex.split(raw_args)
@@ -1664,7 +1672,7 @@ def _format_error(exc: Exception) -> str:
     return "\n".join(lines).strip()
 
 
-def _run_action(name: str, action: dict[str, Any], raw_args: str) -> str:
+def _run_action(name: str, action: dict[str, Any], raw_args: str, *, chat_id: Any = None) -> str:
     if action.get("disabled"):
         return f"Project action disabled: {name}"
     builtin = str(action.get("builtin") or action.get("paperclip_builtin") or "").strip().casefold()
@@ -1686,7 +1694,15 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str) -> str:
     cwd = str(action.get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
     timeout = int(action.get("timeout", 180))
     try:
-        result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=timeout, check=False)
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            env=_subprocess_env(chat_id),
+        )
     except subprocess.TimeoutExpired:
         return f"Project action timed out after {timeout}s: `{shlex.join(args)}`"
     except Exception as exc:
@@ -2057,7 +2073,7 @@ def _rewrite_intent(raw: str, lowered: str) -> str | None:
     return None
 
 
-def _rewrite_delegate(raw: str) -> str | None:
+def _rewrite_delegate(raw: str, *, chat_id: Any = None) -> str | None:
     delegate = _natural_language_config().get("delegate")
     if not isinstance(delegate, dict) or _as_bool(delegate.get("disabled"), False):
         return None
@@ -2081,7 +2097,15 @@ def _rewrite_delegate(raw: str) -> str | None:
     cwd = str(delegate.get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
     timeout = int(delegate.get("timeout", 30))
     try:
-        result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=timeout, check=False)
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            env=_subprocess_env(chat_id),
+        )
     except subprocess.TimeoutExpired:
         logger.info("Paperclip natural delegate timed out after %ss", timeout)
         return None
@@ -2118,7 +2142,7 @@ def _rewrite_start_command(raw: str) -> str | None:
     return _slash(str(start.get("action") or "start"))
 
 
-def _rewrite_text(text: str) -> str | None:
+def _rewrite_text(text: str, *, chat_id: Any = None) -> str | None:
     if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
         return None
     raw = re.sub(r"\s+", " ", (text or "").strip())
@@ -2135,7 +2159,7 @@ def _rewrite_text(text: str) -> str | None:
     if raw.startswith("/"):
         return None
 
-    delegated = _rewrite_delegate(raw)
+    delegated = _rewrite_delegate(raw, chat_id=chat_id)
     if delegated:
         return delegated
 
@@ -2353,7 +2377,9 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
         gateway=kwargs.get("gateway"),
         session_store=kwargs.get("session_store"),
     )
-    rewritten = _rewrite_text(getattr(event, "text", "") or "")
+    source = getattr(event, "source", None)
+    chat_id = getattr(source, "chat_id", "") if source is not None else ""
+    rewritten = _rewrite_text(getattr(event, "text", "") or "", chat_id=chat_id)
     if not rewritten:
         return None
     logger.info("Paperclip Cockpit rewrote inbound text to %s", rewritten.split()[0])
@@ -2423,7 +2449,7 @@ def _telegram_callback_query(
         return {"action": "handled"}
 
     raw_args = _format_callback_args(str(spec.get("args") or "{arg}"), callback_arg).strip()
-    output = _run_action(action_name, action, raw_args)
+    output = _run_action(action_name, action, raw_args, chat_id=chat_id)
     if _as_bool(spec.get("telegram_payload") or spec.get("payload"), False):
         message_text, reply_markup = _telegram_payload_from_output(output)
         _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
