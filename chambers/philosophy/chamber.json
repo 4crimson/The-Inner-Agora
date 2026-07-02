@@ -1,0 +1,29 @@
+{
+  "id": "philosophy",
+  "name": "The Inner Agora",
+  "description": "Философская палата для исследования, диалога и спора.",
+  "status": "active",
+  "labels": {
+    "company": "agora",
+    "companies": "agoras",
+    "agent": "philosopher",
+    "agents": "philosophers",
+    "task": "session",
+    "tasks": "sessions"
+  },
+  "roles": [
+    "roles.json"
+  ],
+  "presets": [
+    "presets/mvp.json"
+  ],
+  "synthesisRole": "agora-assistant",
+  "transparencyPolicy": "philosophical-source-reconstruction",
+  "allowedSkills": [],
+  "company": {
+    "name": "The Inner Agora",
+    "projectName": "Agora Sessions",
+    "goalTitle": "Run philosophical research dialogues with The Inner Agora",
+    "companyId": null
+  }
+}

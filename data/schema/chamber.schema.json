@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inner-agora.local/schema/chamber.schema.json",
+  "title": "Inner Agora Chamber Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "description",
+    "status",
+    "labels",
+    "roles",
+    "presets",
+    "synthesisRole",
+    "transparencyPolicy",
+    "allowedSkills",
+    "company"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "draft",
+        "disabled"
+      ]
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "company",
+        "companies",
+        "agent",
+        "agents",
+        "task",
+        "tasks"
+      ],
+      "properties": {
+        "company": {
+          "type": "string"
+        },
+        "companies": {
+          "type": "string"
+        },
+        "agent": {
+          "type": "string"
+        },
+        "agents": {
+          "type": "string"
+        },
+        "task": {
+          "type": "string"
+        },
+        "tasks": {
+          "type": "string"
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "presets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "synthesisRole": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transparencyPolicy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "allowedSkills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "company": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "projectName",
+        "goalTitle",
+        "companyId"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projectName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goalTitle": {
+          "type": "string",
+          "minLength": 1
+        },
+        "companyId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}
