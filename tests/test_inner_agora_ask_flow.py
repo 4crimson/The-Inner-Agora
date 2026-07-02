@@ -27,12 +27,14 @@ class AskFlowHandler(BaseHTTPRequestHandler):
     goals = [{"id": "goal-1", "title": "Run philosophical research dialogues with The Inner Agora"}]
     created_issues = []
     comments = []
+    issue_comments = {}
     wakeups = []
 
     @classmethod
     def reset(cls):
         cls.created_issues = []
         cls.comments = []
+        cls.issue_comments = {}
         cls.wakeups = []
 
     @classmethod
@@ -67,9 +69,18 @@ class AskFlowHandler(BaseHTTPRequestHandler):
             "/api/companies/company-1/agents": self.agents,
             "/api/companies/company-1/projects": self.projects,
             "/api/companies/company-1/goals": self.goals,
+            "/api/companies/company-1/issues": self.created_issues,
         }
         if self.path in routes:
             self.send_json(routes[self.path])
+            return
+        if self.path.startswith("/api/issues/") and self.path.endswith("/comments"):
+            ref = self.path.removeprefix("/api/issues/").removesuffix("/comments").strip("/")
+            issue = self.issue_by_ref(ref)
+            if not issue:
+                self.send_json({"error": "not found", "path": self.path}, 404)
+                return
+            self.send_json(self.issue_comments.get(issue["id"], []))
             return
         if self.path.startswith("/api/issues/"):
             ref = self.path.removeprefix("/api/issues/")
@@ -100,8 +111,14 @@ class AskFlowHandler(BaseHTTPRequestHandler):
             self.send_json({"id": f"run-{len(self.wakeups)}", "status": "queued"}, 202)
             return
 
-        if self.path == "/api/issues/root-1/comments":
+        if self.path.startswith("/api/issues/") and self.path.endswith("/comments"):
+            ref = self.path.removeprefix("/api/issues/").removesuffix("/comments").strip("/")
+            issue = self.issue_by_ref(ref)
+            if not issue:
+                self.send_json({"error": "not found", "path": self.path}, 404)
+                return
             self.comments.append(payload)
+            self.issue_comments.setdefault(issue["id"], []).append({"id": f"comment-{len(self.comments)}", **payload})
             self.send_json({"id": f"comment-{len(self.comments)}", **payload}, 201)
             return
 
@@ -251,6 +268,97 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def run_dialogue_context(self):
+        AskFlowHandler.reset()
+        AskFlowHandler.created_issues.extend(
+            [
+                {
+                    "id": "root-1",
+                    "identifier": "THE-900",
+                    "companyId": "company-1",
+                    "title": "Agora min: freedom",
+                    "description": "Исходный вопрос:\nчто значит свобода у Сартра",
+                    "status": "done",
+                },
+                {
+                    "id": "synthesis-1",
+                    "identifier": "THE-999",
+                    "companyId": "company-1",
+                    "title": "Синтез: Agora min: freedom",
+                    "description": "Synthesis task",
+                    "parentId": "root-1",
+                    "assigneeAgentId": "assistant-1",
+                    "status": "done",
+                },
+            ]
+        )
+        AskFlowHandler.issue_comments["synthesis-1"] = [
+            {
+                "id": "comment-synth",
+                "authorType": "agent",
+                "createdAt": "2026-07-02T09:30:00.000Z",
+                "body": "\n".join(
+                    [
+                        "1. Реальный вопрос сессии.",
+                        "",
+                        "Свобода у Сартра после возражений.",
+                        "",
+                        "2. Участники и их позиции.",
+                        "",
+                        "- Сартр: свобода как ответственность.",
+                        "- Хайдеггер: вопрос свободы связан с бытием-в-мире.",
+                        "",
+                        "3. Главные линии конфликта.",
+                        "",
+                        "- Свобода как выбор против свободы как раскрытие.",
+                    ]
+                ),
+            }
+        ]
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                result = subprocess.run(
+                    [
+                        "node",
+                        str(AGORA_SCRIPT),
+                        "dialogue-context",
+                        "THE-900",
+                        "heidegger",
+                        "А что бы Хайдеггер ответил на второе возражение?",
+                    ],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                )
+                return {
+                    "returncode": result.returncode,
+                    "stderr": result.stderr,
+                    "stdout": result.stdout,
+                    "issues": list(AskFlowHandler.created_issues),
+                    "comments": list(AskFlowHandler.comments),
+                    "wakeups": list(AskFlowHandler.wakeups),
+                }
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_ask_creates_durable_work_and_returns_immediate_monitor_ack(self):
         result = self.run_ask("давай спросим агору про свободу ребенка и власть родителей")
         stdout = result["stdout"]
@@ -296,6 +404,20 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("что значит свобода у Сартра", root["description"])
         self.assertTrue(all(child["parentId"] == "root-1" for child in children))
         self.assertEqual(len(result["wakeups"]), 3)
+
+    def test_dialogue_context_creates_role_child_with_synthesis_digest(self):
+        result = self.run_dialogue_context()
+
+        self.assertEqual(result["returncode"], 0, result["stderr"])
+        self.assertIn("Создан контекстный диалог", result["stdout"])
+        self.assertEqual(len(result["issues"]), 3)
+        child = result["issues"][2]
+        self.assertEqual(child["parentId"], "root-1")
+        self.assertEqual(child["assigneeAgentId"], "heidegger-1")
+        self.assertIn("А что бы Хайдеггер ответил", child["description"])
+        self.assertIn("Выжимка синтеза", child["description"])
+        self.assertIn("Сартр: свобода как ответственность", child["description"])
+        self.assertEqual(result["wakeups"][0]["agentId"], "heidegger-1")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,17 @@ const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
   ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
   : path.join(ROOT, "chambers");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
-const INTENTS = new Set(["new_session", "status", "result", "synthesis", "task_lookup", "role_detail", "help", "other"]);
+const INTENTS = new Set([
+  "new_session",
+  "status",
+  "result",
+  "synthesis",
+  "task_lookup",
+  "role_detail",
+  "dialogue_with_role",
+  "help",
+  "other",
+]);
 const MODES = new Set(["min", "balanced", "max", "all"]);
 const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
 
@@ -141,6 +151,7 @@ function recomputeMissingSlots(slots) {
     if (!String(slots.topic || "").trim()) missing.add("topic");
   }
   if (slots.intent === "role_detail" && !slots.roles.length) missing.add("role");
+  if (slots.intent === "dialogue_with_role" && !slots.roles.length) missing.add("role");
   if (slots.intent === "task_lookup" && !slots.taskRef) missing.add("taskRef");
   return [...missing];
 }
@@ -272,6 +283,19 @@ export function regexFallbackSlots(userText, context = {}) {
 
   const roleChamber = chamberFromText(text) || "philosophy";
   const roleKey = roleKeyInText(text, roleChamber);
+  if (roleKey && hasAny(loose, ["что бы", "ответил", "ответила", "возражение"])) {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "dialogue_with_role",
+        chamber: roleChamber,
+        topic: text,
+        roles: [roleKey],
+        confidence: 0.88,
+      }),
+      { chamberId: roleChamber },
+    );
+  }
+
   if (hasAny(loose, ["уточни", "продолжи", "спроси еще", "по этой сессии", "а что если"])) {
     return normalizeIntentSlots(
       baseSlots({
@@ -332,7 +356,7 @@ ${chambers}
 Активная chamber: ${active}
 
 Схема:
-{"intent":"new_session|status|result|task_lookup|role_detail|help|other","chamber":"philosophy|board-directors|null","mode":"min|balanced|max|all|null","topic":"string|null","roles":["string"],"taskRef":"string|null","missingSlots":["string"],"confidence":0.0}
+{"intent":"new_session|status|result|task_lookup|role_detail|dialogue_with_role|help|other","chamber":"philosophy|board-directors|null","mode":"min|balanced|max|all|null","topic":"string|null","roles":["string"],"taskRef":"string|null","missingSlots":["string"],"confidence":0.0}
 
 Текст пользователя: ${userText}`;
 }
@@ -449,6 +473,23 @@ export function decideNextStep(slots, context = {}) {
   if (normalized.intent === "role_detail") {
     const command = ["/agora", "voice", normalized.roles[0]];
     return { action: "command", command, text: commandText(command), ack: "Покажу отдельный голос." };
+  }
+
+  if (normalized.intent === "dialogue_with_role") {
+    if (!context.lastRootIssueRef) {
+      return {
+        action: "clarify",
+        missingSlots: ["taskRef"],
+        question: "По какой сессии спросить этот голос?",
+      };
+    }
+    const command = ["/agora", "dialogue-context", String(context.lastRootIssueRef), normalized.roles[0], normalized.topic];
+    return {
+      action: "command",
+      command,
+      text: commandText(command),
+      ack: `Спрошу ${normalized.roles[0]} в контексте ${context.lastRootIssueRef}.`,
+    };
   }
 
   if (normalized.intent === "result") {

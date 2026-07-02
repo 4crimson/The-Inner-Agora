@@ -102,6 +102,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs ask --dry-run --philosophers socrates,kant "question"
   node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"
   node scripts/agora.mjs dialogue <philosopher> "question"
+  node scripts/agora.mjs dialogue-context <root-issue> <philosopher> "question"
   node scripts/agora.mjs synthesize [root-issue-id-or-key] [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
@@ -1016,6 +1017,37 @@ function buildDialogueDescription({ request, philosopher }) {
     .join("\n");
 }
 
+function buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher }) {
+  return [
+    `Контекстный диалог с философской машиной "${philosopher.name}" в The Inner Agora.`,
+    "",
+    `Корневая сессия: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
+    "",
+    `Корневой вопрос: ${rootQuestion(rootIssue)}`,
+    "",
+    synthesisIssue ? `Синтез: ${synthesisIssue.identifier || synthesisIssue.id} — ${synthesisIssue.title}` : "Синтез: пока не найден.",
+    "",
+    "Выжимка синтеза:",
+    synthesisText ? clip(synthesisText, 6500) : "Содержательной выжимки пока нет. Ответь осторожно и явно отметь нехватку контекста.",
+    "",
+    "Вопрос пользователя к роли:",
+    request,
+    "",
+    "Профиль:",
+    `- Эпоха: ${philosopher.era}`,
+    `- Оптика: ${philosopher.title}`,
+    `- Центральная интуиция: ${philosopher.centralIntuition}`,
+    `- Манера: ${philosopher.voice}`,
+    `- Напряжение / слепая зона: ${philosopher.tension}`,
+    "",
+    transparencyPolicy(),
+    "",
+    "Ответь именно как продолжение этой сессии. Сначала отреагируй на вопрос пользователя, затем явно свяжи ответ с линиями синтеза. Не создавай новый общий обзор.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function createIssue(companyId, payload) {
   return api(`/companies/${companyId}/issues`, {
     method: "POST",
@@ -1271,6 +1303,64 @@ async function dialogue(args) {
   const wake = await wakeAgentSafe(agent.id, issue.id, `The Inner Agora dialogue: ${philosopher.name}`);
 
   console.log(`Created dialogue: ${issue.identifier || issue.id}`);
+  console.log(wakeSummary(wake));
+  console.log(`Open: http://127.0.0.1:3100/issues/${issue.id}`);
+}
+
+async function latestSynthesisForRoot(rootIssue, agora) {
+  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const synthesisIssue = latestSynthesisChild(rootIssue, allIssues, agora);
+  if (!synthesisIssue) return { synthesisIssue: null, synthesisText: "" };
+  const commentsList = await api(`/issues/${synthesisIssue.id}/comments`);
+  const comment = synthesisComment(commentsList);
+  return {
+    synthesisIssue,
+    synthesisText: normalizedDigestBody(comment?.body || ""),
+  };
+}
+
+async function dialogueWithContext(args) {
+  const [rootRef, philosopherToken, ...requestParts] = args;
+  const request = requestParts.join(" ").trim();
+  if (!rootRef || !philosopherToken || !request) {
+    throw new Error('Usage: node scripts/agora.mjs dialogue-context <root-issue> <philosopher> "question"');
+  }
+
+  const philosopher = roleByToken(philosopherToken);
+  if (!philosopher) throw new Error(`Unknown philosopher: ${philosopherToken}`);
+
+  const rootIssue = await api(`/issues/${rootRef}`);
+  const agora = await getAgora();
+  const agent = agora.agentsByName.get(philosopher.name);
+  if (!agent) throw new Error(`Missing Paperclip agent: ${philosopher.name}`);
+  const { synthesisIssue, synthesisText } = await latestSynthesisForRoot(rootIssue, agora);
+
+  const issue = await createIssue(agora.company.id, {
+    title: `Диалог ${philosopher.name}: ${cleanTitle(request)}`,
+    description: buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher }),
+    status: "todo",
+    workMode: "standard",
+    priority: "high",
+    projectId: agora.project.id,
+    goalId: agora.goal.id,
+    parentId: rootIssue.id,
+    assigneeAgentId: agent.id,
+    requestDepth: 1,
+  });
+  const wake = await wakeAgentSafe(agent.id, issue.id, `The Inner Agora context dialogue: ${philosopher.name}`);
+
+  await addComment(
+    rootIssue.id,
+    [
+      `Создан контекстный диалог: ${issue.identifier || issue.id}.`,
+      `Роль: ${philosopher.name}.`,
+      synthesisIssue ? `Контекст синтеза: ${synthesisIssue.identifier || synthesisIssue.id}.` : "Контекст синтеза: не найден.",
+      wakeSummary(wake),
+    ].join("\n"),
+  );
+
+  rememberIssue(issue, { lastRootIssueRef: rootIssue.identifier || rootIssue.id, lastRootIssueId: rootIssue.id });
+  console.log(`Создан контекстный диалог: ${issue.identifier || issue.id}`);
   console.log(wakeSummary(wake));
   console.log(`Open: http://127.0.0.1:3100/issues/${issue.id}`);
 }
@@ -2604,6 +2694,7 @@ async function runPlannedCommand(command) {
   if (plannedCommand === "ask") return ask(plannedArgs);
   if (plannedCommand === "wizard") return wizard(plannedArgs);
   if (plannedCommand === "wizard-answer") return wizardAnswer(plannedArgs);
+  if (plannedCommand === "dialogue-context") return dialogueWithContext(plannedArgs);
   if (plannedCommand === "latest") return latest(plannedArgs);
   if (plannedCommand === "voice") return voice(plannedArgs);
   if (plannedCommand === "task") return taskDetails(plannedArgs);
@@ -2676,6 +2767,7 @@ async function main() {
   if (command === "ask") return ask(args);
   if (command === "follow-up" || command === "followup") return followUp(args);
   if (command === "dialogue") return dialogue(args);
+  if (command === "dialogue-context" || command === "dialogue_context") return dialogueWithContext(args);
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
   if (command === "philosophers" || command === "agents") return listPhilosophers(args);

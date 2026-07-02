@@ -31,6 +31,7 @@ class Phase4IntentSlotTests(unittest.TestCase):
         )
         self.assertIn("new_session", schema["properties"]["intent"]["enum"])
         self.assertIn("role_detail", schema["properties"]["intent"]["enum"])
+        self.assertIn("dialogue_with_role", schema["properties"]["intent"]["enum"])
 
     def test_parse_json_object_strips_markdown_and_extra_text(self):
         raw = (
@@ -191,6 +192,31 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         plan = json.loads(result.stdout)
         self.assertEqual(plan["command"], ["/agora", "voice", "plato"])
+
+    def test_dialogue_with_role_plans_context_command(self):
+        slots = {
+            "intent": "dialogue_with_role",
+            "chamber": "philosophy",
+            "mode": None,
+            "topic": "А что бы Хайдеггер ответил на второе возражение?",
+            "roles": ["heidegger"],
+            "taskRef": None,
+            "missingSlots": [],
+            "confidence": 0.88,
+        }
+        context = {"lastRootIssueRef": "THE-900"}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "plan",
+            "--json",
+            "--context",
+            json.dumps(context),
+            input_text=json.dumps(slots, ensure_ascii=False),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["action"], "command")
+        self.assertEqual(plan["command"][:4], ["/agora", "dialogue-context", "THE-900", "heidegger"])
 
     def test_agora_understand_returns_slots_and_plan(self):
         result = self.run_node(
@@ -428,6 +454,29 @@ class Phase4IntentSlotTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["action"], "rewrite")
         self.assertEqual(payload["text"], "/agora follow-up THE-900 --voices plato уточни у Платона понятие долга")
+
+    def test_agora_natural_dialogue_with_role_uses_last_root_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(json.dumps({"lastRootIssueRef": "THE-900"}), encoding="utf-8")
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "А что бы Хайдеггер ответил на второе возражение?",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertTrue(
+            payload["text"].startswith("/agora dialogue-context THE-900 heidegger "),
+            payload,
+        )
 
 
 if __name__ == "__main__":

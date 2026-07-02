@@ -8,7 +8,7 @@
   "properties": {
     "intent": {
       "type": "string",
-      "enum": ["new_session", "status", "result", "synthesis", "task_lookup", "role_detail", "help", "other"]
+      "enum": ["new_session", "status", "result", "synthesis", "task_lookup", "role_detail", "dialogue_with_role", "help", "other"]
     },
     "chamber": {
       "type": ["string", "null"],
