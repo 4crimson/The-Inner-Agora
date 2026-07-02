@@ -133,7 +133,11 @@ export function writeState(patch, options = {}) {
 
 export function profilePath(options = {}) {
   const context = stateContext(options);
-  const profileDir = path.resolve(options.profileDir || process.env.INNER_AGORA_PROFILE_DIR || path.join(context.root, "memory", "profiles"));
+  const profileDir = path.resolve(
+    options.profileDir ||
+      process.env.INNER_AGORA_PROFILE_DIR ||
+      (context.explicitStatePath ? path.join(path.dirname(context.statePath), "profiles") : path.join(context.root, "memory", "profiles")),
+  );
   return path.join(profileDir, `${context.chatId}.json`);
 }
 

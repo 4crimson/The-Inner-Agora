@@ -8,6 +8,13 @@ import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { decideNextStep, extractIntentSlots } from "./intent-slots.mjs";
 import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
 import { adapterForRequest } from "./model-routing.mjs";
+import {
+  readProfile,
+  readState,
+  statePath as resolvedStatePath,
+  writeProfile,
+  writeState,
+} from "./state-manager.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -20,7 +27,6 @@ const SKILLS_DIR = process.env.INNER_AGORA_SKILLS_DIR
   ? path.resolve(process.env.INNER_AGORA_SKILLS_DIR)
   : path.join(ROOT, "skills");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
-const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
 const COCKPIT_CONFIG = readJsonFile(COCKPIT_CONFIG_PATH, {});
 const AGORA_CONFIG = COCKPIT_CONFIG.agora && typeof COCKPIT_CONFIG.agora === "object" ? COCKPIT_CONFIG.agora : {};
@@ -135,24 +141,6 @@ Modes:
   process.exit(exitCode);
 }
 
-function readState() {
-  try {
-    return JSON.parse(fs.readFileSync(STATE_PATH, "utf8"));
-  } catch {
-    return {};
-  }
-}
-
-function writeState(patch) {
-  const next = {
-    ...readState(),
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
-  fs.writeFileSync(STATE_PATH, `${JSON.stringify(next, null, 2)}\n`);
-  return next;
-}
-
 function stableJson(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -170,7 +158,8 @@ function rememberIssue(issue, patch = {}) {
 }
 
 function activeChamberId(state = readState()) {
-  return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || DEFAULT_CHAMBER_ID).trim();
+  const profile = readProfile();
+  return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || profile.preferredChamberId || DEFAULT_CHAMBER_ID).trim();
 }
 
 function activeChamber(state = readState()) {
@@ -217,6 +206,7 @@ function chamberCommand(args = []) {
     if (!value) throw new Error("Usage: node scripts/agora.mjs chamber use <id>");
     const chamber = loadChamber(CHAMBERS_DIR, value);
     const state = writeState({ activeChamberId: chamber.id });
+    writeProfile({ preferredChamberId: chamber.id });
     console.log(`Активная палата: ${chamber.id}`);
     console.log(`Название: ${chamber.name}`);
     if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
@@ -237,7 +227,9 @@ function normalizeMode(value) {
 }
 
 function defaultMode() {
-  return normalizeMode(process.env.INNER_AGORA_MODE || readState().mode || DEFAULT_MODE);
+  const state = readState();
+  const profile = readProfile();
+  return normalizeMode(process.env.INNER_AGORA_MODE || state.mode || profile.preferredMode || DEFAULT_MODE);
 }
 
 function roleRiskTier(role) {
@@ -302,7 +294,7 @@ function printMode(mode, state = readState()) {
   console.log(`adapter=${adapter.name}`);
   console.log(`model=${adapter.model}`);
   console.log(`reason=${adapter.reason}`);
-  console.log(`state=${STATE_PATH}`);
+  console.log(`state=${resolvedStatePath()}`);
   if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
 }
 
@@ -322,6 +314,7 @@ function modeCommand(args) {
     if (!value) throw new Error("Usage: node scripts/agora.mjs mode set <min|local|balanced|max>");
     const mode = normalizeMode(value);
     const state = writeState({ mode });
+    writeProfile({ preferredMode: mode });
     if (raw) console.log(mode);
     else {
       console.log(`Режим Агоры сохранен: ${mode}`);
@@ -332,6 +325,7 @@ function modeCommand(args) {
 
   const mode = normalizeMode(action);
   const state = writeState({ mode });
+  writeProfile({ preferredMode: mode });
   if (raw) console.log(mode);
   else {
     console.log(`Режим Агоры сохранен: ${mode}`);
@@ -1226,6 +1220,11 @@ async function ask(args) {
     lastRootIssueRef: rootIssue.identifier || rootIssue.id,
     lastRootIssueId: rootIssue.id,
     ...adapterStatePatch(adapter),
+  });
+  writeProfile({
+    preferredMode: mode,
+    preferredChamberId: chamber.id,
+    recentRoles: selected.map((role) => role.key).filter(Boolean).slice(0, 12),
   });
 
   console.log(`# Поставил вопрос в Агору: ${rootIssue.identifier || rootIssue.id}`);

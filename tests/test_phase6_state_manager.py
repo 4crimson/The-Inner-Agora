@@ -91,6 +91,56 @@ class Phase6StateManagerTests(unittest.TestCase):
             self.assertEqual(payload["chatId"], "default")
             self.assertEqual(json.loads((state_dir / "default.json").read_text(encoding="utf-8"))["lastRootIssueRef"], "THE-9")
 
+    def test_agora_mode_set_isolated_by_chat_id(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_dir = Path(temp_dir) / "state"
+            config_path = Path(temp_dir) / "paperclip-cockpit.json"
+            config_path.write_text(json.dumps({"agora": {"default_mode": "balanced"}}), encoding="utf-8")
+            base_env = {
+                "STATE_MODE": "per-chat",
+                "INNER_AGORA_STATE_DIR": str(state_dir),
+                "INNER_AGORA_PROFILE_DIR": str(Path(temp_dir) / "profiles"),
+                "INNER_AGORA_LEGACY_STATE_PATH": str(Path(temp_dir) / "missing-legacy.json"),
+                "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+            }
+            self.run_node(ROOT / "scripts" / "agora.mjs", "mode", "set", "local", env={**base_env, "INNER_AGORA_CHAT_ID": "chat-a"})
+            self.run_node(ROOT / "scripts" / "agora.mjs", "mode", "set", "max", env={**base_env, "INNER_AGORA_CHAT_ID": "chat-b"})
+
+            chat_a = self.run_node(ROOT / "scripts" / "agora.mjs", "mode", "get", "--raw", env={**base_env, "INNER_AGORA_CHAT_ID": "chat-a"})
+            chat_b = self.run_node(ROOT / "scripts" / "agora.mjs", "mode", "get", "--raw", env={**base_env, "INNER_AGORA_CHAT_ID": "chat-b"})
+
+            self.assertEqual(chat_a.stdout.strip(), "local")
+            self.assertEqual(chat_b.stdout.strip(), "max")
+            self.assertTrue((state_dir / "chat-a.json").exists())
+            self.assertTrue((state_dir / "chat-b.json").exists())
+
+    def test_profile_preferred_mode_is_used_when_state_has_no_mode(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_dir = Path(temp_dir) / "state"
+            profile_dir = Path(temp_dir) / "profiles"
+            config_path = Path(temp_dir) / "paperclip-cockpit.json"
+            config_path.write_text(json.dumps({"agora": {"default_mode": "balanced"}}), encoding="utf-8")
+            profile_dir.mkdir()
+            (profile_dir / "chat-a.json").write_text(
+                json.dumps({"schemaVersion": 1, "chatId": "chat-a", "preferredMode": "local"}),
+                encoding="utf-8",
+            )
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "mode",
+                "get",
+                "--raw",
+                env={
+                    "STATE_MODE": "per-chat",
+                    "INNER_AGORA_CHAT_ID": "chat-a",
+                    "INNER_AGORA_STATE_DIR": str(state_dir),
+                    "INNER_AGORA_PROFILE_DIR": str(profile_dir),
+                    "INNER_AGORA_LEGACY_STATE_PATH": str(Path(temp_dir) / "missing-legacy.json"),
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                },
+            )
+            self.assertEqual(result.stdout.strip(), "local")
+
 
 if __name__ == "__main__":
     unittest.main()

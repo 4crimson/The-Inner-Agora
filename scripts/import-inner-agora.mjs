@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadChamber } from "./chamber-loader.mjs";
 import { loadSkillPrompt } from "./skill-loader.mjs";
+import { readState } from "./state-manager.mjs";
 import {
   codexAdapterConfig as configuredCodexAdapterConfig,
   hermesAdapterConfig as configuredHermesAdapterConfig,
@@ -27,7 +27,6 @@ const SKILLS_DIR = process.env.INNER_AGORA_SKILLS_DIR
   ? path.resolve(process.env.INNER_AGORA_SKILLS_DIR)
   : path.join(ROOT, "skills");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
-const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const HERMES_COMMAND = process.env.INNER_AGORA_HERMES_COMMAND || "/Users/admin/.local/bin/inneragora";
 const CONFIGURED_HERMES_ADAPTER = configuredHermesAdapterConfig();
 const CONFIGURED_CODEX_ADAPTER = configuredCodexAdapterConfig();
@@ -44,14 +43,6 @@ const CODEX_MODEL = CONFIGURED_CODEX_ADAPTER.model;
 const CODEX_REASONING_EFFORT = CONFIGURED_CODEX_ADAPTER.reasoningEffort || "medium";
 const AGENT_ADAPTER = normalizeAgentAdapter(process.env.INNER_AGORA_AGENT_ADAPTER || "codex_local");
 const HERMES_TIMEOUT_SEC = Number(process.env.INNER_AGORA_HERMES_TIMEOUT_SEC || 900);
-
-function readState() {
-  try {
-    return JSON.parse(fsSync.readFileSync(STATE_PATH, "utf8"));
-  } catch {
-    return {};
-  }
-}
 
 function activeChamberId(state = readState()) {
   return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || DEFAULT_CHAMBER_ID).trim();
