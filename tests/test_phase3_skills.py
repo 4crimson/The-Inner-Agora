@@ -115,6 +115,27 @@ class Phase3SkillTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("transparencyPolicy=source-citation", result.stdout)
 
+    def test_agora_skills_lists_active_chamber_role_skills(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "skills",
+            "product",
+            "--json",
+            env={"INNER_AGORA_ACTIVE_CHAMBER": "board-directors"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["roleKey"], "product")
+        self.assertIn("web-research", [skill["id"] for skill in payload["skills"]])
+        self.assertEqual(payload["diagnostics"], [])
+
+    def test_agora_skills_reports_unknown_role_human_readably(self):
+        result = self.run_node(ROOT / "scripts" / "agora.mjs", "skills", "unknown-role")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unknown role", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

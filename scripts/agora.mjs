@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
-import { loadSkillPrompt } from "./skill-loader.mjs";
+import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -105,6 +105,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
   node scripts/agora.mjs chamber [list|current|use <id>]
   node scripts/agora.mjs policy [skill-id]
+  node scripts/agora.mjs skills [role-key] [--json]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs recheck [issue-id-or-key]
@@ -821,6 +822,69 @@ function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
 function policyCommand(args = []) {
   const policyId = args[0] || activeChamber().transparencyPolicy;
   console.log(transparencyPolicy(policyId));
+}
+
+function publicSkill(skill) {
+  return {
+    id: skill.id,
+    name: skill.name,
+    description: skill.description,
+    riskTier: skill.riskTier,
+    allowedTools: skill.allowedTools,
+  };
+}
+
+function resolvedRoleSkills(role, chamber = activeChamber()) {
+  const resolved = resolveSkillsForRole(role, chamber, { skillsDir: SKILLS_DIR });
+  return {
+    chamberId: chamber.id,
+    roleKey: role.key,
+    roleName: role.name,
+    skills: resolved.skills.map(publicSkill),
+    diagnostics: resolved.diagnostics,
+  };
+}
+
+function skillsCommand(args = []) {
+  const json = args.includes("--json");
+  const filteredArgs = args.filter((arg) => arg !== "--json");
+  const roleToken = filteredArgs[0] || "";
+  const chamber = activeChamber();
+
+  if (roleToken) {
+    const role = roleByToken(roleToken);
+    if (!role) throw new Error(`Unknown role: ${roleToken}`);
+    const payload = resolvedRoleSkills(role, chamber);
+    if (json) {
+      console.log(JSON.stringify(payload, null, 2));
+      return;
+    }
+    console.log(`${payload.roleName} (${payload.roleKey})`);
+    if (payload.skills.length) {
+      for (const skill of payload.skills) {
+        const tools = skill.allowedTools.length ? ` tools=${skill.allowedTools.join(",")}` : "";
+        console.log(`- ${skill.id} ${skill.riskTier}${tools}`);
+      }
+    } else {
+      console.log("- no resolved skills");
+    }
+    for (const item of payload.diagnostics) console.log(`! ${item.level}: ${item.message}`);
+    return;
+  }
+
+  const payload = {
+    chamberId: chamber.id,
+    roles: roles.map((role) => resolvedRoleSkills(role, chamber)),
+  };
+  if (json) {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+  console.log(`Skills: ${chamber.name}`);
+  for (const role of payload.roles) {
+    const skillIds = role.skills.map((skill) => skill.id).join(", ") || "-";
+    console.log(`- ${role.roleKey}: ${skillIds}`);
+  }
 }
 
 function roleLine(item) {
@@ -2197,6 +2261,7 @@ async function main() {
   if (command === "mode") return modeCommand(args);
   if (command === "chamber" || command === "палата") return chamberCommand(args);
   if (command === "policy") return policyCommand(args);
+  if (command === "skills") return skillsCommand(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
   if (command === "dialogue") return dialogue(args);

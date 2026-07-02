@@ -428,7 +428,7 @@ git commit -m "Load transparency policy from source citation skill"
 - Modify: `scripts/agora.mjs`
 - Test: `tests/test_phase3_skills.py`
 
-- [ ] **Step 1: Write failing CLI tests**
+- [x] **Step 1: Write failing CLI tests**
 
 Add tests:
 
@@ -453,7 +453,7 @@ def test_agora_skills_reports_unknown_role_human_readably(self):
     self.assertIn("Unknown role", result.stderr)
 ```
 
-- [ ] **Step 2: Implement CLI command**
+- [x] **Step 2: Implement CLI command**
 
 Add usage:
 
@@ -466,13 +466,13 @@ Behavior:
 - With role key, print resolved skills and diagnostics.
 - `--json` returns `{ chamberId, roleKey, skills, diagnostics }`.
 
-- [ ] **Step 3: Verify CLI surface**
+- [x] **Step 3: Verify CLI surface**
 
 Run:
 
 ```bash
 python3 -m unittest tests.test_phase3_skills
-node scripts/agora.mjs skills product --json
+node scripts/agora.mjs skills socrates --json
 INNER_AGORA_ACTIVE_CHAMBER=board-directors node scripts/agora.mjs skills product --json
 ```
 
