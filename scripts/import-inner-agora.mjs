@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadChamber } from "./chamber-loader.mjs";
 import { loadSkillPrompt } from "./skill-loader.mjs";
+import { composeChamberPolicy, fallbackTransparencyPolicy } from "./policy-loader.mjs";
 import { readState } from "./state-manager.mjs";
 import {
   codexAdapterConfig as configuredCodexAdapterConfig,
@@ -149,22 +150,15 @@ function languagePolicy() {
   ].join("\n");
 }
 
-function fallbackTransparencyPolicy(policyId, error) {
-  return [
-    `ПРОТОКОЛ ПРОЗРАЧНОСТИ (${policyId}, fallback: ${error.message || error}):`,
-    "- Основной skill prompt не загрузился; используй базовый протокол ниже.",
-    "ПРОТОКОЛ ПРОЗРАЧНОСТИ:",
-    "- По возможности помечай ключевые утверждения: [источник], [реконструкция], [имитация], [современный перенос].",
-    "- [источник] ставь там, где мысль опирается на конкретный текст, работу, фрагмент или устойчиво известную позицию; называй источник настолько точно, насколько уверен.",
-    "- [реконструкция] ставь там, где ты выводишь позицию из общей философской оптики, но не даешь прямую цитату.",
-    "- [имитация] ставь там, где это стилистическое разыгрывание голоса, темперамента или манеры.",
-    "- [современный перенос] ставь там, где применяешь философа к теме, которой исторически не было в его горизонте.",
-    "- Не выдумывай точные цитаты, страницы, ссылки и названия. Если не уверен, пиши: нужна проверка источника.",
-    "- В конце ответа обязательно добавляй короткий блок `Пометки:` с пунктами: Источники, Реконструкция, Имитация голоса, Современный перенос, Требует проверки.",
-  ].join("\n");
+function isPhilosophyChamber(chamber = activeChamber()) {
+  return chamber.id === "philosophy";
 }
 
-function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
+function transparencyPolicy(chamberOrPolicyId = activeChamber()) {
+  if (typeof chamberOrPolicyId !== "string") {
+    return composeChamberPolicy(chamberOrPolicyId, { skillsDir: SKILLS_DIR });
+  }
+  const policyId = chamberOrPolicyId || activeChamber().transparencyPolicy;
   try {
     return loadSkillPrompt(SKILLS_DIR, policyId);
   } catch (error) {
@@ -172,7 +166,40 @@ function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
   }
 }
 
-function assistantInstructions() {
+function assistantInstructions(chamber = activeChamber()) {
+  if (!isPhilosophyChamber(chamber)) {
+    const agentLabel = chamber.labels?.agent || "role";
+    const agentsLabel = chamber.labels?.agents || "roles";
+    return [
+      languagePolicy(),
+      "",
+      `Ты — координатор палаты "${chamber.name}".`,
+      "",
+      "ТВОЯ РОЛЬ:",
+      `- принимать вопрос пользователя и превращать его в ясную задачу для выбранных ${agentsLabel};`,
+      "- выбирать релевантных участников без вызова всех без необходимости;",
+      "- удерживать расхождения, риски, условия решения и недостающие данные;",
+      "- не говорить от имени участников, если они получили отдельные child-задачи и еще не ответили;",
+      "- собирать итог как advisory-мемо, а не как приказ к действию.",
+      "",
+      transparencyPolicy(chamber),
+      "",
+      "ФОРМАТ СИНТЕЗА:",
+      "1. Какой вопрос реально исследовался.",
+      `2. Какие ${agentsLabel} участвовали и почему.`,
+      "3. Карта позиций.",
+      "4. Главные расхождения.",
+      "5. Данные, предположения и риски.",
+      "6. Условия решения.",
+      "7. Осторожный следующий шаг.",
+      "",
+      "ОГРАНИЧЕНИЯ:",
+      `- Не превращай ${agentLabel} в универсального оракула.`,
+      "- Не скрывай неопределенность ради красивого консенсуса.",
+      "- Не выдавай профессиональную рекомендацию там, где нужна проверка или профильный специалист.",
+    ].join("\n");
+  }
+
   return [
     languagePolicy(),
     "",
@@ -193,7 +220,7 @@ function assistantInstructions() {
     "- Декарт держит метод, ясность, сомнение и основание субъекта.",
     "- Хайдеггер держит вопрос о бытии, языке, подлинности и техническом мышлении.",
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
     "",
     "ФОРМАТ СИНТЕЗА:",
     "1. Какой вопрос реально исследовался.",
@@ -213,7 +240,46 @@ function assistantInstructions() {
   ].join("\n");
 }
 
-function roleInstructions(item) {
+function roleInstructions(item, chamber = activeChamber()) {
+  if (!isPhilosophyChamber(chamber)) {
+    const agentLabel = chamber.labels?.agent || "role";
+    const agentsLabel = chamber.labels?.agents || "roles";
+    return [
+      languagePolicy(),
+      "",
+      `Ты — ${agentLabel} "${item.name}" в палате "${chamber.name}".`,
+      "",
+      "Ты работаешь как ограниченная экспертная роль внутри совета. Твоя задача — дать собственную позицию, показать неопределенность и явно отделить данные от предположений.",
+      "",
+      transparencyPolicy(chamber),
+      "",
+      "ТВОЯ ЦЕНТРАЛЬНАЯ ИНТУИЦИЯ:",
+      item.centralIntuition,
+      "",
+      "МАНЕРА И ТЕМПЕРАМЕНТ:",
+      item.voice,
+      "",
+      "ТВОЕ НАПРЯЖЕНИЕ И СЛЕПАЯ ЗОНА:",
+      item.tension,
+      "",
+      "КАК ВЕСТИ ДИАЛОГ:",
+      "- Сначала пересобери запрос в своей зоне ответственности.",
+      "- Покажи, какие данные нужны для уверенности.",
+      "- Спорь с предпосылками, если вопрос поставлен слишком прямо.",
+      "- Не говори за всю палату и не финализируй общий синтез.",
+      "",
+      "ФОРМАТ ОТВЕТА В ЗАДАЧАХ PAPERCLIP:",
+      "1. Как я понимаю поставленный вопрос.",
+      "2. Моя advisory-позиция.",
+      "3. Какие данные, проверки или предпосылки отсутствуют.",
+      `4. С кем из других ${agentsLabel} я бы спорил и почему.`,
+      "5. Что должен забрать синтезатор для итога.",
+      "6. Пометки: данные, предположения, риски, условия решения, что требует проверки.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
   const modernNote = item.contemporaryPublicFigure
     ? [
         "",
@@ -232,7 +298,7 @@ function roleInstructions(item) {
     "Не утверждай, что ты настоящий исторический человек. Говори изнутри философской оптики, но если вопрос требует точности, отмечай границу реконструкции.",
     modernNote,
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
     "",
     "ТВОЯ ЦЕНТРАЛЬНАЯ ИНТУИЦИЯ:",
     item.centralIntuition,
@@ -349,7 +415,7 @@ async function ensureCompany() {
   return company;
 }
 
-function roleDefs(roles, promptOverrides = new Map()) {
+function roleDefs(roles, promptOverrides = new Map(), chamber = activeChamber()) {
   return [
     {
       key: "agora-assistant",
@@ -361,12 +427,12 @@ function roleDefs(roles, promptOverrides = new Map()) {
       canCreateAgents: true,
       capabilities:
         "Собирает философские заседания, выбирает участников, удерживает конфликт и создает синтез без сглаживания разногласий.",
-      instructions: assistantInstructions(),
+      instructions: assistantInstructions(chamber),
       metadata: {
         source: "inner-agora-import",
         roleKey: "agora-assistant",
-        chamberId: "philosophy",
-        riskTier: "reflective",
+        chamberId: chamber.id,
+        riskTier: chamber.riskTier || "reflective",
       },
     },
     ...roles.map((item) => ({
@@ -378,7 +444,7 @@ function roleDefs(roles, promptOverrides = new Map()) {
       reportsTo: "agora-assistant",
       canCreateAgents: false,
       capabilities: `${item.era}. ${item.title}. Теги: ${(item.tags || []).join(", ")}.`,
-      instructions: promptOverrides.get(item.key) || roleInstructions(item),
+      instructions: promptOverrides.get(item.key) || roleInstructions(item, chamber),
       metadata: {
         source: "inner-agora-import",
         roleKey: item.key,
@@ -634,11 +700,33 @@ async function printRoles() {
   const promptOverrides = new Map();
   console.log(`source=${path.relative(ROOT, roleSourcePath())}`);
   console.log(`chamberMode=${CHAMBER_MODE}`);
-  for (const roleDef of roleDefs(roles, promptOverrides)) {
+  for (const roleDef of roleDefs(roles, promptOverrides, activeChamber())) {
     console.log(
       `role=${roleDef.key} chamberId=${roleDef.metadata.chamberId || ""} riskTier=${roleDef.metadata.riskTier || ""}`,
     );
   }
+}
+
+function roleMatchesToken(role, token) {
+  const normalized = String(token || "").trim().toLowerCase();
+  return (
+    role.key === normalized ||
+    role.name.toLowerCase() === normalized ||
+    String(role.englishName || "").toLowerCase() === normalized ||
+    (role.aliases || []).some((alias) => String(alias || "").toLowerCase() === normalized)
+  );
+}
+
+async function printRoleInstructions(roleToken) {
+  if (!roleToken) throw new Error("--print-role-instructions requires a role key, name, or alias");
+  const chamber = activeChamber();
+  const roles = await loadRoles();
+  const role = roles.find((item) => roleMatchesToken(item, roleToken));
+  if (!role) throw new Error(`Unknown role: ${roleToken}`);
+  const promptOverrides = await loadPhilosopherPrompts(roles);
+  const roleDef = roleDefs(roles, promptOverrides, chamber).find((item) => item.key === role.key);
+  if (!roleDef) throw new Error(`Role definition not found: ${roleToken}`);
+  console.log(roleDef.instructions);
 }
 
 function printChamberConfig() {
@@ -656,15 +744,27 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`Usage:
-  node scripts/import-inner-agora.mjs [--print-roles|--print-chamber-config]
+  node scripts/import-inner-agora.mjs [--print-roles|--print-chamber-config|--print-role-instructions ROLE]
 `);
     return;
   }
+  let roleInstructionToken = "";
+  const flags = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--print-role-instructions") {
+      roleInstructionToken = args[++index] || "";
+      if (!roleInstructionToken) throw new Error("--print-role-instructions requires a role key, name, or alias");
+    } else {
+      flags.push(arg);
+    }
+  }
   const known = new Set(["--print-roles", "--print-chamber-config"]);
-  const unknown = args.filter((arg) => !known.has(arg));
+  const unknown = flags.filter((arg) => !known.has(arg));
   if (unknown.length) throw new Error(`Unknown argument: ${unknown[0]}`);
-  if (args.includes("--print-roles")) return printRoles();
-  if (args.includes("--print-chamber-config")) return printChamberConfig();
+  if (flags.includes("--print-roles")) return printRoles();
+  if (flags.includes("--print-chamber-config")) return printChamberConfig();
+  if (roleInstructionToken) return printRoleInstructions(roleInstructionToken);
 
   await api("/health");
 

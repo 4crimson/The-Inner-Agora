@@ -14,6 +14,7 @@ BOARD_CHAMBER = ROOT / "chambers" / "board-directors" / "chamber.json"
 SKILL_LOADER = ROOT / "scripts" / "skill-loader.mjs"
 POLICY_LOADER = ROOT / "scripts" / "policy-loader.mjs"
 AGORA_SCRIPT = ROOT / "scripts" / "agora.mjs"
+IMPORT_SCRIPT = ROOT / "scripts" / "import-inner-agora.mjs"
 
 
 def write_high_stakes_chamber(chambers_dir):
@@ -227,6 +228,27 @@ class Phase7ChamberSafetyTests(unittest.TestCase):
         description = children[0]["description"]
         self.assertIn("Обязательный high-stakes дисклеймер", description)
         self.assertIn("не является медицинской, юридической или финансовой рекомендацией", description)
+
+    def test_importer_role_instructions_use_composed_policy(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_high_stakes_chamber(temp_dir)
+            result = self.run_node(
+                IMPORT_SCRIPT,
+                "--print-role-instructions",
+                "reviewer",
+                env={
+                    "INNER_AGORA_CHAMBERS_DIR": temp_dir,
+                    "INNER_AGORA_ACTIVE_CHAMBER": "clinic",
+                    "INNER_AGORA_STATE_PATH": str(Path(temp_dir) / "state.json"),
+                },
+            )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Протокол прозрачности", result.stdout)
+        self.assertIn("Обязательный high-stakes дисклеймер", result.stdout)
+        self.assertIn("не является медицинской, юридической или финансовой рекомендацией", result.stdout)
+        self.assertIn("палате \"Clinic Review\"", result.stdout)
+        self.assertNotIn("философская машина", result.stdout)
 
 
 if __name__ == "__main__":
