@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inner-agora.local/schema/role.schema.json",
+  "title": "Inner Agora Council Role",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "key",
+    "name",
+    "englishName",
+    "era",
+    "title",
+    "aliases",
+    "tags",
+    "centralIntuition",
+    "voice",
+    "tension",
+    "chamberId",
+    "riskTier"
+  ],
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "englishName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "era": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "centralIntuition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "voice": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tension": {
+      "type": "string",
+      "minLength": 1
+    },
+    "chamberId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": [
+        "reflective",
+        "advisory",
+        "high-stakes"
+      ]
+    },
+    "architect": {
+      "type": "boolean"
+    },
+    "candidateGenerated": {
+      "type": "boolean"
+    },
+    "candidateScore": {
+      "type": "number"
+    },
+    "contemporaryPublicFigure": {
+      "type": "boolean"
+    },
+    "safetyCare": {
+      "type": "boolean"
+    }
+  }
+}

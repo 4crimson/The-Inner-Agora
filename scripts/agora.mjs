@@ -6,7 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DATA_PATH = path.join(ROOT, "data", "philosophers.json");
+const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
+const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
+const DEFAULT_MVP_PRESET_PATH = path.join(ROOT, "chambers", "philosophy", "presets", "mvp.json");
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
 const COCKPIT_CONFIG = readJsonFile(COCKPIT_CONFIG_PATH, {});
@@ -20,7 +22,6 @@ const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.defaul
 const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || AGORA_CONFIG.codex_model || "gpt-5.4";
 const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || AGORA_CONFIG.hermes_model || "google/gemma-4-26b-a4b-qat";
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
-const MINIMUM_COUNCIL_KEYS = ["plato", "descartes", "heidegger"];
 const ISSUE_REF_RE = /\b([A-Z][A-Z0-9]{1,12}-\d+)\b/i;
 const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
 
@@ -32,8 +33,48 @@ function readJsonFile(filePath, fallback = {}) {
   }
 }
 
-const philosophers = readJsonFile(DATA_PATH, []);
-const philosopherByKey = new Map(philosophers.map((item) => [item.key, item]));
+function normalizeChamberMode(value) {
+  const normalized = String(value || "legacy").trim().toLowerCase();
+  if (["legacy", "chambers"].includes(normalized)) return normalized;
+  throw new Error(`Unsupported CHAMBER_MODE=${value}. Use legacy or chambers.`);
+}
+
+const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
+
+function roleSourcePath() {
+  return CHAMBER_MODE === "chambers" ? PHILOSOPHY_ROLES_PATH : LEGACY_ROLES_PATH;
+}
+
+function loadRoles() {
+  const filePath = roleSourcePath();
+  const roles = readJsonFile(filePath, null);
+  if (!Array.isArray(roles)) {
+    throw new Error(`Role roster not found or invalid: ${path.relative(ROOT, filePath)}`);
+  }
+  return roles;
+}
+
+function mvpPresetPath() {
+  return process.env.INNER_AGORA_MVP_PRESET_PATH
+    ? path.resolve(process.env.INNER_AGORA_MVP_PRESET_PATH)
+    : DEFAULT_MVP_PRESET_PATH;
+}
+
+function loadMvpPresetRoleKeys() {
+  const filePath = mvpPresetPath();
+  const preset = readJsonFile(filePath, null);
+  if (!preset || !Array.isArray(preset.roleKeys) || !preset.roleKeys.length) {
+    throw new Error(`MVP preset must define non-empty roleKeys[]: ${path.relative(ROOT, filePath)}`);
+  }
+  return preset.roleKeys.map((key) => String(key || "").trim()).filter(Boolean);
+}
+
+const roles = loadRoles();
+const roleByKey = new Map(roles.map((item) => [item.key, item]));
+/** @deprecated Use roles. */
+const philosophers = roles;
+/** @deprecated Use roleByKey. */
+const philosopherByKey = roleByKey;
 
 function usage(exitCode = 0) {
   console.log(`Usage:
@@ -62,7 +103,7 @@ Modes:
   min       3 voices, usually architects or explicitly selected philosophers
   balanced 7 voices by default
   max       12 voices by default
-  all       every philosopher in data/philosophers.json
+  all       every role in the current roster
 `);
   process.exit(exitCode);
 }
@@ -322,9 +363,9 @@ function clip(text, limit = 7000) {
   return `${value.slice(0, limit)}\n\n[... clipped ${value.length - limit} chars ...]`;
 }
 
-function philosopherByToken(token) {
+function roleByToken(token) {
   const normalized = String(token || "").trim().toLowerCase();
-  return philosophers.find((item) => {
+  return roles.find((item) => {
     return (
       item.key === normalized ||
       item.name.toLowerCase() === normalized ||
@@ -333,6 +374,8 @@ function philosopherByToken(token) {
     );
   });
 }
+/** @deprecated Use roleByToken. */
+const philosopherByToken = roleByToken;
 
 function looseText(value) {
   return String(value || "")
@@ -350,15 +393,17 @@ function looseStem(value) {
   return text;
 }
 
-function philosopherAliases(item) {
+function roleAliases(item) {
   return [item.key, item.name, item.englishName, ...(item.aliases || [])].filter(Boolean);
 }
+/** @deprecated Use roleAliases. */
+const philosopherAliases = roleAliases;
 
-function philosopherScoreInText(item, text) {
+function roleScoreInText(item, text) {
   const haystack = looseText(text);
   if (!haystack) return 0;
   let score = 0;
-  for (const alias of philosopherAliases(item)) {
+  for (const alias of roleAliases(item)) {
     const exact = looseText(alias);
     const stem = looseStem(alias);
     if (exact && haystack.includes(exact)) score = Math.max(score, exact.length + 20);
@@ -366,17 +411,21 @@ function philosopherScoreInText(item, text) {
   }
   return score;
 }
+/** @deprecated Use roleScoreInText. */
+const philosopherScoreInText = roleScoreInText;
 
-function philosopherFromText(text) {
-  const exact = philosopherByToken(String(text || "").replace(/[^\p{L}\p{N}_ -]+/gu, "").trim());
+function roleFromText(text) {
+  const exact = roleByToken(String(text || "").replace(/[^\p{L}\p{N}_ -]+/gu, "").trim());
   if (exact) return exact;
-  return philosophers
-    .map((item) => ({ item, score: philosopherScoreInText(item, text) }))
+  return roles
+    .map((item) => ({ item, score: roleScoreInText(item, text) }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score || left.item.key.localeCompare(right.item.key))[0]?.item || null;
 }
+/** @deprecated Use roleFromText. */
+const philosopherFromText = roleFromText;
 
-function uniquePhilosophers(items) {
+function uniqueRoles(items) {
   const seen = new Set();
   return items.filter((item) => {
     if (!item || seen.has(item.key)) return false;
@@ -384,6 +433,8 @@ function uniquePhilosophers(items) {
     return true;
   });
 }
+/** @deprecated Use uniqueRoles. */
+const uniquePhilosophers = uniqueRoles;
 
 function parseAskArgs(args) {
   let mode = defaultMode();
@@ -481,11 +532,12 @@ function requestedVoiceLimit(request) {
 async function minimumCouncil(args) {
   const { request, dryRun } = parseCouncilArgs(args);
   if (!request) throw new Error('Usage: node scripts/agora.mjs council [--dry-run] "your question"');
+  const roleKeys = loadMvpPresetRoleKeys();
 
   const forwarded = [
     "--min",
     "--philosophers",
-    MINIMUM_COUNCIL_KEYS.join(","),
+    roleKeys.join(","),
     ...(dryRun ? ["--dry-run"] : []),
     request,
   ];
@@ -496,18 +548,18 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   if (philosopherList) {
     const selected = philosopherList
       .split(",")
-      .map((token) => philosopherByToken(token))
+      .map((token) => roleByToken(token))
       .filter(Boolean);
     if (!selected.length) throw new Error(`No known philosophers in --philosophers ${philosopherList}`);
-    return uniquePhilosophers(selected);
+    return uniqueRoles(selected);
   }
 
-  if (mode === "all" || options.all) return philosophers;
+  if (mode === "all" || options.all) return roles;
 
   const text = request.toLowerCase();
   const selected = [];
   const add = (...keys) => {
-    for (const key of keys) selected.push(philosopherByKey.get(key));
+    for (const key of keys) selected.push(roleByKey.get(key));
   };
 
   if (/врем|темпорал|длит|dur[eé]e|duration|uji|аничч|anicca|момент|мгновен|вечност|циклич|прошл|будущ|настоящ/.test(text)) {
@@ -593,7 +645,7 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   const modeLimit = limits[mode] || limits.balanced;
   const requestedLimit = requestedVoiceLimit(request);
   const limit = requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
-  return uniquePhilosophers(selected).slice(0, limit);
+  return uniqueRoles(selected).slice(0, limit);
 }
 
 function modePolicy(mode) {
@@ -617,10 +669,12 @@ function transparencyPolicy() {
   ].join("\n");
 }
 
-function philosopherLine(item) {
+function roleLine(item) {
   const architect = item.architect ? " architect" : "";
   return `- ${item.name}${architect}: ${item.title}`;
 }
+/** @deprecated Use roleLine. */
+const philosopherLine = roleLine;
 
 function buildRootDescription({ request, mode, selected }) {
   return [
@@ -629,7 +683,7 @@ function buildRootDescription({ request, mode, selected }) {
     modePolicy(mode),
     "",
     "Выбранные философские машины:",
-    selected.map(philosopherLine).join("\n"),
+    selected.map(roleLine).join("\n"),
     "",
     "Исходный вопрос:",
     request,
@@ -643,7 +697,7 @@ function buildRootDescription({ request, mode, selected }) {
   ].join("\n");
 }
 
-function buildPhilosopherDescription({ rootIssue, request, mode, philosopher }) {
+function buildRoleDescription({ rootIssue, request, mode, philosopher }) {
   return [
     `Ты выступаешь как философская машина "${philosopher.name}" в The Inner Agora.`,
     "",
@@ -682,6 +736,8 @@ function buildPhilosopherDescription({ rootIssue, request, mode, philosopher }) 
     .filter(Boolean)
     .join("\n");
 }
+/** @deprecated Use buildRoleDescription. */
+const buildPhilosopherDescription = buildRoleDescription;
 
 function buildDialogueDescription({ request, philosopher }) {
   return [
@@ -798,7 +854,7 @@ async function ask(args) {
     const agent = agora.agentsByName.get(philosopher.name);
     const child = await createIssue(agora.company.id, {
       title: `${philosopher.name}: ${cleanTitle(request)}`,
-      description: buildPhilosopherDescription({ rootIssue, request, mode, philosopher }),
+      description: buildRoleDescription({ rootIssue, request, mode, philosopher }),
       status: "todo",
       workMode: "standard",
       priority: mode === "max" || mode === "all" ? "critical" : "high",
@@ -849,7 +905,7 @@ async function dialogue(args) {
     throw new Error('Usage: node scripts/agora.mjs dialogue <philosopher> "question"');
   }
 
-  const philosopher = philosopherByToken(philosopherToken);
+  const philosopher = roleByToken(philosopherToken);
   if (!philosopher) throw new Error(`Unknown philosopher: ${philosopherToken}`);
 
   const agora = await getAgora();
@@ -1296,7 +1352,7 @@ function normalizeTag(value) {
 
 function tagSummary() {
   const counts = new Map();
-  for (const item of philosophers) {
+  for (const item of roles) {
     for (const tag of tagList(item)) counts.set(tag, (counts.get(tag) || 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
@@ -1331,24 +1387,25 @@ function parsePhilosophersArgs(args) {
 
 async function listPhilosophers(args = []) {
   const options = parsePhilosophersArgs(args);
-  const { agents } = await getAgora();
-  const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
-  const expectedNames = new Set(philosophers.map((item) => item.name));
-  const filteredPhilosophers = options.tag
-    ? philosophers.filter((item) => tagList(item).map(normalizeTag).includes(options.tag))
-    : philosophers;
-  const present = filteredPhilosophers.filter((item) => agentsByName.has(item.name));
-  const extra = agents.filter((agent) => agent.name !== ASSISTANT_NAME && !expectedNames.has(agent.name));
-  const assistant = agentsByName.get(ASSISTANT_NAME);
 
   if (options.showTags) {
     console.log("# Теги философов");
     for (const [tag, count] of tagSummary()) console.log(`- ${tag}: ${count}`);
     console.log("");
     console.log(`Всего тегов: ${tagSummary().length}`);
-    console.log(`Философов: ${philosophers.length}`);
+    console.log(`Философов: ${roles.length}`);
     return;
   }
+
+  const { agents } = await getAgora();
+  const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
+  const expectedNames = new Set(roles.map((item) => item.name));
+  const filteredPhilosophers = options.tag
+    ? roles.filter((item) => tagList(item).map(normalizeTag).includes(options.tag))
+    : roles;
+  const present = filteredPhilosophers.filter((item) => agentsByName.has(item.name));
+  const extra = agents.filter((agent) => agent.name !== ASSISTANT_NAME && !expectedNames.has(agent.name));
+  const assistant = agentsByName.get(ASSISTANT_NAME);
 
   console.log(options.tag ? `# Философы в Paperclip: tag=${options.tag}` : "# Философы в Paperclip");
   for (const item of filteredPhilosophers) {
@@ -1362,7 +1419,7 @@ async function listPhilosophers(args = []) {
 
   console.log("");
   console.log(`Итого философов: ${present.length}/${filteredPhilosophers.length}`);
-  if (options.tag) console.log(`Фильтр tag=${options.tag}; всего в roster: ${philosophers.length}`);
+  if (options.tag) console.log(`Фильтр tag=${options.tag}; всего в roster: ${roles.length}`);
   console.log(`Agora Assistant: ${assistant ? assistant.status || "unknown" : "missing"}`);
   console.log(`Всего агентов в Paperclip: ${agents.length}`);
 
@@ -1449,7 +1506,7 @@ function voiceChildren(root, allIssues, agora) {
 
 function voiceChildScore(child, philosopher, agentById) {
   const assignee = child.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
-  return philosopherScoreInText(philosopher, `${child.title || ""} ${assignee}`);
+  return roleScoreInText(philosopher, `${child.title || ""} ${assignee}`);
 }
 
 function availableVoiceLines(children, agentById) {
@@ -1467,7 +1524,7 @@ async function voice(args) {
   const raw = filteredArgs.join(" ");
   const explicitRef = latestIssueRef(filteredArgs);
   const philosopherText = withoutIssueRef(raw);
-  const philosopher = philosopherFromText(philosopherText);
+  const philosopher = roleFromText(philosopherText);
 
   if (!philosopher && explicitRef) {
     const passthrough = [explicitRef];

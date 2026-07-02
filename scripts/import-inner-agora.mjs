@@ -7,7 +7,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DATA_PATH = path.join(ROOT, "data", "philosophers.json");
+const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
+const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
 const PROMPTS_DIR = path.join(ROOT, "philosophers", "prompts");
 const PROMPT_START = "<!-- INNER_AGORA_PROMPT_START -->";
 const PROMPT_END = "<!-- INNER_AGORA_PROMPT_END -->";
@@ -29,6 +30,18 @@ const CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
 const CODEX_REASONING_EFFORT = process.env.INNER_AGORA_CODEX_REASONING_EFFORT || "medium";
 const AGENT_ADAPTER = normalizeAgentAdapter(process.env.INNER_AGORA_AGENT_ADAPTER || "codex_local");
 const HERMES_TIMEOUT_SEC = Number(process.env.INNER_AGORA_HERMES_TIMEOUT_SEC || 900);
+
+function normalizeChamberMode(value) {
+  const normalized = String(value || "legacy").trim().toLowerCase();
+  if (["legacy", "chambers"].includes(normalized)) return normalized;
+  throw new Error(`Unsupported CHAMBER_MODE=${value}. Use legacy or chambers.`);
+}
+
+const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
+
+function roleSourcePath() {
+  return CHAMBER_MODE === "chambers" ? PHILOSOPHY_ROLES_PATH : LEGACY_ROLES_PATH;
+}
 
 const runtimeConfig = {
   heartbeat: {
@@ -146,7 +159,7 @@ function assistantInstructions() {
   ].join("\n");
 }
 
-function philosopherInstructions(item) {
+function roleInstructions(item) {
   const modernNote = item.contemporaryPublicFigure
     ? [
         "",
@@ -194,6 +207,8 @@ function philosopherInstructions(item) {
     .filter(Boolean)
     .join("\n");
 }
+/** @deprecated Use roleInstructions. */
+const philosopherInstructions = roleInstructions;
 
 function extractPromptMarkdown(text) {
   const start = text.indexOf(PROMPT_START);
@@ -244,9 +259,14 @@ async function api(pathname, options = {}) {
   return data;
 }
 
-async function loadPhilosophers() {
-  return JSON.parse(await fs.readFile(DATA_PATH, "utf8"));
+async function loadRoles() {
+  const filePath = roleSourcePath();
+  const roles = JSON.parse(await fs.readFile(filePath, "utf8"));
+  if (!Array.isArray(roles)) throw new Error(`Role roster must be an array: ${path.relative(ROOT, filePath)}`);
+  return roles;
 }
+/** @deprecated Use loadRoles. */
+const loadPhilosophers = loadRoles;
 
 async function ensureCompany() {
   const companies = await api("/companies");
@@ -270,7 +290,7 @@ async function ensureCompany() {
   return company;
 }
 
-function roleDefs(philosophers, promptOverrides = new Map()) {
+function roleDefs(roles, promptOverrides = new Map()) {
   return [
     {
       key: "agora-assistant",
@@ -286,9 +306,11 @@ function roleDefs(philosophers, promptOverrides = new Map()) {
       metadata: {
         source: "inner-agora-import",
         roleKey: "agora-assistant",
+        chamberId: "philosophy",
+        riskTier: "reflective",
       },
     },
-    ...philosophers.map((item) => ({
+    ...roles.map((item) => ({
       key: item.key,
       name: item.name,
       role: "researcher",
@@ -297,10 +319,12 @@ function roleDefs(philosophers, promptOverrides = new Map()) {
       reportsTo: "agora-assistant",
       canCreateAgents: false,
       capabilities: `${item.era}. ${item.title}. Теги: ${(item.tags || []).join(", ")}.`,
-      instructions: promptOverrides.get(item.key) || philosopherInstructions(item),
+      instructions: promptOverrides.get(item.key) || roleInstructions(item),
       metadata: {
         source: "inner-agora-import",
         roleKey: item.key,
+        chamberId: item.chamberId || "philosophy",
+        riskTier: item.riskTier || "reflective",
         tags: item.tags || [],
         era: item.era,
         architect: Boolean(item.architect),
@@ -544,15 +568,38 @@ async function ensureProject(companyId, goalId, assistantId) {
   return project;
 }
 
+async function printRoles() {
+  const roles = await loadRoles();
+  const promptOverrides = new Map();
+  console.log(`source=${path.relative(ROOT, roleSourcePath())}`);
+  console.log(`chamberMode=${CHAMBER_MODE}`);
+  for (const roleDef of roleDefs(roles, promptOverrides)) {
+    console.log(
+      `role=${roleDef.key} chamberId=${roleDef.metadata.chamberId || ""} riskTier=${roleDef.metadata.riskTier || ""}`,
+    );
+  }
+}
+
 async function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(`Usage:
+  node scripts/import-inner-agora.mjs [--print-roles]
+`);
+    return;
+  }
+  const unknown = args.filter((arg) => arg !== "--print-roles");
+  if (unknown.length) throw new Error(`Unknown argument: ${unknown[0]}`);
+  if (args.includes("--print-roles")) return printRoles();
+
   await api("/health");
 
-  const philosophers = await loadPhilosophers();
-  const promptOverrides = await loadPhilosopherPrompts(philosophers);
+  const roles = await loadRoles();
+  const promptOverrides = await loadPhilosopherPrompts(roles);
   const company = await ensureCompany();
   const createdByKey = new Map();
 
-  for (const roleDef of roleDefs(philosophers, promptOverrides)) {
+  for (const roleDef of roleDefs(roles, promptOverrides)) {
     const agent = await ensureAgent(company.id, roleDef, createdByKey);
     createdByKey.set(roleDef.key, agent);
   }

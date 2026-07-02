@@ -6,8 +6,8 @@
     "philosophers",
     "--tags"
   ],
-  "exitCode": 1,
+  "exitCode": 0,
   "signal": null,
-  "stdout": "",
-  "stderr": "The Inner Agora is incomplete. Run: node scripts/import-inner-agora.mjs"
+  "stdout": "# Теги философов\n- expanded: 59\n- ethics: 23\n- politics: 23\n- metaphysics: 13\n- method: 9\n- language: 8\n- chinese: 7\n- architect: 3\n- buddhism: 3\n- consciousness: 3\n- freedom: 3\n- god: 3\n- knowledge: 3\n- reason: 3\n- safety-care: 3\n- soul: 3\n- subject: 3\n- being: 2\n- culture: 2\n- history: 2\n- modernity: 2\n- nature: 2\n- power: 2\n- stoicism: 2\n- theology: 2\n- truth: 2\n- asceticism: 1\n- authenticity: 1\n- becoming: 1\n- causes: 1\n- christianity: 1\n- civilization: 1\n- contemporary: 1\n- control: 1\n- critique: 1\n- cynicism: 1\n- desire: 1\n- dialectics: 1\n- dialogue: 1\n- difference: 1\n- duty: 1\n- education: 1\n- fear: 1\n- forms: 1\n- friendship: 1\n- genealogy: 1\n- geopolitics: 1\n- ignorance: 1\n- infinity: 1\n- judgment: 1\n- law: 1\n- life: 1\n- logic: 1\n- media: 1\n- memory: 1\n- morality: 1\n- mortality: 1\n- multiplicity: 1\n- mysticism: 1\n- myth: 1\n- necessity: 1\n- one: 1\n- paradox: 1\n- pleasure: 1\n- provocation: 1\n- semiotics: 1\n- signs: 1\n- simulation: 1\n- skepticism: 1\n- society: 1\n- spirit: 1\n- systems: 1\n- technology: 1\n- text: 1\n- tranquility: 1\n- unity: 1\n- values: 1\n- virtue: 1\n- will: 1\n\nВсего тегов: 79\nФилософов: 84",
+  "stderr": ""
 }
