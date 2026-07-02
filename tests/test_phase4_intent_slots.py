@@ -111,6 +111,57 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["slots"]["mode"], "min")
         self.assertEqual(payload["slots"]["roles"], ["sartre", "camus"])
 
+    def test_plan_new_session_builds_agora_ask_command(self):
+        slots = {
+            "intent": "new_session",
+            "chamber": "philosophy",
+            "mode": "min",
+            "topic": "что такое свобода у Сартра и Камю",
+            "roles": ["sartre", "camus"],
+            "taskRef": None,
+            "missingSlots": [],
+            "confidence": 0.93,
+        }
+        result = self.run_node(INTENT_SCRIPT, "plan", "--json", input_text=json.dumps(slots, ensure_ascii=False))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["action"], "command")
+        self.assertEqual(plan["command"][:4], ["/agora", "ask", "--mode", "min"])
+        self.assertIn("--voices", plan["command"])
+
+    def test_plan_missing_topic_asks_one_question(self):
+        slots = {
+            "intent": "new_session",
+            "chamber": "philosophy",
+            "mode": "balanced",
+            "topic": None,
+            "roles": [],
+            "taskRef": None,
+            "missingSlots": ["topic"],
+            "confidence": 0.8,
+        }
+        result = self.run_node(INTENT_SCRIPT, "plan", "--json", input_text=json.dumps(slots, ensure_ascii=False))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["action"], "clarify")
+        self.assertIn("какой вопрос", plan["question"].lower())
+
+    def test_plan_role_detail_routes_to_voice(self):
+        slots = {
+            "intent": "role_detail",
+            "chamber": "philosophy",
+            "mode": None,
+            "topic": None,
+            "roles": ["plato"],
+            "taskRef": None,
+            "missingSlots": [],
+            "confidence": 0.95,
+        }
+        result = self.run_node(INTENT_SCRIPT, "plan", "--json", input_text=json.dumps(slots, ensure_ascii=False))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["command"], ["/agora", "voice", "plato"])
+
 
 if __name__ == "__main__":
     unittest.main()

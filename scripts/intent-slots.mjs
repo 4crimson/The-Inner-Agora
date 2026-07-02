@@ -19,6 +19,7 @@ function usage(exitCode = 0) {
   node scripts/intent-slots.mjs normalize --json
   node scripts/intent-slots.mjs prompt "human text"
   node scripts/intent-slots.mjs extract [--routing-mode regex|llm] [--json] "human text"
+  node scripts/intent-slots.mjs plan --json
   node scripts/intent-slots.mjs fixture-one --json
 `);
   process.exit(exitCode);
@@ -329,6 +330,71 @@ export async function extractIntentSlots(userText, options = {}) {
   return { source: "regex", slots: regexFallbackSlots(userText, options.context || {}) };
 }
 
+export function questionFor(slotName, slots = {}) {
+  if (slotName === "topic") {
+    const target = slots.chamber === "board-directors" ? "совет директоров" : "Агору";
+    return `Какой вопрос поставить в ${target}?`;
+  }
+  if (slotName === "chamber") return "В какую палату поставить вопрос: philosophy или board-directors?";
+  if (slotName === "role") return "По какому голосу показать ответ?";
+  if (slotName === "taskRef") return "Какой номер задачи или сессии показать?";
+  return "Что уточнить перед запуском?";
+}
+
+function commandText(command) {
+  return command.join(" ");
+}
+
+export function decideNextStep(slots, context = {}) {
+  const normalized = normalizeIntentSlots(slots, { chamberId: slots?.chamber || context.activeChamber || DEFAULT_CHAMBER_ID });
+  const criticalMissing = normalized.missingSlots.filter((slot) => ["topic", "chamber", "role", "taskRef"].includes(slot));
+  if (criticalMissing.length) {
+    return {
+      action: "clarify",
+      missingSlots: criticalMissing,
+      question: questionFor(criticalMissing[0], normalized),
+    };
+  }
+
+  if (normalized.intent === "new_session") {
+    const command = ["/agora", "ask", "--mode", normalized.mode || "balanced"];
+    if (normalized.roles.length) command.push("--voices", normalized.roles.join(","));
+    command.push(normalized.topic);
+    return {
+      action: "command",
+      command,
+      text: commandText(command),
+      ack: `Понял: запускаю ${normalized.chamber || DEFAULT_CHAMBER_ID} в режиме ${normalized.mode || "balanced"}.`,
+    };
+  }
+
+  if (normalized.intent === "role_detail") {
+    const command = ["/agora", "voice", normalized.roles[0]];
+    return { action: "command", command, text: commandText(command), ack: "Покажу отдельный голос." };
+  }
+
+  if (normalized.intent === "result" || normalized.intent === "status") {
+    const command = ["/agora", "latest"];
+    return { action: "command", command, text: commandText(command), ack: "Проверю последнюю сессию." };
+  }
+
+  if (normalized.intent === "task_lookup") {
+    const command = ["/agora", "task", normalized.taskRef];
+    return { action: "command", command, text: commandText(command), ack: "Покажу задачу." };
+  }
+
+  if (normalized.intent === "help") {
+    const command = ["/agora", "help"];
+    return { action: "command", command, text: commandText(command), ack: "Покажу помощь." };
+  }
+
+  return {
+    action: "clarify",
+    missingSlots: ["topic"],
+    question: "Что хочешь сделать в Агоре?",
+  };
+}
+
 function fixtureOne() {
   return normalizeIntentSlots({
     intent: "new_session",
@@ -384,6 +450,13 @@ function main() {
         console.error(error?.message || String(error));
         process.exitCode = 1;
       });
+    return;
+  }
+
+  if (command === "plan") {
+    const plan = decideNextStep(parseJsonObject(readStdin()));
+    if (json) process.stdout.write(stableJson(plan));
+    else console.log(plan.text || plan.question || plan.action);
     return;
   }
 
