@@ -104,10 +104,12 @@
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
 |---|---|---|---|---|---|
-| T5.1 | `models.config.json` с адаптерами и `routingRule` | P0 | S | — | Модель меняется правкой JSON, без правки `.mjs`-файлов |
-| T5.2 | `setup-hermes-profile.mjs` читает конфиг вместо литералов (закрытие болячки №8) | P0 | M | T5.1 | `git grep "gemma-4-26b"` не находит совпадений в `.mjs`-файлах |
-| T5.3 | `adapterForRequest({mode, chamberRiskTier})` вместо `adapterForMode(mode)` | P1 | M | T5.1 | High-stakes палата с полным советом маршрутизируется в облачный адаптер по умолчанию |
-| T5.4 | Логировать использованный адаптер в `state`/комментарии issue | P1 | S | T5.3 | `/agora status`/`/agora latest` показывают адаптер сессии |
+| T5.1 | `models.config.json` с адаптерами и `routingRule` | P0 | S | — | Done: модель меняется правкой JSON, без правки `.mjs`-файлов |
+| T5.2 | `setup-hermes-profile.mjs` читает конфиг вместо литералов (закрытие болячки №8) | P0 | M | T5.1 | Done: `git grep "gemma-4-26b" -- "*.mjs"` не находит совпадений |
+| T5.3 | `adapterForRequest({mode, chamberRiskTier})` вместо `adapterForMode(mode)` | P1 | M | T5.1 | Done: `local` идет в `hermes_local`; high-stakes full council идет в `codex_local` |
+| T5.4 | Логировать использованный адаптер в `state`/комментарии issue | P1 | S | T5.3 | Done: `/agora status`/`/agora latest` показывают адаптер сессии |
+
+**Статус на 2026-07-02:** Фаза 5 закрыта по roadmap scope. Evidence: `models.config.json`, `scripts/model-routing.mjs`, `tests/test_phase5_model_routing.py`, `tests/test_inner_agora_mode.py`, `tests/test_inner_agora_ask_flow.py`. Модели и endpoint defaults вынесены из `.mjs` в `models.config.json`; env overrides сохранены для live/local запусков. `setup-hermes-profile.mjs`, `import-inner-agora.mjs`, `intent-slots.mjs`, `inner-agora-guard.mjs` и `agora.mjs` читают модельные настройки через `model-routing.mjs`. `ask` пишет adapter/model/reason/risk в root issue metadata, root comment и локальный state; `mode get`, `status` и `latest` показывают маршрут. Verification: 110 unit tests passed; both regression modes passed; live local-model fixture was 20/20 semantic correct. Важно: Phase 5 не добавляла внешние credentials или облачный провайдер; `codex_local` остается существующим локальным адаптером/профилем, а правило `fullCouncilHighStakes` только выбирает этот более строгий маршрут.
 
 ---
 

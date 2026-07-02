@@ -315,7 +315,7 @@ git commit -m "Expose Agora adapter metadata"
 - Modify: `docs/roadmap/TASKS.md`
 - Modify: `docs/roadmap/IMPLEMENTATION_PLAN.md`
 
-- [ ] **Step 1: Update roadmap evidence**
+- [x] **Step 1: Update roadmap evidence**
 
 Document:
 - `models.config.json` as source of truth;
@@ -324,7 +324,7 @@ Document:
 - state/comment/status/latest adapter metadata;
 - verification commands.
 
-- [ ] **Step 2: Run full verification**
+- [x] **Step 2: Run full verification**
 
 Run:
 
@@ -338,7 +338,7 @@ git grep "gemma-4-26b" -- "*.mjs"; test $? -eq 1
 
 Expected: all tests and regressions pass; live local slot fixture remains semantically correct; grep finds no `.mjs` model literals.
 
-- [ ] **Step 3: Commit and close goal only after evidence passes**
+- [x] **Step 3: Commit and close goal only after evidence passes**
 
 Run:
 

@@ -135,9 +135,11 @@
 
 ## Фаза 5 — Гибридная маршрутизация моделей (1–2 недели)
 
-- [ ] Правило выбора адаптера как функция (приватность + сложность) → локальная/облачная модель, вместо глобального `INNER_AGORA_AGENT_ADAPTER`.
-- [ ] Вынести модель и reasoning-флаги (болячка №8) из `setup-hermes-profile.mjs` в `models.config.json`, читаемый скриптом, а не зашитый в генератор.
-- [ ] Логировать использованный адаптер в `state.json`/комментарии issue — сейчас не видно ни в `status`, ни в `recheck`.
+- [x] Правило выбора адаптера как функция (`adapterForRequest`) вместо глобального `INNER_AGORA_AGENT_ADAPTER`; `local` → `hermes_local`, default/high-stakes full council → `codex_local`.
+- [x] Модель, endpoint и reasoning-флаги (болячка №8) вынесены из `.mjs` в `models.config.json`, который читают setup/import/guard/slot-extractor.
+- [x] Использованный adapter/model/reason логируется в `state.json`, root issue metadata/comment и виден в `mode get`, `status`, `latest`.
+
+**Срез реализации 2026-07-02:** Phase 5 завершена как local-first model routing. `models.config.json` — source of truth; `.mjs`-файлы больше не содержат `gemma-4-26b` literal. `codex_local` в этой фазе не означает новый внешний cloud-provider: это существующий более строгий локальный маршрут до отдельной интеграции провайдера.
 
 ## Фаза 6 — Личная память и per-chat состояние (1–2 недели)
 

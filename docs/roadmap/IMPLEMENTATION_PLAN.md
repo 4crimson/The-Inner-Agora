@@ -379,7 +379,18 @@ switch (slots.intent) {
 
 `setup-hermes-profile.mjs` читает `models.config.json` вместо литералов в коде (закрытие болячки №8). `adapterForMode()` в `agora.mjs` расширяется до `adapterForRequest({mode, chamberRiskTier})`.
 
+**Implementation note 2026-07-02:** Phase 5 is implemented as local-first configurable routing. `models.config.json` is the model source of truth for slot extraction, Hermes profile setup, Paperclip import adapters, guard checks, and Agora request routing. `scripts/model-routing.mjs` owns env overrides and route decisions; `agora.mjs mode get` prints adapter/model/reason; `ask` records adapter metadata into root issue metadata, root comment, and `.inner-agora-state.json`; `status` and `latest` surface that route. `codex_local` remains the existing local adapter/profile, not a new external credentialed cloud route.
+
 **Как проверить:** смена модели в `models.config.json` не требует правки JS.
+
+Verification gate:
+- `python3 -m unittest discover -s tests -p 'test_*.py'`
+- `node scripts/regression.mjs check`
+- `CHAMBER_MODE=chambers node scripts/regression.mjs check`
+- `ROUTING_MODE=llm INNER_AGORA_LLM_MODEL=gemma-4-26b-a4b-it-mlx node scripts/intent-slots.mjs fixture-20 --json`
+- `git grep "gemma-4-26b" -- "*.mjs"; test $? -eq 1`
+
+Observed 2026-07-02: 110 unit tests passed; both regression modes passed; grep found no `.mjs` model literal; live local-model fixture returned `semanticCorrectRate=1` for 20/20 prompts with `avgLatencyMs=2335`.
 
 **Оценка:** 4–5 дней.
 
