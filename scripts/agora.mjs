@@ -259,6 +259,28 @@ function adapterForMode(mode, options = {}) {
   });
 }
 
+function adapterMetadata(adapter) {
+  return {
+    name: adapter.name,
+    model: adapter.model,
+    reason: adapter.reason,
+    riskTier: adapter.riskTier,
+  };
+}
+
+function adapterStatePatch(adapter) {
+  return {
+    lastAdapterName: adapter.name,
+    lastAdapterModel: adapter.model,
+    lastAdapterReason: adapter.reason,
+    lastAdapterRiskTier: adapter.riskTier,
+  };
+}
+
+function adapterDisplayLine(adapter) {
+  return `adapter=${adapter.name}, model=${adapter.model}, reason=${adapter.reason}, risk=${adapter.riskTier}`;
+}
+
 function printMode(mode, state = readState()) {
   const adapter = adapterForMode(mode);
   console.log(`mode=${mode}`);
@@ -1108,6 +1130,12 @@ async function ask(args) {
 
   const chamber = activeChamber();
   const selected = selectPhilosophers(request, mode, philosopherList, { all, noArchitects });
+  const adapter = adapterForMode(mode, {
+    chamber,
+    roleCount: selected.length,
+    roleRiskTiers: selected.map(roleRiskTier),
+    intent: "council",
+  });
 
   if (dryRun) {
     console.log(isPhilosophyChamber(chamber) ? "# Dry-run: The Inner Agora council" : `# Dry-run: ${chamber.name} council`);
@@ -1133,6 +1161,11 @@ async function ask(args) {
     projectId: agora.project.id,
     goalId: agora.goal.id,
     requestDepth: 0,
+    metadata: {
+      innerAgora: {
+        adapter: adapterMetadata(adapter),
+      },
+    },
   });
 
   const childIssues = [];
@@ -1164,6 +1197,9 @@ async function ask(args) {
         .map(({ philosopher, issue, wake }) => `- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`)
         .join("\n"),
       "",
+      "Маршрут модели:",
+      `- ${adapterDisplayLine(adapter)}`,
+      "",
       "Автоматизация:",
       "- Paperclip cockpit monitor запустит синтез, когда философские задачи будут в финальных статусах.",
       "- Telegram получит итог с кнопками после завершения синтеза.",
@@ -1171,8 +1207,15 @@ async function ask(args) {
     ].join("\n"),
   );
 
+  rememberIssue(rootIssue, {
+    lastRootIssueRef: rootIssue.identifier || rootIssue.id,
+    lastRootIssueId: rootIssue.id,
+    ...adapterStatePatch(adapter),
+  });
+
   console.log(`# Поставил вопрос в Агору: ${rootIssue.identifier || rootIssue.id}`);
   console.log(`Выбрал ${childIssues.length} голосов: ${childIssues.map(({ philosopher }) => philosopher.name).join(", ")}.`);
+  console.log(`Маршрут: ${adapter.name} model=${adapter.model} reason=${adapter.reason}`);
   console.log("Напишу сюда, когда будет готов синтез.");
   console.log("");
   console.log(`Сессия: ${rootIssue.identifier || rootIssue.id}`);

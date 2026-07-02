@@ -134,7 +134,13 @@ class TestHTTPServer(ThreadingHTTPServer):
 
 
 class InnerAgoraAskFlowTests(unittest.TestCase):
-    def run_ask(self, question):
+    def custom_models_config(self):
+        payload = json.loads((ROOT / "models.config.json").read_text(encoding="utf-8"))
+        payload["adapters"]["hermes_local"]["model"] = "test/hermes-local"
+        payload["adapters"]["codex_local"]["model"] = "test/codex-local"
+        return payload
+
+    def run_ask(self, question, models_config=None):
         AskFlowHandler.reset()
         server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -147,6 +153,10 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
                     json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
                     encoding="utf-8",
                 )
+                models_config_path = None
+                if models_config is not None:
+                    models_config_path = Path(temp_dir) / "models.config.json"
+                    models_config_path.write_text(json.dumps(models_config), encoding="utf-8")
                 env = {
                     **os.environ,
                     "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
@@ -154,6 +164,8 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
                     "INNER_AGORA_STATE_PATH": str(state_path),
                     "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
                 }
+                if models_config_path:
+                    env["INNER_AGORA_MODELS_CONFIG"] = str(models_config_path)
                 env.pop("INNER_AGORA_MODE", None)
                 result = subprocess.run(
                     ["node", str(AGORA_SCRIPT), "ask", question],
@@ -163,11 +175,13 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
                     capture_output=True,
                     check=True,
                 )
+                state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
                 return {
                     "stdout": result.stdout,
                     "issues": list(AskFlowHandler.created_issues),
                     "comments": list(AskFlowHandler.comments),
                     "wakeups": list(AskFlowHandler.wakeups),
+                    "state": state,
                 }
         finally:
             server.shutdown()
@@ -380,6 +394,27 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("Paperclip cockpit monitor запустит синтез", comment)
         self.assertIn("Telegram получит итог с кнопками", comment)
         self.assertNotIn("Когда ответы будут готовы:", comment)
+
+    def test_ask_records_adapter_route_on_root_comment_stdout_and_state(self):
+        result = self.run_ask(
+            "давай спросим агору про свободу ребенка и власть родителей",
+            models_config=self.custom_models_config(),
+        )
+        root = result["issues"][0]
+        comment = result["comments"][0]["body"]
+        state = result["state"]
+
+        self.assertIn("Маршрут: hermes_local", result["stdout"])
+        self.assertIn("model=test/hermes-local", result["stdout"])
+        self.assertEqual(root["metadata"]["innerAgora"]["adapter"]["name"], "hermes_local")
+        self.assertEqual(root["metadata"]["innerAgora"]["adapter"]["model"], "test/hermes-local")
+        self.assertEqual(root["metadata"]["innerAgora"]["adapter"]["reason"], "localMode")
+        self.assertIn("Маршрут модели:", comment)
+        self.assertIn("adapter=hermes_local", comment)
+        self.assertIn("reason=localMode", comment)
+        self.assertEqual(state["lastAdapterName"], "hermes_local")
+        self.assertEqual(state["lastAdapterModel"], "test/hermes-local")
+        self.assertEqual(state["lastAdapterReason"], "localMode")
 
     def test_follow_up_creates_child_task_against_existing_root(self):
         result = self.run_follow_up("THE-900", "уточни у Платона понятие долга")
