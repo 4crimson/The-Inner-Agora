@@ -21,6 +21,7 @@ function usage(exitCode = 0) {
   node scripts/intent-slots.mjs prompt "human text"
   node scripts/intent-slots.mjs extract [--routing-mode regex|llm] [--json] "human text"
   node scripts/intent-slots.mjs plan --json
+  node scripts/intent-slots.mjs fixture-20 [--routing-mode regex|llm] [--json]
   node scripts/intent-slots.mjs fixture-one --json
 `);
   process.exit(exitCode);
@@ -73,6 +74,7 @@ function roleKeyInText(text, chamberId = DEFAULT_CHAMBER_ID) {
     for (const alias of roleAliases(role)) {
       const normalized = looseText(alias);
       if (normalized && haystack.includes(normalized)) return role.key;
+      if (normalized.length >= 5 && haystack.includes(normalized.slice(0, -1))) return role.key;
     }
   }
   return "";
@@ -169,7 +171,7 @@ export function normalizeIntentSlots(slots, options = {}) {
 function modeFromText(text) {
   const loose = looseText(text);
   if (hasAny(loose, ["коротко", "быстро", "кратко", "min"])) return "min";
-  if (hasAny(loose, ["глубоко", "подробно", "полный", "максимально", "max"])) return "max";
+  if (hasAny(loose, ["глубок", "подробн", "полный", "максимально", "max"])) return "max";
   if (hasAny(loose, ["всех", "все", "all"]) && hasAny(loose, ["голоса", "философы", "директора", "roles"])) return "all";
   return "balanced";
 }
@@ -270,6 +272,20 @@ export function regexFallbackSlots(userText, context = {}) {
 
   const roleChamber = chamberFromText(text) || "philosophy";
   const roleKey = roleKeyInText(text, roleChamber);
+  if (hasAny(loose, ["уточни", "продолжи", "спроси еще", "по этой сессии", "а что если"])) {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "new_session",
+        chamber,
+        mode: modeFromText(text),
+        topic: text,
+        roles: roleKey ? [roleKey] : [],
+        confidence: 0.8,
+      }),
+      { chamberId: chamber },
+    );
+  }
+
   if (roleKey && hasAny(loose, ["что сказал", "подробнее", "голос", "позици", "ответ"])) {
     return normalizeIntentSlots(
       baseSlots({ intent: "role_detail", chamber: roleChamber, roles: [roleKey], confidence: 0.88 }),
@@ -393,6 +409,18 @@ export function decideNextStep(slots, context = {}) {
     };
   }
 
+  if (normalized.intent === "new_session" && context.isFollowUp && context.lastRootIssueRef) {
+    const command = ["/agora", "follow-up", String(context.lastRootIssueRef)];
+    if (normalized.roles.length) command.push("--voices", normalized.roles.join(","));
+    command.push(normalized.topic);
+    return {
+      action: "command",
+      command,
+      text: commandText(command),
+      ack: `Продолжаю в контексте ${context.lastRootIssueRef}.`,
+    };
+  }
+
   if (normalized.intent === "new_session") {
     const command = ["/agora", "ask"];
     if (normalized.mode && normalized.mode !== "balanced") command.push("--mode", normalized.mode);
@@ -463,6 +491,75 @@ function fixtureOne() {
   });
 }
 
+const FIXTURE_20 = [
+  { id: 1, text: "давай спросим агору про отцов и детей", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 2, text: "мне интересно что сказали философы про родителей и детей, запусти совет", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 3, text: "поставь задачу: как разные философы понимали конфликт отцов и детей", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 4, text: "давай исследуем почему дети спорят с родителями у философов", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 5, text: "собери консилиум по теме вина перед родителями", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 6, text: "давай спросим агору, как стоики смотрели бы на тревогу родителей перед будущим детей", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 7, text: "хочу спросить агору про вину перед родителями и взросление", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 8, text: "собери совет: можно ли любить ребенка, не превращая его в проект", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 9, text: "задай агоре вопрос о свободе ребенка и власти родителей", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 10, text: "сделай совет философов о том, когда дети ничего не должны родителям", expected: { intent: "new_session", chamber: "philosophy" } },
+  { id: 11, text: "что там по последней сессии?", expected: { intent: "status" } },
+  { id: 12, text: "готов ли синтез по последней задаче?", expected: { intent: "status" } },
+  { id: 13, text: "дай выжимку по последней таске", expected: { intent: "result" } },
+  { id: 14, text: "покажи 55 таску", expected: { intent: "task_lookup", taskRef: "55" } },
+  { id: 15, text: "хочу подробнее по Нагарджуне из последней сессии", expected: { intent: "role_detail", roles: ["nagarjuna"] } },
+  { id: 16, text: "а что сказал Платон?", expected: { intent: "role_detail", roles: ["plato"] } },
+  { id: 17, text: "агора помощь", expected: { intent: "help" } },
+  { id: 18, text: "коротко спроси агору: что такое свобода у Сартра и Камю", expected: { intent: "new_session", chamber: "philosophy", mode: "min" } },
+  { id: 19, text: "совет директоров, нужен go/no-go по найму CTO", expected: { intent: "new_session", chamber: "board-directors" } },
+  { id: 20, text: "хочу глубокий разбор у совета директоров: стоит ли покупать конкурента", expected: { intent: "new_session", chamber: "board-directors", mode: "max" } },
+];
+
+function scoreFixture(testCase, slots) {
+  const issues = [];
+  const expected = testCase.expected;
+  if (slots.intent !== expected.intent) issues.push(`intent:${slots.intent}`);
+  if (expected.chamber && slots.chamber !== expected.chamber) issues.push(`chamber:${slots.chamber}`);
+  if (expected.mode && slots.mode !== expected.mode) issues.push(`mode:${slots.mode}`);
+  if (expected.taskRef && String(slots.taskRef || "") !== expected.taskRef) issues.push(`taskRef:${slots.taskRef}`);
+  if (expected.roles) {
+    for (const role of expected.roles) {
+      if (!slots.roles.includes(role)) issues.push(`missing_role:${role}`);
+    }
+  }
+  if (expected.intent === "new_session" && !String(slots.topic || "").trim()) issues.push("topic_empty");
+  return { ok: issues.length === 0, issues };
+}
+
+async function runFixture20(options = {}) {
+  const routingMode = options.routingMode || process.env.ROUTING_MODE || "regex";
+  const results = [];
+  for (const testCase of FIXTURE_20) {
+    const startedAt = Date.now();
+    const extracted = await extractIntentSlots(testCase.text, { routingMode });
+    const score = scoreFixture(testCase, extracted.slots);
+    results.push({
+      id: testCase.id,
+      text: testCase.text,
+      source: extracted.source,
+      latencyMs: Date.now() - startedAt,
+      slots: extracted.slots,
+      semanticOk: score.ok,
+      issues: score.issues,
+    });
+  }
+  const semanticCorrect = results.filter((result) => result.semanticOk).length;
+  const latencies = results.map((result) => result.latencyMs);
+  const avgLatencyMs = Math.round(latencies.reduce((total, value) => total + value, 0) / Math.max(1, latencies.length));
+  return {
+    routingMode,
+    total: results.length,
+    semanticCorrect,
+    semanticCorrectRate: semanticCorrect / Math.max(1, results.length),
+    avgLatencyMs,
+    results,
+  };
+}
+
 function main() {
   const [command, ...args] = process.argv.slice(2);
   const json = args.includes("--json");
@@ -509,7 +606,11 @@ function main() {
   }
 
   if (command === "plan") {
-    const plan = decideNextStep(parseJsonObject(readStdin()));
+    let context = {};
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === "--context") context = parseJsonObject(args[++index] || "{}");
+    }
+    const plan = decideNextStep(parseJsonObject(readStdin()), context);
     if (json) process.stdout.write(stableJson(plan));
     else console.log(plan.text || plan.question || plan.action);
     return;
@@ -518,6 +619,23 @@ function main() {
   if (command === "fixture-one") {
     if (json) process.stdout.write(stableJson(fixtureOne()));
     else console.log(`${fixtureOne().intent}\t${fixtureOne().chamber}\t${fixtureOne().topic}`);
+    return;
+  }
+
+  if (command === "fixture-20") {
+    let routingMode = process.env.ROUTING_MODE || "regex";
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === "--routing-mode") routingMode = args[++index] || routingMode;
+    }
+    runFixture20({ routingMode })
+      .then((result) => {
+        if (json) process.stdout.write(stableJson(result));
+        else console.log(`${result.routingMode}: ${result.semanticCorrect}/${result.total} avg=${result.avgLatencyMs}ms`);
+      })
+      .catch((error) => {
+        console.error(error?.message || String(error));
+        process.exitCode = 1;
+      });
     return;
   }
 

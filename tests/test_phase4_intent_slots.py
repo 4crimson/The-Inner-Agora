@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -190,6 +191,60 @@ class Phase4IntentSlotTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["action"], "rewrite")
         self.assertEqual(payload["text"], "/agora voice plato")
+
+    def test_follow_up_phrase_plans_child_request_against_last_root(self):
+        slots = {
+            "intent": "new_session",
+            "chamber": "philosophy",
+            "mode": "balanced",
+            "topic": "уточни у Платона понятие долга",
+            "roles": ["plato"],
+            "taskRef": None,
+            "missingSlots": [],
+            "confidence": 0.88,
+        }
+        context = {"lastRootIssueRef": "THE-900", "isFollowUp": True}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "plan",
+            "--json",
+            "--context",
+            json.dumps(context),
+            input_text=json.dumps(slots, ensure_ascii=False),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["action"], "command")
+        self.assertEqual(plan["command"][:3], ["/agora", "follow-up", "THE-900"])
+
+    def test_fixture_20_regex_reports_deterministic_counts(self):
+        result = self.run_node(INTENT_SCRIPT, "fixture-20", "--routing-mode", "regex", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["routingMode"], "regex")
+        self.assertEqual(payload["total"], 20)
+        self.assertGreaterEqual(payload["semanticCorrect"], 16)
+        self.assertEqual(len(payload["results"]), 20)
+
+    def test_agora_natural_follow_up_uses_last_root_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(json.dumps({"lastRootIssueRef": "THE-900"}), encoding="utf-8")
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "уточни у Платона понятие долга",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertEqual(payload["text"], "/agora follow-up THE-900 --voices plato уточни у Платона понятие долга")
 
 
 if __name__ == "__main__":

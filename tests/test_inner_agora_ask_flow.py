@@ -35,6 +35,17 @@ class AskFlowHandler(BaseHTTPRequestHandler):
         cls.comments = []
         cls.wakeups = []
 
+    @classmethod
+    def issue_by_ref(cls, ref):
+        return next(
+            (
+                issue
+                for issue in cls.created_issues
+                if issue.get("id") == ref or issue.get("identifier") == ref
+            ),
+            None,
+        )
+
     def send_json(self, payload, status=200):
         self.close_connection = True
         body = json.dumps(payload).encode("utf-8")
@@ -59,6 +70,11 @@ class AskFlowHandler(BaseHTTPRequestHandler):
         }
         if self.path in routes:
             self.send_json(routes[self.path])
+            return
+        if self.path.startswith("/api/issues/"):
+            ref = self.path.removeprefix("/api/issues/")
+            issue = self.issue_by_ref(ref)
+            self.send_json(issue if issue else {"error": "not found", "path": self.path}, 200 if issue else 404)
             return
         self.send_json({"error": "not found", "path": self.path}, 404)
 
@@ -140,6 +156,54 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def run_follow_up(self, root_ref, question):
+        AskFlowHandler.reset()
+        AskFlowHandler.created_issues.append(
+            {
+                "id": "root-1",
+                "identifier": root_ref,
+                "companyId": "company-1",
+                "title": "Agora local: original question",
+                "description": "Исходный вопрос:\noriginal question",
+                "status": "todo",
+            }
+        )
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                result = subprocess.run(
+                    ["node", str(AGORA_SCRIPT), "follow-up", root_ref, "--voices", "plato", question],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                return {
+                    "stdout": result.stdout,
+                    "issues": list(AskFlowHandler.created_issues),
+                    "comments": list(AskFlowHandler.comments),
+                    "wakeups": list(AskFlowHandler.wakeups),
+                }
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_ask_creates_durable_work_and_returns_immediate_monitor_ack(self):
         result = self.run_ask("давай спросим агору про свободу ребенка и власть родителей")
         stdout = result["stdout"]
@@ -161,6 +225,17 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("Paperclip cockpit monitor запустит синтез", comment)
         self.assertIn("Telegram получит итог с кнопками", comment)
         self.assertNotIn("Когда ответы будут готовы:", comment)
+
+    def test_follow_up_creates_child_task_against_existing_root(self):
+        result = self.run_follow_up("THE-900", "уточни у Платона понятие долга")
+
+        self.assertIn("Продолжаю в контексте THE-900", result["stdout"])
+        self.assertEqual(len(result["issues"]), 2)
+        child = result["issues"][1]
+        self.assertEqual(child["parentId"], "root-1")
+        self.assertEqual(child["assigneeAgentId"], "plato-1")
+        self.assertIn("уточни у Платона понятие долга", child["description"])
+        self.assertEqual(result["wakeups"][0]["agentId"], "plato-1")
 
 
 if __name__ == "__main__":

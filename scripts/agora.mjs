@@ -100,6 +100,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs council [--dry-run] "question"
   node scripts/agora.mjs ask [--min|--balanced|--max|--all] [--philosophers list] "question"
   node scripts/agora.mjs ask --dry-run --philosophers socrates,kant "question"
+  node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"
   node scripts/agora.mjs dialogue <philosopher> "question"
   node scripts/agora.mjs synthesize [root-issue-id-or-key] [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
@@ -1145,6 +1146,98 @@ async function ask(args) {
     console.log(`- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`);
   }
   console.log(`Дальше автоматически: monitor запустит синтез после завершения голосов.`);
+}
+
+function parseFollowUpArgs(args) {
+  const rootRef = args[0];
+  if (!rootRef) throw new Error('Usage: node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"');
+  let roleList = "";
+  const textParts = [];
+  for (let index = 1; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--voices" || arg === "--philosophers") {
+      roleList = args[++index] || "";
+      if (!roleList) throw new Error(`${arg} requires comma-separated role keys or names`);
+    } else {
+      textParts.push(arg);
+    }
+  }
+  const request = textParts.join(" ").trim();
+  if (!request) throw new Error('Usage: node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"');
+  return { rootRef, roleList, request };
+}
+
+function followUpRoles(request, roleList) {
+  if (roleList) {
+    const selected = roleList
+      .split(",")
+      .map((token) => roleByToken(token))
+      .filter(Boolean);
+    if (!selected.length) throw new Error(`No known roles in --voices ${roleList}`);
+    return uniqueRoles(selected);
+  }
+  const role = roleFromText(request);
+  if (role) return [role];
+  return selectPhilosophers(request, "min", "", { noArchitects: false }).slice(0, 1);
+}
+
+function buildFollowUpDescription({ rootIssue, request, philosopher }) {
+  return [
+    `Follow-up к сессии: ${rootIssue.identifier || rootIssue.id}`,
+    "",
+    `Корневой вопрос: ${rootQuestion(rootIssue)}`,
+    "",
+    `Уточнение для роли: ${philosopher.name}`,
+    "",
+    request,
+    "",
+    "Ответь как продолжение уже начатой сессии. Не создавай новый общий обзор, а уточни именно этот follow-up.",
+    "",
+    transparencyPolicy(),
+  ].join("\n");
+}
+
+async function followUp(args) {
+  const { rootRef, roleList, request } = parseFollowUpArgs(args);
+  const rootIssue = await api(`/issues/${rootRef}`);
+  const selected = followUpRoles(request, roleList);
+  const agora = await getAgora();
+  const missingAgents = selected.filter((item) => !agora.agentsByName.get(item.name));
+  if (missingAgents.length) throw new Error(`Missing Paperclip agents: ${missingAgents.map((item) => item.name).join(", ")}`);
+
+  const childIssues = [];
+  for (const philosopher of selected) {
+    const agent = agora.agentsByName.get(philosopher.name);
+    const child = await createIssue(agora.company.id, {
+      title: `${philosopher.name}: follow-up ${cleanTitle(request)}`,
+      description: buildFollowUpDescription({ rootIssue, request, philosopher }),
+      status: "todo",
+      workMode: "standard",
+      priority: "high",
+      projectId: agora.project.id,
+      goalId: agora.goal.id,
+      parentId: rootIssue.id,
+      assigneeAgentId: agent.id,
+      requestDepth: 1,
+    });
+    const wake = await wakeAgentSafe(agent.id, child.id, `The Inner Agora follow-up: ${philosopher.name}`);
+    childIssues.push({ philosopher, issue: child, wake });
+  }
+
+  await addComment(
+    rootIssue.id,
+    [
+      `Создан follow-up в контексте ${rootIssue.identifier || rootIssue.id}.`,
+      "",
+      childIssues.map(({ philosopher, issue, wake }) => `- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`).join("\n"),
+    ].join("\n"),
+  );
+
+  rememberIssue(rootIssue, { lastRootIssueRef: rootIssue.identifier || rootIssue.id, lastRootIssueId: rootIssue.id });
+  console.log(`Продолжаю в контексте ${rootIssue.identifier || rootIssue.id}`);
+  for (const { philosopher, issue, wake } of childIssues) {
+    console.log(`- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`);
+  }
 }
 
 async function dialogue(args) {
@@ -2285,10 +2378,25 @@ function parseNaturalArgs(args = []) {
   return options;
 }
 
+function naturalFollowUpRequested(text) {
+  const value = looseText(text);
+  return /уточн|продолж|спроси еще|по этой сессии|а что если/.test(value);
+}
+
+function naturalContext(text) {
+  const state = readState();
+  const lastRootIssueRef = state.lastRootIssueRef || "";
+  return {
+    lastRootIssueRef,
+    isFollowUp: Boolean(lastRootIssueRef && naturalFollowUpRequested(text)),
+  };
+}
+
 async function understand(args = []) {
   const options = parseNaturalArgs(args);
-  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode });
-  const plan = decideNextStep(extracted.slots);
+  const context = naturalContext(options.text);
+  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode, context });
+  const plan = decideNextStep(extracted.slots, context);
   const payload = { ...extracted, plan };
   if (options.json) {
     process.stdout.write(stableJson(payload));
@@ -2311,8 +2419,9 @@ async function runPlannedCommand(command) {
 
 async function natural(args = []) {
   const options = parseNaturalArgs(args);
-  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode });
-  const plan = decideNextStep(extracted.slots);
+  const context = naturalContext(options.text);
+  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode, context });
+  const plan = decideNextStep(extracted.slots, context);
 
   if (options.dryRun || options.json) {
     const payload =
@@ -2344,6 +2453,7 @@ async function main() {
   if (command === "natural") return natural(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
+  if (command === "follow-up" || command === "followup") return followUp(args);
   if (command === "dialogue") return dialogue(args);
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
