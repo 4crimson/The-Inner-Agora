@@ -443,6 +443,18 @@ Observed 2026-07-02: 119 unit tests passed; both regression modes passed; per-ch
 
 **Подход:** `transparencyPolicy()` в `import-inner-agora.mjs` перестаёт быть одной функцией на всё приложение — она параметризуется `chamber.transparencyPolicy`, high-stakes палаты получают обязательный блок дисклеймера, вставляемый в каждый child-промпт, а не только упоминаемый в документации.
 
+**Implementation note 2026-07-03:** Phase 7 is implemented. `scripts/policy-loader.mjs` owns shared policy composition and appends `skills/high-stakes-disclaimer` when `chamber.riskTier === "high-stakes"`. `chambers/board-directors/chamber.json` is now `research-only`, `riskTier: advisory`, and uses `business-advisory-transparency`; `chambers/philosophy/chamber.json` declares `riskTier: reflective`. `scripts/agora.mjs` and `scripts/import-inner-agora.mjs` both use the shared composer, and non-philosophy prompts use neutral chamber/role language instead of philosophy-specific identity.
+
+**Как проверить:** `node scripts/policy-loader.mjs compose board-directors` shows the advisory memo protocol; a high-stakes temporary chamber receives `Обязательный high-stakes дисклеймер` in both `agora ask` child prompts and importer `--print-role-instructions`.
+
+Verification gate:
+- `python3 -m unittest discover -s tests -p 'test_*.py'`
+- `node scripts/regression.mjs check`
+- `CHAMBER_MODE=chambers node scripts/regression.mjs check`
+- `STATE_MODE=per-chat INNER_AGORA_CHAT_ID=test-chat node scripts/agora.mjs mode get`
+
+Observed 2026-07-03: 126 unit tests passed; both regression modes passed; per-chat mode printed `adapter=hermes_local`, `model=google/gemma-4-26b-a4b-qat`, `state=/Users/admin/Documents/The Inner Agora/state/test-chat.json`.
+
 **Оценка:** 3–4 дня (в основном текстовая работа, не код).
 
 ---

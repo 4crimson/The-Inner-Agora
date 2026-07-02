@@ -131,9 +131,11 @@
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
 |---|---|---|---|---|---|
-| T7.1 | Параметризовать `transparencyPolicy()` полем `chamber.transparencyPolicy` | P0 | M | T2.1 | Философская и бизнес-палата физически показывают разный текст протокола в ответе |
-| T7.2 | Обязательный дисклеймер-блок для `riskTier: high-stakes` (если появится такая палата) | P1 | S | T7.1 | Дисклеймер вставляется в каждый child-промпт high-stakes палаты автоматически |
-| T7.3 | Явный список палат вне review (только `research-only` статус) | P2 | S | T7.1 | Список задокументирован в `chamber.json.status` |
+| T7.1 | Параметризовать `transparencyPolicy()` полем `chamber.transparencyPolicy` | P0 | M | T2.1 | Done: `policy-loader.mjs` физически выводит разные протоколы для philosophy и board-directors |
+| T7.2 | Обязательный дисклеймер-блок для `riskTier: high-stakes` (если появится такая палата) | P1 | S | T7.1 | Done: high-stakes дисклеймер вставляется в child-промпт `agora ask` и importer instructions |
+| T7.3 | Явный список палат вне review (только `research-only` статус) | P2 | S | T7.1 | Done: `board-directors` помечена `research-only`, схема и loader валидируют статус |
+
+**Статус на 2026-07-03:** Фаза 7 закрыта по roadmap scope. Evidence: `scripts/policy-loader.mjs`, `scripts/agora.mjs`, `scripts/import-inner-agora.mjs`, `data/schema/chamber.schema.json`, `chambers/board-directors/chamber.json`, `skills/business-advisory-transparency`, `skills/high-stakes-disclaimer`, `tests/test_phase7_chamber_safety.py`. Board chamber получила собственный `business-advisory-transparency`, philosophy оставлена на `source-citation`, high-stakes палаты получают обязательный disclaimer из skill prompt до запуска локальной модели. `agora.mjs` и importer больше не держат разные локальные версии policy logic; оба используют shared composition. Verification: 126 unit tests passed; both regression modes passed; `STATE_MODE=per-chat INNER_AGORA_CHAT_ID=test-chat node scripts/agora.mjs mode get` printed `adapter=hermes_local`, `model=google/gemma-4-26b-a4b-qat`, `state=/Users/admin/Documents/The Inner Agora/state/test-chat.json`.
 
 ---
 

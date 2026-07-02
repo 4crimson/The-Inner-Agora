@@ -151,8 +151,10 @@
 
 ## Фаза 7 — Безопасность и дисклеймеры per-chamber (параллельно с Фазой 2)
 
-- [ ] `chamber.json.transparencyPolicy` — расширяемая версия протокола `[источник]/[реконструкция]/[имитация]/[современный перенос]`; для high-stakes палат (здоровье/финансы/право) — обязательный дисклеймер + отказ от точных числовых рекомендаций.
-- [ ] Явный список палат, которые не открываются без отдельного review.
+- [x] `chamber.json.transparencyPolicy` — расширяемая версия протокола `[источник]/[реконструкция]/[имитация]/[современный перенос]`; для high-stakes палат (здоровье/финансы/право) — обязательный дисклеймер + отказ от точных числовых рекомендаций.
+- [x] Явный список палат, которые не открываются без отдельного review.
+
+**Done 2026-07-03:** `policy-loader.mjs` композирует `chamber.transparencyPolicy` + `high-stakes-disclaimer`; `board-directors` теперь `research-only` и использует `business-advisory-transparency`; live child prompts и importer instructions используют один shared path. Verified: 126 unit tests, both regression modes, per-chat local model smoke (`hermes_local`, `google/gemma-4-26b-a4b-qat`).
 
 ## Фаза 8 — Интерфейсы и Telegram UX (1–2 недели, можно параллельно с Фазой 4 после MVP слот-филлинга)
 
