@@ -35,7 +35,16 @@
       "enum": [
         "active",
         "draft",
+        "research-only",
         "disabled"
+      ]
+    },
+    "riskTier": {
+      "type": "string",
+      "enum": [
+        "reflective",
+        "advisory",
+        "high-stakes"
       ]
     },
     "labels": {

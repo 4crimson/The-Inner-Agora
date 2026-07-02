@@ -3,6 +3,7 @@
   "name": "The Inner Agora",
   "description": "Философская палата для исследования, диалога и спора.",
   "status": "active",
+  "riskTier": "reflective",
   "labels": {
     "company": "agora",
     "companies": "agoras",

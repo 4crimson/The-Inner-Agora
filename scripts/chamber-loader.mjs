@@ -120,8 +120,11 @@ export function validateChamberManifest(chamber, context = "chamber.json") {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(chamber.id)) throw new Error(`${context}: field id has invalid format`);
   requireString(chamber, "name", context);
   requireString(chamber, "description", context);
-  if (!["active", "draft", "disabled"].includes(chamber.status)) {
-    throw new Error(`${context}: field status must be active, draft, or disabled`);
+  if (!["active", "draft", "research-only", "disabled"].includes(chamber.status)) {
+    throw new Error(`${context}: field status must be active, draft, research-only, or disabled`);
+  }
+  if ("riskTier" in chamber && !["reflective", "advisory", "high-stakes"].includes(chamber.riskTier)) {
+    throw new Error(`${context}: field riskTier must be reflective, advisory, or high-stakes`);
   }
 
   if (!isPlainObject(chamber.labels)) throw new Error(`${context}: field labels must be an object`);

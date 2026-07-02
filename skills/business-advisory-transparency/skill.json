@@ -1,0 +1,7 @@
+{
+  "id": "business-advisory-transparency",
+  "name": "Business Advisory Transparency",
+  "description": "Transparency protocol for advisory board memos, assumptions, risks, and decision conditions.",
+  "riskTier": "L0",
+  "allowedTools": []
+}

@@ -282,11 +282,11 @@ class Phase2ChamberTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertIn("board-directors", [item["id"] for item in payload["chambers"]])
 
-    def test_board_directors_roles_are_draft_but_valid(self):
+    def test_board_directors_roles_are_research_only_but_valid(self):
         chamber = json.loads(BOARD_CHAMBER.read_text(encoding="utf-8"))
         roles = json.loads(BOARD_ROLES.read_text(encoding="utf-8"))
 
-        self.assertEqual(chamber["status"], "draft")
+        self.assertEqual(chamber["status"], "research-only")
         self.assertGreaterEqual(len(roles), 3)
         self.assertTrue(all(role["chamberId"] == "board-directors" for role in roles))
         self.assertTrue(all(role["riskTier"] == "advisory" for role in roles))

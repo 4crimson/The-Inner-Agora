@@ -1,0 +1,7 @@
+{
+  "id": "high-stakes-disclaimer",
+  "name": "High-Stakes Disclaimer",
+  "description": "Mandatory safety disclaimer for health, legal, financial, and similarly high-stakes chambers.",
+  "riskTier": "L0",
+  "allowedTools": []
+}

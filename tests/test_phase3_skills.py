@@ -71,7 +71,7 @@ class Phase3SkillTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(
             sorted(item["id"] for item in payload["skills"]),
-            ["memory-export", "source-citation", "web-research"],
+            ["business-advisory-transparency", "high-stakes-disclaimer", "memory-export", "source-citation", "web-research"],
         )
 
     def test_source_citation_prompt_exposes_transparency_policy(self):

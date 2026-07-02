@@ -2,7 +2,8 @@
   "id": "board-directors",
   "name": "Board Directors",
   "description": "Черновая палата совета директоров для управленческих go/no-go решений.",
-  "status": "draft",
+  "status": "research-only",
+  "riskTier": "advisory",
   "labels": {
     "company": "совет",
     "companies": "советы",
@@ -18,8 +19,9 @@
     "presets/mvp.json"
   ],
   "synthesisRole": "ceo",
-  "transparencyPolicy": "source-citation",
+  "transparencyPolicy": "business-advisory-transparency",
   "allowedSkills": [
+    "business-advisory-transparency",
     "source-citation",
     "web-research",
     "memory-export"
