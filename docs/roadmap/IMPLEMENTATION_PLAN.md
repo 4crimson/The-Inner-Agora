@@ -421,7 +421,17 @@ function readState(chatId) {
 
 `chatId` пробрасывается во все команды `agora.mjs` из вызывающего Hermes-плагина (сейчас в `__init__.py` chat id уже есть в контексте гейтвея — это просто прокидывание параметра, не новая инфраструктура).
 
+**Implementation note 2026-07-02:** Phase 6 is implemented. `scripts/state-manager.mjs` owns state/profile path resolution, `schemaVersion: 1` migration, legacy copy from `.inner-agora-state.json`, and profile memory. `scripts/agora.mjs` and `scripts/import-inner-agora.mjs` use the shared manager. `hermes-plugins/paperclip-cockpit/__init__.py` passes `INNER_AGORA_CHAT_ID` into natural delegate and callback action subprocesses. Tests prove two Telegram chats keep separate `lastRootIssueRef` values.
+
 **Как проверить:** два разных `chatId` не видят `lastIssueRef` друг друга; старый `.inner-agora-state.json` мигрирует автоматически при первом запуске.
+
+Verification gate:
+- `python3 -m unittest discover -s tests -p 'test_*.py'`
+- `node scripts/regression.mjs check`
+- `CHAMBER_MODE=chambers node scripts/regression.mjs check`
+- `STATE_MODE=per-chat INNER_AGORA_CHAT_ID=test-chat node scripts/agora.mjs mode get`
+
+Observed 2026-07-02: 119 unit tests passed; both regression modes passed; per-chat mode printed `state=/Users/admin/Documents/The Inner Agora/state/test-chat.json`.
 
 **Оценка:** 5–7 дней.
 

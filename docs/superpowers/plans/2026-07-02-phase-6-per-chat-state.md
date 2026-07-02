@@ -1,6 +1,6 @@
 # Phase 6 Per-Chat State Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Implement per-chat Agora state and profile memory so two Telegram chats using one Hermes profile do not share session context, mode, chamber, wizard state, or follow-up anchors.
 
@@ -34,7 +34,7 @@
 - Create: `scripts/migrate-state.mjs`
 - Create: `tests/test_phase6_state_manager.py`
 
-- [ ] **Step 1: Write failing schema/path tests**
+- [x] **Step 1: Write failing schema/path tests**
 
 Add `tests/test_phase6_state_manager.py`:
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -146,7 +146,7 @@ python3 -m unittest tests.test_phase6_state_manager
 
 Expected: FAIL because `state.schema.json`, `state-manager.mjs`, and `migrate-state.mjs` do not exist.
 
-- [ ] **Step 3: Add schema**
+- [x] **Step 3: Add schema**
 
 Create `data/schema/state.schema.json`:
 
@@ -183,7 +183,7 @@ Create `data/schema/state.schema.json`:
 }
 ```
 
-- [ ] **Step 4: Add `scripts/state-manager.mjs`**
+- [x] **Step 4: Add `scripts/state-manager.mjs`**
 
 Implement these exported functions:
 
@@ -219,7 +219,7 @@ node scripts/state-manager.mjs read --json
 node scripts/state-manager.mjs profile --json
 ```
 
-- [ ] **Step 5: Add `scripts/migrate-state.mjs`**
+- [x] **Step 5: Add `scripts/migrate-state.mjs`**
 
 Implement CLI:
 
@@ -229,7 +229,7 @@ node scripts/migrate-state.mjs [--chat CHAT] [--json]
 
 It should set the target chat for the call, run `migrateLegacyState`, and print `{chatId,statePath,migrated}` as JSON when `--json` is passed.
 
-- [ ] **Step 6: Run tests and syntax checks**
+- [x] **Step 6: Run tests and syntax checks**
 
 Run:
 
@@ -241,7 +241,7 @@ node --check scripts/migrate-state.mjs
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add data/schema/state.schema.json scripts/state-manager.mjs scripts/migrate-state.mjs tests/test_phase6_state_manager.py
@@ -260,7 +260,7 @@ git commit -m "Add per-chat state manager"
 - Modify: `tests/test_phase6_state_manager.py`
 - Modify: `tests/fixtures/baseline/mode-get.json`
 
-- [ ] **Step 1: Add failing CLI isolation/profile tests**
+- [x] **Step 1: Add failing CLI isolation/profile tests**
 
 Extend `tests/test_phase6_state_manager.py`:
 
@@ -313,7 +313,7 @@ Extend `tests/test_phase6_state_manager.py`:
             self.assertEqual(result.stdout.strip(), "local")
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -323,7 +323,7 @@ python3 -m unittest tests.test_phase6_state_manager.Phase6StateManagerTests.test
 
 Expected: FAIL because `agora.mjs` still uses local single-file state helpers.
 
-- [ ] **Step 3: Replace local state helpers in `scripts/agora.mjs`**
+- [x] **Step 3: Replace local state helpers in `scripts/agora.mjs`**
 
 Import:
 
@@ -378,11 +378,11 @@ function rememberChamberPreference(chamberId) {
 
 Call `rememberModePreference(mode)` after `mode set` and after `ask` creates a session. Call `rememberChamberPreference(chamber.id)` after `chamber use` and after `ask`.
 
-- [ ] **Step 4: Wire `scripts/import-inner-agora.mjs` to state manager**
+- [x] **Step 4: Wire `scripts/import-inner-agora.mjs` to state manager**
 
 Import `readState` from `./state-manager.mjs`, remove its local `STATE_PATH` and `readState()`, and keep `activeChamberId(state = readState())` behavior.
 
-- [ ] **Step 5: Run focused tests and update baseline if needed**
+- [x] **Step 5: Run focused tests and update baseline if needed**
 
 Run:
 
@@ -398,7 +398,7 @@ node scripts/regression.mjs record
 node scripts/regression.mjs check
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/agora.mjs scripts/import-inner-agora.mjs tests/test_phase6_state_manager.py tests/test_inner_agora_mode.py tests/test_inner_agora_ask_flow.py tests/fixtures/baseline/mode-get.json
@@ -414,7 +414,7 @@ git commit -m "Use per-chat state in Agora CLI"
 - Modify: `tests/test_paperclip_cockpit_telegram_callbacks.py`
 - Modify: `tests/test_inner_agora_conversation_cycle.py`
 
-- [ ] **Step 1: Add failing callback env test**
+- [x] **Step 1: Add failing callback env test**
 
 Extend `tests/test_paperclip_cockpit_telegram_callbacks.py`:
 
@@ -453,7 +453,7 @@ Extend `tests/test_paperclip_cockpit_telegram_callbacks.py`:
 
 Import `subprocess` at the top of the test file if not already imported.
 
-- [ ] **Step 2: Add failing natural delegate env test**
+- [x] **Step 2: Add failing natural delegate env test**
 
 Extend `tests/test_paperclip_cockpit_telegram_callbacks.py`. Add `import subprocess` at the top of the file, then add:
 
@@ -493,7 +493,7 @@ Extend `tests/test_paperclip_cockpit_telegram_callbacks.py`. Add `import subproc
         self.with_config(config, assertions)
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run:
 
@@ -503,7 +503,7 @@ python3 -m unittest tests.test_paperclip_cockpit_telegram_callbacks tests.test_i
 
 Expected: FAIL because subprocess calls do not pass an env override.
 
-- [ ] **Step 4: Add execution env helper**
+- [x] **Step 4: Add execution env helper**
 
 In `hermes-plugins/paperclip-cockpit/__init__.py`, add:
 
@@ -540,7 +540,7 @@ chat_id = getattr(source, "chat_id", "") if source is not None else ""
 rewritten = _rewrite_text(getattr(event, "text", "") or "", chat_id=chat_id)
 ```
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run:
 
@@ -550,7 +550,7 @@ python3 -m unittest tests.test_paperclip_cockpit_telegram_callbacks tests.test_i
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add hermes-plugins/paperclip-cockpit/__init__.py tests/test_paperclip_cockpit_telegram_callbacks.py tests/test_inner_agora_conversation_cycle.py
@@ -565,7 +565,7 @@ git commit -m "Pass chat id to Agora subprocesses"
 - Modify: `tests/test_inner_agora_conversation_cycle.py`
 - Modify: `scripts/agora.mjs` if test exposes missing state/profile propagation
 
-- [ ] **Step 1: Add failing end-to-end isolation test**
+- [x] **Step 1: Add failing end-to-end isolation test**
 
 Add to `tests/test_inner_agora_conversation_cycle.py`:
 
@@ -632,7 +632,7 @@ class Source:
 Source.chat_id = chat_id
 ```
 
-- [ ] **Step 2: Run the new test to verify it fails if any wiring is incomplete**
+- [x] **Step 2: Run the new test to verify it fails if any wiring is incomplete**
 
 Run:
 
@@ -642,7 +642,7 @@ python3 -m unittest tests.test_inner_agora_conversation_cycle
 
 Expected before final wiring: FAIL if CLI state or plugin env propagation is incomplete.
 
-- [ ] **Step 3: Fix only the missing wiring**
+- [x] **Step 3: Fix only the missing wiring**
 
 Expected implementation shape if this test still fails:
 
@@ -656,7 +656,7 @@ import { readState, writeState } from "./state-manager.mjs";
 result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=timeout, check=False, env=_subprocess_env(chat_id))
 ```
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -666,7 +666,7 @@ python3 -m unittest tests.test_inner_agora_conversation_cycle tests.test_phase6_
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_inner_agora_conversation_cycle.py scripts/agora.mjs hermes-plugins/paperclip-cockpit/__init__.py
@@ -683,7 +683,7 @@ git commit -m "Isolate Telegram Agora state per chat"
 - Modify: `docs/roadmap/IMPLEMENTATION_PLAN.md`
 - Modify: `docs/superpowers/plans/2026-07-02-phase-6-per-chat-state.md`
 
-- [ ] **Step 1: Run full verification**
+- [x] **Step 1: Run full verification**
 
 Run:
 
@@ -696,7 +696,7 @@ STATE_MODE=per-chat INNER_AGORA_CHAT_ID=test-chat node scripts/agora.mjs mode ge
 
 Expected: all tests and regressions pass; final command prints `state=.../state/test-chat.json`.
 
-- [ ] **Step 2: Update roadmap evidence**
+- [x] **Step 2: Update roadmap evidence**
 
 Mark T6.1-T6.5 done in `docs/roadmap/TASKS.md` and add evidence:
 
@@ -708,11 +708,11 @@ Mark T6.1-T6.5 done in `docs/roadmap/TASKS.md` and add evidence:
 
 Update `docs/roadmap/ROADMAP.md` Phase 6 checkboxes and `docs/roadmap/IMPLEMENTATION_PLAN.md` with observed verification results.
 
-- [ ] **Step 3: Mark this plan complete**
+- [x] **Step 3: Mark this plan complete**
 
 Change Task 5 checkboxes to `[x]` after verification has passed.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/roadmap/TASKS.md docs/roadmap/ROADMAP.md docs/roadmap/IMPLEMENTATION_PLAN.md docs/superpowers/plans/2026-07-02-phase-6-per-chat-state.md

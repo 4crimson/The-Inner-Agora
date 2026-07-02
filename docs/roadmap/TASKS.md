@@ -117,11 +117,13 @@
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
 |---|---|---|---|---|---|
-| T6.1 | `data/schema/state.schema.json` с `schemaVersion` | P0 | S | — | Валидируется, есть версия схемы |
-| T6.2 | `scripts/migrate-state.mjs`: разделение `.inner-agora-state.json` на `state/<chat-id>.json` | P0 | M | T6.1 | Старый файл копируется в дефолтный профиль при первом запуске, не теряется |
-| T6.3 | Прокинуть `chatId` через все команды `agora.mjs` от вызывающего Hermes-плагина | P0 | M | T6.2 | Два разных `chatId` не видят `lastIssueRef` друг друга (тест на два параллельных вызова) |
-| T6.4 | `memory/profiles/<chat-id>.json`: предпочитаемая палата, глубина по умолчанию | P1 | M | T6.3 | Повторный запрос без явного режима использует последний использованный `mode` для этого чата |
-| T6.5 | Миграция схемы состояния при несовпадении `schemaVersion` вместо тихой порчи | P1 | S | T6.1 | Изменение схемы в будущем не роняет чтение старого файла |
+| T6.1 | `data/schema/state.schema.json` с `schemaVersion` | P0 | S | — | Done: валидируется, есть версия схемы |
+| T6.2 | `scripts/migrate-state.mjs`: разделение `.inner-agora-state.json` на `state/<chat-id>.json` | P0 | M | T6.1 | Done: старый файл копируется в per-chat профиль при первом запуске, не теряется |
+| T6.3 | Прокинуть `chatId` через все команды `agora.mjs` от вызывающего Hermes-плагина | P0 | M | T6.2 | Done: два разных `chatId` не видят `lastIssueRef` друг друга |
+| T6.4 | `memory/profiles/<chat-id>.json`: предпочитаемая палата, глубина по умолчанию | P1 | M | T6.3 | Done: повторный запрос без явного режима использует profile/state mode этого чата |
+| T6.5 | Миграция схемы состояния при несовпадении `schemaVersion` вместо тихой порчи | P1 | S | T6.1 | Done: unversioned state мигрирует в `schemaVersion: 1` |
+
+**Статус на 2026-07-02:** Фаза 6 закрыта по roadmap scope. Evidence: `data/schema/state.schema.json`, `scripts/state-manager.mjs`, `scripts/migrate-state.mjs`, `scripts/agora.mjs`, `scripts/import-inner-agora.mjs`, `hermes-plugins/paperclip-cockpit/__init__.py`, `tests/test_phase6_state_manager.py`, `tests/test_inner_agora_conversation_cycle.py`, `tests/test_paperclip_cockpit_telegram_callbacks.py`. `INNER_AGORA_CHAT_ID` выбирает `state/<chat-id>.json`; legacy `.inner-agora-state.json` копируется и мигрирует, но не удаляется; explicit `INNER_AGORA_STATE_PATH` остается тестовым/legacy override. Profile memory пишет `preferredMode`, `preferredChamberId`, `recentRoles`; при explicit state path profile изолируется рядом с temp state. Verification: 119 unit tests passed; both regression modes passed; `STATE_MODE=per-chat INNER_AGORA_CHAT_ID=test-chat node scripts/agora.mjs mode get` printed `state=/Users/admin/Documents/The Inner Agora/state/test-chat.json`.
 
 ---
 
