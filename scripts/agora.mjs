@@ -7,10 +7,7 @@ import { fileURLToPath } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { decideNextStep, extractIntentSlots } from "./intent-slots.mjs";
 import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
-import {
-  codexAdapterConfig as configuredCodexAdapterConfig,
-  hermesAdapterConfig as configuredHermesAdapterConfig,
-} from "./model-routing.mjs";
+import { adapterForRequest } from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -30,8 +27,6 @@ const AGORA_CONFIG = COCKPIT_CONFIG.agora && typeof COCKPIT_CONFIG.agora === "ob
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const ASSISTANT_NAME = "Agora Assistant / Синтезатор";
 const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.default_mode || "balanced";
-const DEFAULT_CODEX_MODEL = configuredCodexAdapterConfig().model;
-const DEFAULT_HERMES_MODEL = configuredHermesAdapterConfig().model;
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
 const ISSUE_REF_RE = /\b([A-Z][A-Z0-9]{1,12}-\d+)\b/i;
 const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
@@ -245,29 +240,31 @@ function defaultMode() {
   return normalizeMode(process.env.INNER_AGORA_MODE || readState().mode || DEFAULT_MODE);
 }
 
-function adapterForMode(mode) {
-  if (mode === "local") {
-    return {
-      name: "hermes_local",
-      env: {
-        INNER_AGORA_AGENT_ADAPTER: "hermes_local",
-        INNER_AGORA_HERMES_MODEL: DEFAULT_HERMES_MODEL,
-      },
-    };
-  }
-  return {
-    name: "codex_local",
-    env: {
-      INNER_AGORA_AGENT_ADAPTER: "codex_local",
-      INNER_AGORA_CODEX_MODEL: DEFAULT_CODEX_MODEL,
-    },
-  };
+function roleRiskTier(role) {
+  return role?.riskTier || "reflective";
+}
+
+function chamberRiskTier(chamber = activeChamber()) {
+  return chamber.riskTier || "reflective";
+}
+
+function adapterForMode(mode, options = {}) {
+  const chamber = options.chamber || activeChamber();
+  return adapterForRequest({
+    mode,
+    chamberRiskTier: options.chamberRiskTier || chamberRiskTier(chamber),
+    roleRiskTiers: options.roleRiskTiers || [],
+    roleCount: options.roleCount || 0,
+    intent: options.intent || "",
+  });
 }
 
 function printMode(mode, state = readState()) {
   const adapter = adapterForMode(mode);
   console.log(`mode=${mode}`);
   console.log(`adapter=${adapter.name}`);
+  console.log(`model=${adapter.model}`);
+  console.log(`reason=${adapter.reason}`);
   console.log(`state=${STATE_PATH}`);
   if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
 }

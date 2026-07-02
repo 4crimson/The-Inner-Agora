@@ -8,6 +8,6 @@
   ],
   "exitCode": 0,
   "signal": null,
-  "stdout": "mode=local\nadapter=hermes_local\nstate=/Users/admin/Documents/The Inner Agora/.inner-agora-state.json\nupdatedAt=<TIMESTAMP>",
+  "stdout": "mode=local\nadapter=hermes_local\nmodel=google/gemma-4-26b-a4b-qat\nreason=localMode\nstate=/Users/admin/Documents/The Inner Agora/.inner-agora-state.json\nupdatedAt=<TIMESTAMP>",
   "stderr": ""
 }
