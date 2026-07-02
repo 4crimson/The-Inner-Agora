@@ -12,6 +12,7 @@ function usage(exitCode = 0) {
   node scripts/chamber-loader.mjs list [--json] [--chambers-dir DIR]
   node scripts/chamber-loader.mjs validate [--chambers-dir DIR]
   node scripts/chamber-loader.mjs show <id> [--json] [--chambers-dir DIR]
+  node scripts/chamber-loader.mjs cockpit <id> [--json] [--write FILE] [--chambers-dir DIR]
   node scripts/chamber-loader.mjs merge-fixture [--json]
 `);
   process.exit(exitCode);
@@ -26,6 +27,7 @@ function parseArgs(argv) {
     id: "",
     json: false,
     chambersDir: DEFAULT_CHAMBERS_DIR,
+    writePath: "",
   };
 
   for (let index = 0; index < tail.length; index += 1) {
@@ -35,6 +37,9 @@ function parseArgs(argv) {
     } else if (arg === "--chambers-dir") {
       options.chambersDir = path.resolve(String(tail[++index] || ""));
       if (!options.chambersDir) throw new Error("--chambers-dir requires a path");
+    } else if (arg === "--write") {
+      options.writePath = path.resolve(String(tail[++index] || ""));
+      if (!options.writePath) throw new Error("--write requires a path");
     } else if (arg === "--help" || arg === "-h") {
       usage(0);
     } else if (!options.id && !arg.startsWith("-")) {
@@ -49,6 +54,10 @@ function parseArgs(argv) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function stableJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function isPlainObject(value) {
@@ -150,6 +159,15 @@ export function loadChamber(chambersDir, id) {
   return validateChamberManifest(readJson(filePath), path.relative(ROOT, filePath));
 }
 
+export function loadCockpitConfig(chambersDir, id) {
+  loadChamber(chambersDir, id);
+  const corePath = path.join(ROOT, "cockpit.core.json");
+  const overridePath = path.join(chambersDir, id, "cockpit.overrides.json");
+  const core = readJson(corePath);
+  const override = fs.existsSync(overridePath) ? readJson(overridePath) : {};
+  return deepMerge(core, override);
+}
+
 export function listChambers(chambersDir = DEFAULT_CHAMBERS_DIR) {
   if (!fs.existsSync(chambersDir)) return [];
   return fs
@@ -190,6 +208,16 @@ function mergeFixture(json) {
   else console.log(merged);
 }
 
+function printOrWriteConfig(config, options) {
+  if (options.writePath) {
+    fs.writeFileSync(options.writePath, stableJson(config), "utf8");
+    console.log(`wrote ${path.relative(ROOT, options.writePath)}`);
+    return;
+  }
+  if (options.json) console.log(stableJson(config).trimEnd());
+  else console.log(JSON.stringify(config));
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.command === "list") return printChambers(listChambers(options.chambersDir), options.json);
@@ -204,6 +232,10 @@ function main() {
     if (options.json) console.log(JSON.stringify(chamber, null, 2));
     else console.log(`${chamber.id}\t${chamber.status}\t${chamber.name}`);
     return;
+  }
+  if (options.command === "cockpit") {
+    if (!options.id) throw new Error("cockpit requires chamber id");
+    return printOrWriteConfig(loadCockpitConfig(options.chambersDir, options.id), options);
   }
   if (options.command === "merge-fixture") return mergeFixture(options.json);
   usage(1);

@@ -240,7 +240,7 @@ Expected: OK.
 - Modify: `scripts/chamber-loader.mjs`
 - Test: `tests/test_phase2_chambers.py`
 
-- [ ] **Step 1: Write failing config parity test**
+- [x] **Step 1: Write failing config parity test**
 
 Add:
 
@@ -255,7 +255,7 @@ def test_merged_philosophy_cockpit_matches_current_config(self):
 
 Expected before split: FAIL because loader has no `cockpit` command.
 
-- [ ] **Step 2: Split config**
+- [x] **Step 2: Split config**
 
 Move shared sections to `cockpit.core.json`:
 - `command`
@@ -280,7 +280,7 @@ Move philosophy-specific sections to `chambers/philosophy/cockpit.overrides.json
 
 Keep `paperclip-cockpit.json` as the merged effective config for current Hermes compatibility.
 
-- [ ] **Step 3: Add generator/check**
+- [x] **Step 3: Add generator/check**
 
 Add loader command:
 

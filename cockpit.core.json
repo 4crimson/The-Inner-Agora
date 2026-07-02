@@ -1,0 +1,116 @@
+{
+  "command": {
+    "name": "agora",
+    "description": "The Inner Agora cockpit for Paperclip.",
+    "register_pc_fallback": false
+  },
+  "gateway": {
+    "reset_on_gateway_shutdown": true,
+    "reset_session_age_minutes": 60,
+    "reset_idle_minutes": 15
+  },
+  "hooks": {
+    "after_move": {
+      "auto_finalize_parents_on_statuses": [
+        "done",
+        "blocked",
+        "cancelled"
+      ]
+    }
+  },
+  "monitor": {
+    "enabled": true,
+    "state_file": ".paperclip-cockpit-monitor-state.json",
+    "interval_seconds": 60,
+    "max_roots": 20,
+    "ignore_existing_roots": true,
+    "terminal_statuses": [
+      "done",
+      "blocked",
+      "cancelled"
+    ],
+    "auto_finalize_disposition_waits": {
+      "enabled": true,
+      "status": "done",
+      "system_comment_pattern": "needs a disposition",
+      "min_agent_comment_chars": 80,
+      "cancel_live_runs": true,
+      "force_release_after_cancel": true,
+      "release_assignee_after_cancel": true,
+      "clear_assignee_after_cancel": true,
+      "comment": "Автоматически закрыто через Paperclip cockpit monitor: ответ агента уже есть, Paperclip ждал disposition."
+    },
+    "cancel_terminal_live_runs": {
+      "enabled": true,
+      "only_with_disposition_marker": true,
+      "comment_pattern": "needs a disposition|Auto-finalized by Paperclip cockpit monitor|Автоматически закрыто через Paperclip cockpit monitor"
+    },
+    "synthesis_title_pattern": "^Синтез:|^Synthesis:",
+    "synthesis_action": "synth",
+    "launchd": {
+      "label": "local.paperclip-cockpit.inneragora"
+    },
+    "notify": {
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "send-result",
+        "{issue}"
+      ]
+    }
+  },
+  "issue": {
+    "default_prefix": "THE"
+  },
+  "telegram": {
+    "enabled": true,
+    "profile": "inneragora",
+    "callback_prefix": "pc",
+    "home_chat_env": "TELEGRAM_HOME_CHANNEL",
+    "buttons": {
+      "enabled": true,
+      "voice_limit": 6,
+      "labels": {
+        "synthesis": "Синтез",
+        "all_voices": "Все голоса",
+        "export": "Экспорт",
+        "clarify": "Уточнить"
+      }
+    },
+    "callbacks": {
+      "result": {
+        "action": "telegram_result",
+        "args": "{arg}",
+        "answer": "Открываю синтез...",
+        "telegram_payload": true
+      },
+      "latest": {
+        "action": "telegram_latest",
+        "args": "{arg}",
+        "answer": "Показываю все голоса...",
+        "telegram_payload": true
+      },
+      "voice": {
+        "action": "telegram_voice",
+        "args": "{arg}",
+        "answer": "Открываю голос...",
+        "telegram_payload": true
+      },
+      "export": {
+        "action": "memory",
+        "args": "{arg}",
+        "answer": "Экспортирую..."
+      },
+      "clarify": {
+        "answer": "Можно уточнять",
+        "message": "Напиши уточнение обычным сообщением по сессии {arg}. Я подхвачу его как новый conversational запрос."
+      }
+    }
+  },
+  "notifications": {
+    "comments": {
+      "move_status_changed": "Статус изменен через Agora cockpit: {old_status} -> {new_status}.",
+      "auto_finalized": "Пакет автоматически закрыт через Agora cockpit: все видимые дочерние задачи уже в финальных статусах."
+    }
+  }
+}

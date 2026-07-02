@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CHAMBER_SCHEMA = ROOT / "data" / "schema" / "chamber.schema.json"
 PHILOSOPHY_CHAMBER = ROOT / "chambers" / "philosophy" / "chamber.json"
 CHAMBER_LOADER = ROOT / "scripts" / "chamber-loader.mjs"
+COCKPIT_CONFIG = ROOT / "paperclip-cockpit.json"
 
 
 class Phase2ChamberTests(unittest.TestCase):
@@ -86,6 +87,14 @@ class Phase2ChamberTests(unittest.TestCase):
         self.assertEqual(payload["allowedSkills"], ["source-citation"])
         self.assertEqual(payload["labels"]["agent"], "director")
         self.assertEqual(payload["labels"]["tasks"], "sessions")
+
+    def test_merged_philosophy_cockpit_matches_current_config(self):
+        result = self.run_node(CHAMBER_LOADER, "cockpit", "philosophy", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        merged = json.loads(result.stdout)
+        current = json.loads(COCKPIT_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(merged, current)
 
 
 if __name__ == "__main__":
