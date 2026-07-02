@@ -14,6 +14,12 @@
 
 T1.6 is intentionally out of scope for this execution pass. The roadmap requires deleting `CHAMBER_MODE` only after at least one week of confirmed regression stability, so this phase keeps both code paths and verifies parity.
 
+The soak gate is tracked by `docs/roadmap/PHASE1_SOAK.md` and verified with:
+
+```bash
+node scripts/phase1-soak-check.mjs --started-at 2026-07-02T09:01:09.000Z
+```
+
 ## Files
 
 - Create: `data/schema/role.schema.json`
@@ -24,6 +30,7 @@ T1.6 is intentionally out of scope for this execution pass. The roadmap requires
 - Modify: `scripts/import-inner-agora.mjs`
 - Test: `tests/test_phase1_roles.py`
 - Verify: `scripts/regression.mjs`
+- Verify: `scripts/phase1-soak-check.mjs`
 
 ---
 
