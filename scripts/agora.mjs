@@ -108,6 +108,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs chamber [list|current|use <id>]
   node scripts/agora.mjs policy [skill-id]
   node scripts/agora.mjs skills [role-key] [--json]
+  node scripts/agora.mjs start [--json]
   node scripts/agora.mjs understand [--routing-mode regex|llm] [--json] "human text"
   node scripts/agora.mjs natural [--routing-mode regex|llm] [--dry-run] [--json] "human text"
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
@@ -2353,6 +2354,59 @@ async function exportMemory(args) {
   console.log(`Exported: ${filePath}`);
 }
 
+function startExampleForChamber(chamber) {
+  if (chamber.id === "board-directors") {
+    return {
+      chamber: chamber.id,
+      text: "совет директоров, нужен go/no-go по найму CTO",
+    };
+  }
+  return {
+    chamber: chamber.id,
+    text: "давай спросим агору про свободу ребенка и власть родителей",
+  };
+}
+
+function buildStartExamples(chambers) {
+  return chambers.map(startExampleForChamber);
+}
+
+function printStartOnboarding(payload) {
+  console.log(payload.title);
+  console.log("");
+  console.log("Пиши обычным языком: я пойму вопрос, выберу палату и создам задачи в Paperclip.");
+  console.log(`Понимание текста: ${payload.routingMode === "llm" ? "локальная модель" : "детерминированный fallback"}.`);
+  console.log("");
+  console.log("Палаты:");
+  for (const chamber of payload.chambers) {
+    const marker = chamber.id === payload.activeChamberId ? "*" : "-";
+    console.log(`${marker} ${chamber.id}: ${chamber.name}`);
+  }
+  console.log("");
+  console.log("Можно начать так:");
+  for (const example of payload.examples) console.log(`- ${example.text}`);
+}
+
+async function start(args = []) {
+  const json = args.includes("--json");
+  const state = readState();
+  const chambers = listChambers(CHAMBERS_DIR).map((chamber) => ({
+    id: chamber.id,
+    name: chamber.name,
+    status: chamber.status,
+  }));
+  const payload = {
+    title: "The Inner Agora",
+    activeChamberId: activeChamberId(state),
+    routingMode: process.env.ROUTING_MODE || "regex",
+    chambers,
+    examples: buildStartExamples(chambers),
+  };
+  if (json) process.stdout.write(stableJson(payload));
+  else printStartOnboarding(payload);
+  return payload;
+}
+
 function parseNaturalArgs(args = []) {
   const options = {
     routingMode: process.env.ROUTING_MODE || "regex",
@@ -2449,6 +2503,7 @@ async function main() {
   if (command === "chamber" || command === "палата") return chamberCommand(args);
   if (command === "policy") return policyCommand(args);
   if (command === "skills") return skillsCommand(args);
+  if (command === "start") return start(args);
   if (command === "understand") return understand(args);
   if (command === "natural") return natural(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);

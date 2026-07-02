@@ -206,6 +206,16 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["slots"]["intent"], "result")
         self.assertEqual(payload["plan"]["command"], ["/agora", "latest"])
 
+    def test_start_onboarding_lists_chambers_dynamically(self):
+        result = self.run_node(ROOT / "scripts" / "agora.mjs", "start", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        chamber_ids = [item["id"] for item in payload["chambers"]]
+        self.assertIn("philosophy", chamber_ids)
+        self.assertIn("board-directors", chamber_ids)
+        self.assertTrue(payload["examples"])
+        self.assertIn("routingMode", payload)
+
     def test_agora_natural_dry_run_returns_rewrite_text(self):
         result = self.run_node(
             ROOT / "scripts" / "agora.mjs",

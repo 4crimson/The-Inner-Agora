@@ -2109,6 +2109,15 @@ def _rewrite_delegate(raw: str) -> str | None:
     return rewritten
 
 
+def _rewrite_start_command(raw: str) -> str | None:
+    start = _natural_language_config().get("start")
+    if not isinstance(start, dict) or _as_bool(start.get("disabled"), False):
+        return None
+    if not re.match(r"^/start(?:@\w+)?(?:\s|$)", raw, re.I):
+        return None
+    return _slash(str(start.get("action") or "start"))
+
+
 def _rewrite_text(text: str) -> str | None:
     if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
         return None
@@ -2120,6 +2129,9 @@ def _rewrite_text(text: str) -> str | None:
     command = _slash()
     if lowered.startswith(command.casefold()):
         return None
+    start_rewrite = _rewrite_start_command(raw)
+    if start_rewrite:
+        return start_rewrite
     if raw.startswith("/"):
         return None
 

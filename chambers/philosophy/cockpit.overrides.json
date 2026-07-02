@@ -4,6 +4,9 @@
     "hermes_model": "google/gemma-4-26b-a4b-qat"
   },
   "natural_language": {
+    "start": {
+      "action": "start"
+    },
     "delegate": {
       "exec": [
         "node",

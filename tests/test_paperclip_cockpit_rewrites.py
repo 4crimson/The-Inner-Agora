@@ -121,6 +121,23 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
         self.assertEqual(result["action"], "rewrite")
         self.assertTrue(result["text"].startswith("/agora ask "), result)
 
+    def test_configured_start_rewrite_is_generic(self):
+        config = {
+            "command": {"name": "agora"},
+            "natural_language": {"start": {"action": "start"}},
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ):
+                self.assertEqual(self.plugin._rewrite_text("/start"), "/agora start")
+                self.assertEqual(self.plugin._rewrite_text("/start@InnerAgoraBot"), "/agora start")
+
     def test_generic_config_drives_command_action_and_issue_prefix(self):
         config = {
             "command": {"name": "work"},
