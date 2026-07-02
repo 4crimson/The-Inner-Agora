@@ -353,7 +353,7 @@ git commit -m "Resolve skills through role and chamber allowlists"
 - Modify: `chambers/board-directors/chamber.json`
 - Test: `tests/test_phase3_skills.py`
 
-- [ ] **Step 1: Write failing prompt reuse tests**
+- [x] **Step 1: Write failing prompt reuse tests**
 
 Add tests:
 
@@ -372,7 +372,7 @@ def test_importer_chamber_config_reports_source_citation_policy(self):
 
 Expected before implementation: FAIL because `agora.mjs policy` does not exist and chamber configs still use legacy policy ids.
 
-- [ ] **Step 2: Point chambers at source-citation**
+- [x] **Step 2: Point chambers at source-citation**
 
 Set both active starter chambers:
 
@@ -380,7 +380,7 @@ Set both active starter chambers:
 "transparencyPolicy": "source-citation"
 ```
 
-- [ ] **Step 3: Load transparency policy from skill prompt**
+- [x] **Step 3: Load transparency policy from skill prompt**
 
 Import `loadSkillPrompt` in both scripts and implement:
 
@@ -392,7 +392,7 @@ function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
 
 Keep fallback text only for missing skill files, with a clear warning line in the returned text.
 
-- [ ] **Step 4: Add `agora policy <skill-id>` command**
+- [x] **Step 4: Add `agora policy <skill-id>` command**
 
 Use:
 
@@ -402,7 +402,7 @@ node scripts/agora.mjs policy source-citation
 
 This prints the loaded prompt block for manual inspection and regression tests.
 
-- [ ] **Step 5: Verify prompt reuse**
+- [x] **Step 5: Verify prompt reuse**
 
 Run:
 

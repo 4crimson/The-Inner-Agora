@@ -102,6 +102,19 @@ class Phase3SkillTests(unittest.TestCase):
         self.assertEqual(payload["skills"], [])
         self.assertEqual(payload["diagnostics"][0]["level"], "error")
 
+    def test_agora_policy_command_reads_source_citation_skill(self):
+        result = self.run_node(ROOT / "scripts" / "agora.mjs", "policy", "source-citation")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Протокол прозрачности", result.stdout)
+        self.assertIn("[современный перенос]", result.stdout)
+
+    def test_importer_chamber_config_reports_source_citation_policy(self):
+        result = self.run_node(ROOT / "scripts" / "import-inner-agora.mjs", "--print-chamber-config")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("transparencyPolicy=source-citation", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

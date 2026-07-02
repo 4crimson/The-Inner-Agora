@@ -7,6 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadChamber } from "./chamber-loader.mjs";
+import { loadSkillPrompt } from "./skill-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -18,6 +19,9 @@ const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
   ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
   : path.join(ROOT, "chambers");
+const SKILLS_DIR = process.env.INNER_AGORA_SKILLS_DIR
+  ? path.resolve(process.env.INNER_AGORA_SKILLS_DIR)
+  : path.join(ROOT, "skills");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const HERMES_COMMAND = process.env.INNER_AGORA_HERMES_COMMAND || "/Users/admin/.local/bin/inneragora";
@@ -147,8 +151,10 @@ function languagePolicy() {
   ].join("\n");
 }
 
-function transparencyPolicy() {
+function fallbackTransparencyPolicy(policyId, error) {
   return [
+    `ПРОТОКОЛ ПРОЗРАЧНОСТИ (${policyId}, fallback: ${error.message || error}):`,
+    "- Основной skill prompt не загрузился; используй базовый протокол ниже.",
     "ПРОТОКОЛ ПРОЗРАЧНОСТИ:",
     "- По возможности помечай ключевые утверждения: [источник], [реконструкция], [имитация], [современный перенос].",
     "- [источник] ставь там, где мысль опирается на конкретный текст, работу, фрагмент или устойчиво известную позицию; называй источник настолько точно, насколько уверен.",
@@ -158,6 +164,14 @@ function transparencyPolicy() {
     "- Не выдумывай точные цитаты, страницы, ссылки и названия. Если не уверен, пиши: нужна проверка источника.",
     "- В конце ответа обязательно добавляй короткий блок `Пометки:` с пунктами: Источники, Реконструкция, Имитация голоса, Современный перенос, Требует проверки.",
   ].join("\n");
+}
+
+function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
+  try {
+    return loadSkillPrompt(SKILLS_DIR, policyId);
+  } catch (error) {
+    return fallbackTransparencyPolicy(policyId, error);
+  }
 }
 
 function assistantInstructions() {
@@ -633,6 +647,7 @@ function printChamberConfig() {
   const { chamber, companyId, companyName, projectName, goalTitle } = activeChamberCompanyConfig();
   console.log(`activeChamberId=${chamber.id}`);
   console.log(`activeChamberName=${chamber.name}`);
+  console.log(`transparencyPolicy=${chamber.transparencyPolicy}`);
   console.log(`companyName=${companyName}`);
   console.log(`projectName=${projectName}`);
   console.log(`goalTitle=${goalTitle}`);

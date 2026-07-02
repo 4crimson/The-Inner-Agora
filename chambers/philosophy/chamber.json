@@ -18,7 +18,7 @@
     "presets/mvp.json"
   ],
   "synthesisRole": "agora-assistant",
-  "transparencyPolicy": "philosophical-source-reconstruction",
+  "transparencyPolicy": "source-citation",
   "allowedSkills": [
     "source-citation",
     "memory-export"

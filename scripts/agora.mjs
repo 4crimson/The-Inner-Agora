@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
+import { loadSkillPrompt } from "./skill-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -13,6 +14,9 @@ const DEFAULT_MVP_PRESET_PATH = path.join(ROOT, "chambers", "philosophy", "prese
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
   ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
   : path.join(ROOT, "chambers");
+const SKILLS_DIR = process.env.INNER_AGORA_SKILLS_DIR
+  ? path.resolve(process.env.INNER_AGORA_SKILLS_DIR)
+  : path.join(ROOT, "skills");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
@@ -100,6 +104,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs export-memory <issue-id-or-key>
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
   node scripts/agora.mjs chamber [list|current|use <id>]
+  node scripts/agora.mjs policy [skill-id]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs recheck [issue-id-or-key]
@@ -790,8 +795,10 @@ function modePolicy(mode, chamber = activeChamber()) {
   return "Режим min: 3 голоса, быстрый первый разбор.";
 }
 
-function transparencyPolicy() {
+function fallbackTransparencyPolicy(policyId, error) {
   return [
+    `Протокол прозрачности (${policyId}, fallback: ${error.message || error}):`,
+    "- Основной skill prompt не загрузился; используй базовый протокол ниже.",
     "Протокол прозрачности:",
     "- По возможности помечай ключевые утверждения: [источник], [реконструкция], [имитация], [современный перенос].",
     "- [источник] — когда опираешься на конкретный текст, работу, фрагмент или устойчиво известную позицию; называй источник настолько точно, насколько уверен.",
@@ -801,6 +808,19 @@ function transparencyPolicy() {
     "- Не выдумывай точные цитаты, страницы, ссылки и названия. Если не уверен, пиши: нужна проверка источника.",
     "- В конце ответа добавь блок `Пометки:` с пунктами: Источники, Реконструкция, Имитация голоса, Современный перенос, Требует проверки.",
   ].join("\n");
+}
+
+function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
+  try {
+    return loadSkillPrompt(SKILLS_DIR, policyId);
+  } catch (error) {
+    return fallbackTransparencyPolicy(policyId, error);
+  }
+}
+
+function policyCommand(args = []) {
+  const policyId = args[0] || activeChamber().transparencyPolicy;
+  console.log(transparencyPolicy(policyId));
 }
 
 function roleLine(item) {
@@ -2176,6 +2196,7 @@ async function main() {
   if (command === "prepare") return prepare(args);
   if (command === "mode") return modeCommand(args);
   if (command === "chamber" || command === "палата") return chamberCommand(args);
+  if (command === "policy") return policyCommand(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
   if (command === "dialogue") return dialogue(args);
