@@ -459,7 +459,7 @@ Expected: both philosophy and board-directors baselines pass.
 **Files:**
 - Verify all changed files
 
-- [ ] **Step 1: Run tests**
+- [x] **Step 1: Run tests**
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py'
@@ -467,7 +467,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 Expected: OK.
 
-- [ ] **Step 2: Run regression**
+- [x] **Step 2: Run regression**
 
 ```bash
 node scripts/regression.mjs check
@@ -476,7 +476,7 @@ CHAMBER_MODE=chambers node scripts/regression.mjs check
 
 Expected: OK.
 
-- [ ] **Step 3: Validate JSON schemas**
+- [x] **Step 3: Validate JSON schemas**
 
 ```bash
 npx --yes ajv-cli@5 validate -s data/schema/chamber.schema.json -d chambers/philosophy/chamber.json --spec=draft2020
@@ -485,7 +485,7 @@ npx --yes ajv-cli@5 validate -s data/schema/chamber.schema.json -d chambers/boar
 
 Expected: both valid.
 
-- [ ] **Step 4: Syntax and whitespace checks**
+- [x] **Step 4: Syntax and whitespace checks**
 
 ```bash
 node --check scripts/agora.mjs
@@ -496,7 +496,7 @@ git diff --check
 
 Expected: all clean.
 
-- [ ] **Step 5: Commit in slices**
+- [x] **Step 5: Commit in slices**
 
 Commit slices:
 
