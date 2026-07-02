@@ -82,6 +82,26 @@ class Phase3SkillTests(unittest.TestCase):
         self.assertIn("Протокол прозрачности", payload["prompt"])
         self.assertIn("[источник]", payload["prompt"])
 
+    def test_role_schema_allows_skills_array(self):
+        schema = json.loads(ROLE_SCHEMA.read_text(encoding="utf-8"))
+
+        self.assertIn("skills", schema["properties"])
+        self.assertEqual(schema["properties"]["skills"]["items"]["type"], "string")
+
+    def test_board_product_role_requests_web_research(self):
+        roles = json.loads(BOARD_ROLES.read_text(encoding="utf-8"))
+        product = next(role for role in roles if role["key"] == "product")
+
+        self.assertIn("web-research", product["skills"])
+
+    def test_l2_skill_missing_chamber_allowlist_is_error(self):
+        result = self.run_node(SKILL_LOADER, "resolve-fixture", "--json", "--risk-fixture")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["skills"], [])
+        self.assertEqual(payload["diagnostics"][0]["level"], "error")
+
 
 if __name__ == "__main__":
     unittest.main()

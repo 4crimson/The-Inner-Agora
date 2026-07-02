@@ -19,7 +19,11 @@
   ],
   "synthesisRole": "ceo",
   "transparencyPolicy": "board-advisory-draft",
-  "allowedSkills": [],
+  "allowedSkills": [
+    "source-citation",
+    "web-research",
+    "memory-export"
+  ],
   "company": {
     "name": "Board Directors",
     "projectName": "Board Decisions",

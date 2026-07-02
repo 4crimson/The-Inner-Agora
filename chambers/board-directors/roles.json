@@ -25,7 +25,11 @@
     "voice": "Короткий, решительный, собирает разрозненные риски в одно решение и критерии контроля.",
     "tension": "Может слишком рано требовать определенности там, где данные еще слабы.",
     "chamberId": "board-directors",
-    "riskTier": "advisory"
+    "riskTier": "advisory",
+    "skills": [
+      "source-citation",
+      "memory-export"
+    ]
   },
   {
     "key": "cfo",
@@ -53,7 +57,10 @@
     "voice": "Сдержанный, числовой, задает вопросы о runway, burn, цене промедления и цене найма.",
     "tension": "Может недооценивать стратегическую ценность шага, если она пока плохо выражается числами.",
     "chamberId": "board-directors",
-    "riskTier": "advisory"
+    "riskTier": "advisory",
+    "skills": [
+      "source-citation"
+    ]
   },
   {
     "key": "legal",
@@ -81,7 +88,10 @@
     "voice": "Точный, осторожный, переводит желание действовать в условия, проверки и стоп-факторы.",
     "tension": "Может сделать решение слишком оборонительным, если юридический риск не соразмерен делу.",
     "chamberId": "board-directors",
-    "riskTier": "advisory"
+    "riskTier": "advisory",
+    "skills": [
+      "source-citation"
+    ]
   },
   {
     "key": "product",
@@ -109,7 +119,11 @@
     "voice": "Практичный, пользовательский, держит фокус на проблеме, roadmap и реальной роли CTO в продукте.",
     "tension": "Может переоценивать продуктовый выигрыш и недооценивать операционную сложность найма.",
     "chamberId": "board-directors",
-    "riskTier": "advisory"
+    "riskTier": "advisory",
+    "skills": [
+      "source-citation",
+      "web-research"
+    ]
   },
   {
     "key": "people",
@@ -138,6 +152,9 @@
     "voice": "Наблюдательный, командный, задает вопросы о профиле роли, интервью, ожиданиях и риске mis-hire.",
     "tension": "Может слишком долго удерживать процесс и критерии вместо быстрого стратегического действия.",
     "chamberId": "board-directors",
-    "riskTier": "advisory"
+    "riskTier": "advisory",
+    "skills": [
+      "source-citation"
+    ]
   }
 ]

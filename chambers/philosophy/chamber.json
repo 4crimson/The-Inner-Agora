@@ -19,7 +19,10 @@
   ],
   "synthesisRole": "agora-assistant",
   "transparencyPolicy": "philosophical-source-reconstruction",
-  "allowedSkills": [],
+  "allowedSkills": [
+    "source-citation",
+    "memory-export"
+  ],
   "company": {
     "name": "The Inner Agora",
     "projectName": "Agora Sessions",

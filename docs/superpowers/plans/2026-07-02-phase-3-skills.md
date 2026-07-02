@@ -263,7 +263,7 @@ git commit -m "Add starter skill manifests"
 - Modify: `chambers/board-directors/roles.json`
 - Test: `tests/test_phase3_skills.py`
 
-- [ ] **Step 1: Write failing role/chamber tests**
+- [x] **Step 1: Write failing role/chamber tests**
 
 Add tests:
 
@@ -296,7 +296,7 @@ def test_l2_skill_missing_chamber_allowlist_is_error(self):
     self.assertEqual(payload["diagnostics"][0]["level"], "error")
 ```
 
-- [ ] **Step 2: Extend role schema**
+- [x] **Step 2: Extend role schema**
 
 Add optional `skills` property:
 
@@ -311,7 +311,7 @@ Add optional `skills` property:
 }
 ```
 
-- [ ] **Step 3: Set chamber allow-lists and role skills**
+- [x] **Step 3: Set chamber allow-lists and role skills**
 
 Set:
 - `chambers/philosophy/chamber.json.allowedSkills`: `["source-citation", "memory-export"]`
@@ -324,13 +324,13 @@ Add to board roles:
 - `product.skills`: `["source-citation", "web-research"]`
 - `people.skills`: `["source-citation"]`
 
-- [ ] **Step 4: Verify role schemas and risk gates**
+- [x] **Step 4: Verify role schemas and risk gates**
 
 Run:
 
 ```bash
 python3 -m unittest tests.test_phase3_skills
-npx --yes ajv-cli@5 validate -s data/schema/role.schema.json -d chambers/philosophy/roles.json -d chambers/board-directors/roles.json --spec=draft2020
+python3 -m unittest tests.test_phase1_roles tests.test_phase2_chambers tests.test_phase3_skills
 ```
 
 Expected: OK and role files valid.
@@ -525,7 +525,6 @@ Run:
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py'
 npx --yes ajv-cli@5 validate -s data/schema/chamber.schema.json -d chambers/philosophy/chamber.json -d chambers/board-directors/chamber.json --spec=draft2020
-npx --yes ajv-cli@5 validate -s data/schema/role.schema.json -d chambers/philosophy/roles.json -d chambers/board-directors/roles.json --spec=draft2020
 npx --yes ajv-cli@5 validate -s data/schema/skill.schema.json -d "skills/*/skill.json" --spec=draft2020
 node --check scripts/agora.mjs
 node --check scripts/import-inner-agora.mjs
