@@ -166,6 +166,14 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
             "parentId": "root-voice",
             "title": "Voice Alpha: freedom",
         }
+        peer = {
+            "id": "child-peer",
+            "identifier": "WK-23",
+            "issueNumber": 23,
+            "companyId": "company-1",
+            "parentId": "root-voice",
+            "title": "Voice Beta: freedom",
+        }
         synthesis = {
             "id": "synthesis-voice",
             "identifier": "WK-22",
@@ -197,7 +205,7 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
             {
                 "/api/issues/WK-21": child,
                 "/api/issues/root-voice": root,
-                "/api/companies/company-1/issues": [root, child, synthesis],
+                "/api/companies/company-1/issues": [root, child, synthesis, peer],
             },
             ["payload-voice", "WK-21"],
         )
@@ -205,7 +213,20 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
         self.assertEqual(payload["text"], "voice text")
         rows = payload["reply_markup"]["inline_keyboard"]
         self.assertEqual(rows[0], [{"text": "Brief", "callback_data": "wk:result:WK-22"}])
-        self.assertEqual(rows[1], [{"text": "Voice Alpha", "callback_data": "wk:voice:WK-21"}])
+        self.assertEqual(
+            rows[1],
+            [
+                {"text": "Voice Alpha", "callback_data": "wk:voice:WK-21"},
+                {"text": "Voice Beta", "callback_data": "wk:voice:WK-23"},
+            ],
+        )
+        self.assertEqual(
+            rows[2],
+            [
+                {"text": "Inputs", "callback_data": "wk:latest:WK-20"},
+                {"text": "Follow up", "callback_data": "wk:clarify:WK-20"},
+            ],
+        )
 
 
 if __name__ == "__main__":
