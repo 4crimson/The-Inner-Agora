@@ -2661,16 +2661,69 @@ function parseNaturalArgs(args = []) {
 }
 
 function naturalFollowUpRequested(text) {
-  const value = looseText(text);
+  const value = naturalWords(text);
   return /уточн|продолж|спроси еще|по этой сессии|а что если/.test(value);
+}
+
+function naturalWords(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^0-9a-zа-я]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function naturalNewTopicRequested(text) {
+  const value = naturalWords(text);
+  return /нов(ый|ая)\s+(вопрос|тема)|отдельн(ый|ая)\s+(вопрос|тема)|с нуля/.test(value);
+}
+
+function naturalNewSessionRequested(text) {
+  const value = naturalWords(text);
+  return /спрос|задай|поставь|исслед|собери|создай|консилиум|совет|запуст|запуск|начать|хочу\s+запустить/.test(value);
+}
+
+function naturalReadOnlyRequested(text) {
+  const value = naturalWords(text);
+  return /помощь|help|команды|готов|статус|что там|выжим|результат|итог|синтез|покажи|посмотри|таск|задач|issue|task|что сказал|подробнее|голос|позици|ответ/.test(
+    value,
+  );
+}
+
+function stateTimestamp(state) {
+  return state.lastSynthesisSeenAt || state.lastIssueSeenAt || state.updatedAt || "";
+}
+
+function lastSynthesisIsFresh(state, now = new Date()) {
+  if (!state.lastSynthesisRef) return false;
+  const raw = stateTimestamp(state);
+  if (!raw) return false;
+  const timestamp = new Date(raw);
+  if (Number.isNaN(timestamp.getTime())) return false;
+  const hours = Number(process.env.INNER_AGORA_FOLLOWUP_WINDOW_HOURS || 24);
+  const ageMs = now.getTime() - timestamp.getTime();
+  return ageMs >= 0 && ageMs <= hours * 60 * 60 * 1000;
 }
 
 function naturalContext(text) {
   const state = readState();
   const lastRootIssueRef = state.lastRootIssueRef || "";
+  const explicitFollowUp = Boolean(lastRootIssueRef && naturalFollowUpRequested(text));
+  const implicitFollowUp = Boolean(
+    lastRootIssueRef &&
+      lastSynthesisIsFresh(state) &&
+      !explicitFollowUp &&
+      !naturalNewTopicRequested(text) &&
+      !naturalNewSessionRequested(text) &&
+      !naturalReadOnlyRequested(text),
+  );
   return {
     lastRootIssueRef,
-    isFollowUp: Boolean(lastRootIssueRef && naturalFollowUpRequested(text)),
+    lastSynthesisRef: state.lastSynthesisRef || "",
+    isFollowUp: explicitFollowUp || implicitFollowUp,
+    explicitFollowUp,
+    implicitFollowUp,
   };
 }
 

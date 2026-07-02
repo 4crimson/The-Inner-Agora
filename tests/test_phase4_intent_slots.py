@@ -478,6 +478,60 @@ class Phase4IntentSlotTests(unittest.TestCase):
             payload,
         )
 
+    def test_implicit_follow_up_uses_fresh_last_synthesis_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "lastRootIssueRef": "THE-900",
+                        "lastSynthesisRef": "THE-999",
+                        "lastIssueSeenAt": "2026-07-02T09:00:00.000Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "а если долг сильнее свободы?",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertTrue(payload["text"].startswith("/agora follow-up THE-900 "), payload)
+        self.assertIn("новый вопрос", payload["plan"]["ack"].lower())
+
+    def test_new_topic_marker_does_not_bind_to_last_session(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps({"lastRootIssueRef": "THE-900", "lastSynthesisRef": "THE-999"}),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "новый вопрос: что такое дружба у Аристотеля",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertTrue(payload["text"].startswith("/agora ask "), payload)
+        self.assertNotIn("/agora follow-up THE-900", payload["text"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -190,6 +190,9 @@ function modeFromText(text) {
 function cleanTopic(text) {
   let value = String(text || "");
   for (const fragment of [
+    "новый вопрос",
+    "новая тема",
+    "отдельный вопрос",
     "давай",
     "хочу",
     "можешь",
@@ -283,6 +286,20 @@ export function regexFallbackSlots(userText, context = {}) {
 
   const roleChamber = chamberFromText(text) || "philosophy";
   const roleKey = roleKeyInText(text, roleChamber);
+  if (hasAny(loose, ["новый вопрос", "новая тема", "отдельный вопрос"])) {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "new_session",
+        chamber,
+        mode: modeFromText(text),
+        topic: cleanTopic(text) || text,
+        roles: roleKey ? [roleKey] : [],
+        confidence: 0.84,
+      }),
+      { chamberId: chamber },
+    );
+  }
+
   if (roleKey && hasAny(loose, ["что бы", "ответил", "ответила", "возражение"])) {
     return normalizeIntentSlots(
       baseSlots({
@@ -310,6 +327,20 @@ export function regexFallbackSlots(userText, context = {}) {
     );
   }
 
+  if (context.isFollowUp) {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "new_session",
+        chamber,
+        mode: modeFromText(text),
+        topic: text,
+        roles: roleKey ? [roleKey] : [],
+        confidence: context.implicitFollowUp ? 0.72 : 0.8,
+      }),
+      { chamberId: chamber },
+    );
+  }
+
   if (roleKey && hasAny(loose, ["что сказал", "подробнее", "голос", "позици", "ответ"])) {
     return normalizeIntentSlots(
       baseSlots({ intent: "role_detail", chamber: roleChamber, roles: [roleKey], confidence: 0.88 }),
@@ -317,7 +348,20 @@ export function regexFallbackSlots(userText, context = {}) {
     );
   }
 
-  const asksForSession = hasAny(loose, ["спрос", "задай", "поставь", "исслед", "собери", "создай", "консилиум", "совет", "go no go", "go"]);
+  const asksForSession = hasAny(loose, [
+    "новый вопрос",
+    "новая тема",
+    "спрос",
+    "задай",
+    "поставь",
+    "исслед",
+    "собери",
+    "создай",
+    "консилиум",
+    "совет",
+    "go no go",
+    "go",
+  ]);
   if (asksForSession || chamber === "board-directors") {
     return normalizeIntentSlots(
       baseSlots({
@@ -449,11 +493,14 @@ export function decideNextStep(slots, context = {}) {
     const command = ["/agora", "follow-up", String(context.lastRootIssueRef)];
     if (normalized.roles.length) command.push("--voices", normalized.roles.join(","));
     command.push(normalized.topic);
+    const ack = context.implicitFollowUp
+      ? `Продолжаю в контексте ${context.lastRootIssueRef}. Если это новый вопрос, напиши: новый вопрос: ...`
+      : `Продолжаю в контексте ${context.lastRootIssueRef}.`;
     return {
       action: "command",
       command,
       text: commandText(command),
-      ack: `Продолжаю в контексте ${context.lastRootIssueRef}.`,
+      ack,
     };
   }
 
