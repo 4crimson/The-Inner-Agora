@@ -12,15 +12,19 @@ The command name is configurable. Use `/pc` only when no project config changes 
 
 - Use `<command> companies` to list organizations.
 - Use `<command> health` to check the Paperclip API.
+- Use `<command> status` for a compact workspace overview.
 - Use `<command> agents [--company "Name"]` to list workers/agents in a company.
 - Use `<command> tasks [--company "Name"] [open|all|todo|in_progress|blocked|done|cancelled] [limit]` to inspect work.
 - Use `<command> task ISSUE` for one issue.
 - Use `<command> comments ISSUE` for recent discussion.
 - Use `<command> capabilities` to see plugin configuration and safety mode.
+- Use `<command> debug` or append `full`/`raw` when the user needs technical detail.
 
 ## Write Commands
 
 Only use `<command> move ISSUE STATUS` when the user explicitly asks to change Paperclip state. Do not infer a write from vague discussion.
+
+If the project config exposes a `finalize` action, use `<command> finalize ISSUE` when the user explicitly asks to close a parent package/tree after child work is done. Treat it as a real write operation with the same caution as `move`.
 
 Valid statuses:
 
@@ -32,9 +36,15 @@ Valid statuses:
 
 The plugin may reject writes unless `PAPERCLIP_COCKPIT_ENABLE_WRITES=1` is set.
 
+Some projects also enable `hooks.after_move.auto_finalize_parents_on_statuses`. In that case, a successful `<command> move ISSUE done|blocked|cancelled` may auto-finalize parent issues and leave durable Paperclip comments. Report only what the command actually returned.
+
 ## Project Actions
 
 Project configs may define extra actions such as `research`, `prepare`, `brief`, or `run`. If the user asks to start/create/run project work and the config exposes a matching command, use that command instead of improvising with local files or code.
+
+Project configs may also expose builtin actions through the same action registry. These are still deterministic plugin commands, not free-form model behavior.
+
+For async project actions, the expected pattern is: the configured action creates durable Paperclip issues and returns a short acknowledgement; a project monitor watches Paperclip and later sends the result. Do not wait in the model turn for child agents to finish. Do not claim a future Telegram notification unless the action output or project guard confirms that durable work and the monitor exist.
 
 When the user confirms a previously discussed plan, reuse the concrete entities from the visible conversation and call the configured project action with an explicit argument list. If the confirmation is too vague to identify the work, ask one short clarification.
 
@@ -52,9 +62,11 @@ When answering the user:
 
 - Label current state from the plugin as `Paperclip API`.
 - Label your own synthesis as `Inference`.
-- Keep task/comment output compact; ask for a specific issue before dumping long history.
+- Keep task/comment output compact. The plugin defaults to human-readable summaries; use `full` only when the user asks for detail or debugging.
 - Never reveal tokens, environment variables, chat IDs, or profile secrets.
 
 ## Telegram Behavior
 
 The plugin can rewrite simple user messages into the configured command before the LLM runs. Treat those results as tool output, not as conversation memory.
+
+Telegram inline button callbacks are deterministic too. They should be handled by the plugin's callback hook and configured Bot API actions, not by asking the LLM to infer what a button means.

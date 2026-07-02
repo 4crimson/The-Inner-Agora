@@ -8,18 +8,31 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_PATH = path.join(ROOT, "data", "philosophers.json");
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
+const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
+const COCKPIT_CONFIG = readJsonFile(COCKPIT_CONFIG_PATH, {});
+const AGORA_CONFIG = COCKPIT_CONFIG.agora && typeof COCKPIT_CONFIG.agora === "object" ? COCKPIT_CONFIG.agora : {};
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const COMPANY_NAME = process.env.INNER_AGORA_COMPANY_NAME || "The Inner Agora";
 const ASSISTANT_NAME = "Agora Assistant / Синтезатор";
 const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
 const GOAL_TITLE = process.env.INNER_AGORA_GOAL_TITLE || "Run philosophical research dialogues with The Inner Agora";
-const DEFAULT_MODE = "balanced";
-const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
-const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.default_mode || "balanced";
+const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || AGORA_CONFIG.codex_model || "gpt-5.4";
+const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || AGORA_CONFIG.hermes_model || "google/gemma-4-26b-a4b-qat";
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
 const MINIMUM_COUNCIL_KEYS = ["plato", "descartes", "heidegger"];
+const ISSUE_REF_RE = /\b([A-Z][A-Z0-9]{1,12}-\d+)\b/i;
+const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
 
-const philosophers = JSON.parse(fs.readFileSync(DATA_PATH, "utf8"));
+function readJsonFile(filePath, fallback = {}) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+const philosophers = readJsonFile(DATA_PATH, []);
 const philosopherByKey = new Map(philosophers.map((item) => [item.key, item]));
 
 function usage(exitCode = 0) {
@@ -29,7 +42,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs ask [--min|--balanced|--max|--all] [--philosophers list] "question"
   node scripts/agora.mjs ask --dry-run --philosophers socrates,kant "question"
   node scripts/agora.mjs dialogue <philosopher> "question"
-  node scripts/agora.mjs synthesize <root-issue-id-or-key> [--fresh]
+  node scripts/agora.mjs synthesize [root-issue-id-or-key] [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
@@ -38,6 +51,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
   node scripts/agora.mjs latest [issue-id-or-key]
   node scripts/agora.mjs result [issue-id-or-key] [--full]
+  node scripts/agora.mjs voice <philosopher> [issue-id-or-key] [--full]
   node scripts/agora.mjs task <issue-id-or-key>
   node scripts/agora.mjs finalize <issue-id-or-key> [--dry-run]
   node scripts/agora.mjs move <issue-id-or-key> <todo|in_progress|blocked|done|cancelled>
@@ -318,6 +332,48 @@ function philosopherByToken(token) {
       (item.aliases || []).some((alias) => alias.toLowerCase() === normalized)
     );
   });
+}
+
+function looseText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^0-9a-zа-я]+/g, "");
+}
+
+function looseStem(value) {
+  const text = looseText(value);
+  const suffixes = ["ами", "ями", "ого", "ему", "ому", "ыми", "ими", "ий", "ый", "ая", "ое", "ее", "ой", "ей", "ым", "им", "ом", "ем", "ах", "ях", "у", "ю", "е", "а", "я", "ы", "и"];
+  for (const suffix of suffixes) {
+    if (text.length - suffix.length >= 4 && text.endsWith(suffix)) return text.slice(0, -suffix.length);
+  }
+  return text;
+}
+
+function philosopherAliases(item) {
+  return [item.key, item.name, item.englishName, ...(item.aliases || [])].filter(Boolean);
+}
+
+function philosopherScoreInText(item, text) {
+  const haystack = looseText(text);
+  if (!haystack) return 0;
+  let score = 0;
+  for (const alias of philosopherAliases(item)) {
+    const exact = looseText(alias);
+    const stem = looseStem(alias);
+    if (exact && haystack.includes(exact)) score = Math.max(score, exact.length + 20);
+    if (stem && stem.length >= 4 && haystack.includes(stem)) score = Math.max(score, stem.length + 10);
+  }
+  return score;
+}
+
+function philosopherFromText(text) {
+  const exact = philosopherByToken(String(text || "").replace(/[^\p{L}\p{N}_ -]+/gu, "").trim());
+  if (exact) return exact;
+  return philosophers
+    .map((item) => ({ item, score: philosopherScoreInText(item, text) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.item.key.localeCompare(right.item.key))[0]?.item || null;
 }
 
 function uniquePhilosophers(items) {
@@ -766,18 +822,24 @@ async function ask(args) {
         .map(({ philosopher, issue, wake }) => `- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`)
         .join("\n"),
       "",
-      "Когда ответы будут готовы:",
-      `\`node scripts/agora.mjs synthesize ${rootIssue.identifier || rootIssue.id}\``,
+      "Автоматизация:",
+      "- Paperclip cockpit monitor запустит синтез, когда философские задачи будут в финальных статусах.",
+      "- Telegram получит итог с кнопками после завершения синтеза.",
+      `- Ручное восстановление при необходимости: \`node scripts/agora.mjs synthesize ${rootIssue.identifier || rootIssue.id}\``,
     ].join("\n"),
   );
 
-  console.log(`Created Agora root: ${rootIssue.identifier || rootIssue.id}`);
-  console.log(`Open: http://127.0.0.1:3100/issues/${rootIssue.id}`);
-  console.log("Voice issues:");
+  console.log(`# Поставил вопрос в Агору: ${rootIssue.identifier || rootIssue.id}`);
+  console.log(`Выбрал ${childIssues.length} голосов: ${childIssues.map(({ philosopher }) => philosopher.name).join(", ")}.`);
+  console.log("Напишу сюда, когда будет готов синтез.");
+  console.log("");
+  console.log(`Сессия: ${rootIssue.identifier || rootIssue.id}`);
+  console.log(`Открыть: http://127.0.0.1:3100/issues/${rootIssue.id}`);
+  console.log("Голоса:");
   for (const { philosopher, issue, wake } of childIssues) {
     console.log(`- ${philosopher.name}: ${issue.identifier || issue.id} (${wakeSummary(wake)})`);
   }
-  console.log(`Next: node scripts/agora.mjs synthesize ${rootIssue.identifier || rootIssue.id}`);
+  console.log(`Дальше автоматически: monitor запустит синтез после завершения голосов.`);
 }
 
 async function dialogue(args) {
@@ -856,10 +918,22 @@ function byIssueNumber(left, right) {
   return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
 }
 
+function bareIssueRef(raw) {
+  if (!DEFAULT_ISSUE_PREFIX) return "";
+  const match = String(raw || "").match(/\b(\d{1,7})\b/);
+  return match ? `${DEFAULT_ISSUE_PREFIX.toUpperCase()}-${match[1]}` : "";
+}
+
 function latestIssueRef(args) {
   const raw = args.join(" ");
-  const match = raw.match(/\b[A-Z][A-Z0-9]{1,12}-\d+\b/i);
-  return match ? match[0].toUpperCase() : "";
+  const match = raw.match(ISSUE_REF_RE);
+  return match ? match[1].toUpperCase() : bareIssueRef(raw);
+}
+
+function withoutIssueRef(raw) {
+  let text = String(raw || "").replace(ISSUE_REF_RE, " ");
+  if (DEFAULT_ISSUE_PREFIX) text = text.replace(/\b\d{1,7}\b/g, " ");
+  return text.replace(/\s+/g, " ").trim();
 }
 
 async function resolveRootIssue(args, allIssues) {
@@ -893,8 +967,9 @@ function childrenOf(issue, allIssues) {
 
 function isSynthesisIssue(issue, assistantId = "") {
   if (!issue) return false;
-  if (/^Синтез:/i.test(String(issue.title || ""))) return true;
-  return Boolean(assistantId && issue.assigneeAgentId === assistantId);
+  const title = String(issue.title || "");
+  if (/^Синтез:/i.test(title)) return true;
+  return Boolean(assistantId && issue.assigneeAgentId === assistantId && /\b(синтез|synthesis|summary|итог)\b/i.test(title));
 }
 
 function latestSynthesisChild(issue, allIssues, agora) {
@@ -904,8 +979,8 @@ function latestSynthesisChild(issue, allIssues, agora) {
 }
 
 function hasSynthesisShape(text) {
-  return /Какой вопрос реально исследовался|Карта позиций|Главные линии конфликта|Черновая матрица/i.test(
-    String(text || ""),
+  return /Реальный вопрос|Какой вопрос реально исследовался|Участники и их позиции|Карта позиций|Главные линии конфликта|Черновая матрица/i.test(
+    normalizedDigestBody(text),
   );
 }
 
@@ -915,6 +990,31 @@ function oneLine(text, limit = 420) {
   return `${value.slice(0, Math.max(0, limit - 15)).trim()} ... [clipped]`;
 }
 
+function extractHereDocBody(text) {
+  const value = String(text || "");
+  const match = value.match(/cat\s+<<['"]?([A-Za-z0-9_-]+)['"]?\s*\n([\s\S]*?)\n\1(?:\s|\)|$)/);
+  if (match) return match[2].trim();
+  const start = value.match(/cat\s+<<['"]?[A-Za-z0-9_-]+['"]?\s*\n/);
+  return start ? value.slice((start.index || 0) + start[0].length).trim() : "";
+}
+
+function meaningfulBody(text) {
+  let body = String(text || "").trim();
+  const hereDoc = extractHereDocBody(body);
+  if (hereDoc) body = hereDoc;
+  body = body.split(/⚠️\s*File-mutation verifier:/i)[0].trim();
+  body = body.replace(/```(?:bash|sh|zsh|shell)\s*[\s\S]*?```\s*/gi, "").trim();
+  return body;
+}
+
+function normalizedDigestBody(text) {
+  return meaningfulBody(text)
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\*\*(\d+\.\s*[^*\n]+)\*\*\s*$/gm, "$1")
+    .replace(/^\*\*(\d+\.\s*[^*\n]+)\*\*\s+(.+)$/gm, "$1\n$2")
+    .trim();
+}
+
 function rootQuestion(issue) {
   const body = String(issue.description || "");
   const match = body.match(/Исходный вопрос:\s*\n([\s\S]*?)(?:\n\n|$)/);
@@ -922,8 +1022,8 @@ function rootQuestion(issue) {
 }
 
 function sectionBody(text, number) {
-  const pattern = new RegExp(`(?:^|\\n)${number}\\.\\s+[^\\n]*\\n\\n([\\s\\S]*?)(?=\\n\\d+\\.\\s+|\\nПометки:|$)`);
-  const match = String(text || "").match(pattern);
+  const pattern = new RegExp(`(?:^|\\n)${number}\\.\\s+[^\\n]*\\n+([\\s\\S]*?)(?=\\n\\d+\\.\\s+|\\nПометки:|$)`);
+  const match = normalizedDigestBody(text).match(pattern);
   return match ? match[1].trim() : "";
 }
 
@@ -931,9 +1031,9 @@ function bulletLines(text, limit = 5) {
   return String(text || "")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.startsWith("- "))
+    .filter((line) => /^[-*]\s+/.test(line))
     .slice(0, limit)
-    .map((line) => oneLine(line, 520));
+    .map((line) => oneLine(line.replace(/^\*\s+/, "- "), 520));
 }
 
 function paragraphLines(text, limit = 2) {
@@ -948,10 +1048,14 @@ function synthesisComment(commentsList) {
   const visible = commentsList.filter((item) => !item.deletedAt && String(item.body || "").trim());
   const scored = visible
     .map((comment) => {
-      const body = String(comment.body || "");
+      const rawBody = String(comment.body || "");
+      const body = normalizedDigestBody(rawBody);
       let score = body.length;
-      if (/Какой вопрос реально исследовался|Карта позиций|Главные линии конфликта/i.test(body)) score += 100000;
-      if (comment.authorType === "agent" && /Задача .* завершена/i.test(body)) score -= 50000;
+      if (/Реальный вопрос|Какой вопрос реально исследовался|Участники и их позиции|Карта позиций|Главные линии конфликта/i.test(body)) score += 100000;
+      if (comment.authorType === "agent") score += 1000;
+      if (/PAPERCLIP_API|curl\s+-|jq\s|X-Paperclip-Run-Id|```bash/i.test(rawBody) && !extractHereDocBody(rawBody)) score -= 50000;
+      if (/Задача .* завершена|SYNTHESIS VERIFIED|Final disposition|already marked as done/i.test(body)) score -= 50000;
+      if (/Paperclip needs a disposition|Автоматически закрыто через Paperclip cockpit monitor/i.test(body)) score -= 50000;
       return { comment, score };
     })
     .sort((left, right) => right.score - left.score);
@@ -959,16 +1063,19 @@ function synthesisComment(commentsList) {
 }
 
 function printSynthesisDigest(comment) {
-  const body = String(comment?.body || "").trim();
+  const body = normalizedDigestBody(comment?.body || "");
   if (!body) {
     console.log("- Содержательного синтеза пока нет.");
-    return;
+    return false;
   }
 
+  let printed = false;
+  const positionsSection = /(?:^|\n)2\.\s+[^\n]*(участник|позици)/i.test(body) ? 2 : 3;
+  const conflictsSection = positionsSection === 2 ? 3 : 4;
   const question = paragraphLines(sectionBody(body, 1), 1);
-  const positions = bulletLines(sectionBody(body, 3), 6);
-  const positionParagraphs = positions.length ? [] : paragraphLines(sectionBody(body, 3), 5);
-  const conflicts = bulletLines(sectionBody(body, 4), 5);
+  const positions = bulletLines(sectionBody(body, positionsSection), 6);
+  const positionParagraphs = positions.length ? [] : paragraphLines(sectionBody(body, positionsSection), 5);
+  const conflicts = bulletLines(sectionBody(body, conflictsSection), 5);
   const unresolved = bulletLines(sectionBody(body, 6), 3);
   const next = paragraphLines(sectionBody(body, 7), 1);
   const notes = body.match(/Пометки:\s*([\s\S]*)$/)?.[1] || "";
@@ -978,46 +1085,78 @@ function printSynthesisDigest(comment) {
     console.log("Реальный вопрос:");
     for (const line of question) console.log(`- ${line}`);
     console.log("");
+    printed = true;
   }
 
   if (positions.length) {
     console.log("Позиции:");
     for (const line of positions) console.log(line);
     console.log("");
+    printed = true;
   }
 
   if (positionParagraphs.length) {
     console.log("Позиции:");
     for (const line of positionParagraphs) console.log(`- ${line}`);
     console.log("");
+    printed = true;
   }
 
   if (conflicts.length) {
     console.log("Линии конфликта:");
     for (const line of conflicts) console.log(line);
     console.log("");
+    printed = true;
   }
 
   if (unresolved.length) {
     console.log("Осталось нерешенным:");
     for (const line of unresolved) console.log(line);
     console.log("");
+    printed = true;
   }
 
   if (next.length) {
     console.log("Следующий шаг:");
     for (const line of next) console.log(`- ${line}`);
     console.log("");
+    printed = true;
   }
 
   if (noteLines.length) {
     console.log("Пометки:");
     for (const line of noteLines) console.log(line);
+    printed = true;
   }
+  return printed;
+}
+
+function printVoiceDigest(comment) {
+  const body = normalizedDigestBody(comment?.body || "");
+  if (!body) {
+    console.log("- Содержательного ответа пока нет.");
+    return false;
+  }
+
+  const sections = [
+    ["Как он понял вопрос", sectionBody(body, 1)],
+    ["Позиция", sectionBody(body, 2)],
+    ["Что скрыто в вопросе", sectionBody(body, 3)],
+  ]
+    .map(([title, section]) => [title, paragraphLines(section, 1)])
+    .filter(([, lines]) => lines.length);
+
+  if (!sections.length) return false;
+  for (const [title, lines] of sections) {
+    console.log(`${title}:`);
+    for (const line of lines) console.log(`- ${line}`);
+    console.log("");
+  }
+  return true;
 }
 
 function printFallbackDigest(comment) {
-  const body = String(comment?.body || "").trim();
+  const body = normalizedDigestBody(comment?.body || "");
   if (!body) {
     console.log("- Содержательного результата пока нет.");
     return;
@@ -1031,6 +1170,25 @@ function stripFullTokens(args = []) {
     full: args.some((arg) => fullWords.has(String(arg).toLowerCase())),
     args: args.filter((arg) => !fullWords.has(String(arg).toLowerCase())),
   };
+}
+
+function commandVoiceName(child, agentById) {
+  const titleName = String(child?.title || "").split(":", 1)[0].trim();
+  if (titleName && !/^синтез$/i.test(titleName)) return titleName.split("/")[0].trim();
+  const assignee = child?.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
+  if (assignee && assignee !== ASSISTANT_NAME) return assignee.split("/")[0].trim();
+  return "";
+}
+
+function printSessionActions(root, philosopherChildren, synthesis, agentById) {
+  const rootRef = root?.identifier || root?.id || "";
+  if (!rootRef) return;
+  const voiceNames = philosopherChildren.map((child) => commandVoiceName(child, agentById)).filter(Boolean).slice(0, 6);
+  console.log("");
+  console.log("Дальше:");
+  if (synthesis) console.log(`- Синтез: /agora result ${synthesis.identifier || synthesis.id}`);
+  else console.log(`- Собрать синтез: /agora synth ${rootRef}`);
+  for (const name of voiceNames) console.log(`- ${name}: /agora voice ${name} ${rootRef}`);
 }
 
 function displayStatus(status) {
@@ -1270,6 +1428,7 @@ async function latest(args) {
     console.log("## Выжимка");
     console.log("- Синтез-задача пока не найдена. Ниже только состояние философских child-задач.");
     for (const child of philosopherChildren) console.log(compactIssueLine(child, agentById));
+    printSessionActions(root, philosopherChildren, null, agentById);
     return;
   }
 
@@ -1281,6 +1440,75 @@ async function latest(args) {
   if (digestSource?.createdAt) console.log(`Источник выжимки: comment ${digestSource.authorType || "unknown"} ${digestSource.createdAt}`);
   console.log("");
   printSynthesisDigest(digestSource);
+  printSessionActions(root, philosopherChildren, synthesis, agentById);
+}
+
+function voiceChildren(root, allIssues, agora) {
+  return childrenOf(root, allIssues).filter((child) => !isSynthesisIssue(child, agora.assistant.id));
+}
+
+function voiceChildScore(child, philosopher, agentById) {
+  const assignee = child.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
+  return philosopherScoreInText(philosopher, `${child.title || ""} ${assignee}`);
+}
+
+function availableVoiceLines(children, agentById) {
+  if (!children.length) return ["- В этой сессии пока нет отдельных философских задач."];
+  return children.map((child) => {
+    const assignee = child.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
+    const label = assignee || displayTitle(child);
+    return `- ${label}: ${child.identifier || child.id}`;
+  });
+}
+
+async function voice(args) {
+  const parsed = stripFullTokens(args);
+  const filteredArgs = parsed.args;
+  const raw = filteredArgs.join(" ");
+  const explicitRef = latestIssueRef(filteredArgs);
+  const philosopherText = withoutIssueRef(raw);
+  const philosopher = philosopherFromText(philosopherText);
+
+  if (!philosopher && explicitRef) {
+    const passthrough = [explicitRef];
+    if (parsed.full) passthrough.push("--full");
+    return result(passthrough);
+  }
+
+  const agora = await getAgora();
+  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
+  const root = explicitRef ? await resolveRootIssue([explicitRef], allIssues) : await resolveRootIssue([], allIssues);
+  const candidates = voiceChildren(root, allIssues, agora);
+
+  if (!philosopher) {
+    console.log("Кого показать?");
+    console.log(`Сессия: ${root.identifier || root.id}`);
+    console.log("");
+    for (const line of availableVoiceLines(candidates, agentById)) console.log(line);
+    return;
+  }
+
+  const child = candidates
+    .map((candidate) => ({ candidate, score: voiceChildScore(candidate, philosopher, agentById) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || byIssueNumber(left.candidate, right.candidate))[0]?.candidate;
+
+  if (!child) {
+    console.log(`Не нашел отдельную задачу для: ${philosopher.name}`);
+    console.log(`Сессия: ${root.identifier || root.id}`);
+    console.log("");
+    console.log("Доступные голоса:");
+    for (const line of availableVoiceLines(candidates, agentById)) console.log(line);
+    return;
+  }
+
+  console.log(`# Голос: ${philosopher.name}`);
+  console.log(`Сессия: ${root.identifier || root.id}`);
+  console.log("");
+  const resultArgs = [child.identifier || child.id];
+  if (parsed.full) resultArgs.push("--full");
+  return result(resultArgs);
 }
 
 async function result(args) {
@@ -1288,6 +1516,7 @@ async function result(args) {
   const filteredArgs = args.filter((arg) => !["--full", "full", "полностью"].includes(arg));
   const agora = await getAgora();
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
   const explicitRef = latestIssueRef(filteredArgs);
 
   let target;
@@ -1347,8 +1576,13 @@ async function result(args) {
     return;
   }
 
-  printSynthesisDigest(digestSource);
-  if (!hasSynthesisShape(String(digestSource?.body || ""))) printFallbackDigest(digestSource);
+  const printedDigest = isSynthesisIssue(target, agora.assistant.id) ? printSynthesisDigest(digestSource) : printVoiceDigest(digestSource);
+  if (!printedDigest && !hasSynthesisShape(String(digestSource?.body || ""))) printFallbackDigest(digestSource);
+  if (root) {
+    const synthesis = isSynthesisIssue(target, agora.assistant.id) ? target : latestSynthesisChild(root, allIssues, agora);
+    const philosopherChildren = childrenOf(root, allIssues).filter((issue) => issue.id !== synthesis?.id);
+    printSessionActions(root, philosopherChildren, synthesis, agentById);
+  }
 }
 
 async function taskDetails(args) {
@@ -1420,8 +1654,8 @@ async function moveIssue(args) {
     return;
   }
 
-  const updated = await updateIssue(issue.id, { status: nextStatus });
   await addComment(issue.id, `Статус вручную изменен через Inner Agora bridge: ${issue.status} -> ${nextStatus}.`);
+  const updated = await updateIssue(issue.id, { status: nextStatus });
   console.log(`Moved ${updated.identifier || issue.identifier || issue.id}: ${issue.status} -> ${nextStatus}`);
   console.log(`Open: http://127.0.0.1:3100/issues/${issue.id}`);
 }
@@ -1466,12 +1700,13 @@ async function childBlock(child) {
 }
 
 async function synthesize(args) {
-  const issueRef = args[0];
   const fresh = args.includes("--fresh");
-  if (!issueRef) throw new Error("Usage: node scripts/agora.mjs synthesize <root-issue-id-or-key> [--fresh]");
+  const filteredArgs = args.filter((arg) => arg !== "--fresh");
+  const issueRef = latestIssueRef(filteredArgs);
 
   const agora = await getAgora();
-  const root = await api(`/issues/${issueRef}`);
+  let allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const root = issueRef ? await api(`/issues/${issueRef}`) : await resolveRootIssue([], allIssues);
   rememberIssue(root, { lastRootIssueRef: root.identifier || root.id, lastRootIssueId: root.id });
   if (isSynthesisIssue(root, agora.assistant.id)) {
     const parent = root.parentId ? await resolveTopRootIssue(root) : null;
@@ -1491,7 +1726,21 @@ async function synthesize(args) {
     return;
   }
 
-  const allIssues = await api(`/companies/${agora.company.id}/issues`);
+  const existing = latestSynthesisChild(root, allIssues, agora);
+  if (existing && !fresh) {
+    rememberIssue(existing, {
+      lastRootIssueRef: root.identifier || root.id,
+      lastRootIssueId: root.id,
+      lastSynthesisRef: existing.identifier || existing.id,
+      lastSynthesisId: existing.id,
+    });
+    console.log(`Синтез уже есть: ${existing.identifier || existing.id}`);
+    console.log(`status=${existing.status}`);
+    console.log(`Результат: node scripts/agora.mjs result ${existing.identifier || existing.id}`);
+    console.log(`Open: http://127.0.0.1:3100/issues/${existing.id}`);
+    return;
+  }
+
   const children = childrenOf(root, allIssues);
 
   const childBlocks = await Promise.all(children.map(childBlock));
@@ -1604,8 +1853,8 @@ async function finalize(args) {
     if (!kids.every((child) => terminalStatuses.has(issueById.get(child.id)?.status || child.status))) continue;
 
     if (!dryRun) {
-      await updateIssue(issue.id, { status: "done" });
       await addComment(issue.id, "Пакет автоматически закрыт через Inner Agora bridge: все дочерние задачи в финальных статусах.");
+      await updateIssue(issue.id, { status: "done" });
       issue.status = "done";
     }
     changed.push(issue);
@@ -1634,8 +1883,8 @@ async function finalize(args) {
 
   if (rootChildren.length && !terminalStatuses.has(root.status)) {
     if (!dryRun) {
-      await updateIssue(root.id, { status: "done" });
       await addComment(root.id, "Пакет закрыт через Inner Agora bridge: все дочерние задачи завершены или находятся в финальном статусе.");
+      await updateIssue(root.id, { status: "done" });
       root.status = "done";
     }
     changed.push(root);
@@ -1719,10 +1968,11 @@ async function main() {
   if (command === "tasks") return tasks(args);
   if (command === "latest" || command === "last" || command === "brief") return latest(args);
   if (command === "result" || command === "outcome" || command === "итог" || command === "результат") return result(args);
-  if (command === "task") return taskDetails(args);
+  if (command === "voice" || command === "голос") return voice(args);
+  if (command === "task" || command === "session" || command === "issue" || command === "задача" || command === "сессия") return taskDetails(args);
   if (command === "finalize" || command === "close" || command === "закрыть") return finalize(args);
   if (command === "move") return moveIssue(args);
-  if (command === "comments") return comments(args);
+  if (command === "comments" || command === "notes" || command === "заметки" || command === "комментарии") return comments(args);
 
   throw new Error(`Unknown command: ${command}`);
 }

@@ -12,6 +12,8 @@ This is complementary to [NousResearch/hermes-paperclip-adapter](https://github.
 
 - Adds one visible Hermes command. Default: `/pc`; configurable per project.
 - Lists Paperclip companies, agents, tasks, task details, and comments.
+- Shows human-readable home, status, agent, task, and comment views by default.
+- Keeps raw technical output available through `full`, `raw`, `debug`, and `capabilities`.
 - Can move an issue between Paperclip statuses when writes are explicitly enabled.
 - Can rewrite simple natural-language Telegram messages into `/pc ...` commands before the LLM is called.
 - Can route project-specific natural-language intents into configured project actions.
@@ -59,6 +61,7 @@ PAPERCLIP_COCKPIT_NL_WRITES=0
 PAPERCLIP_COCKPIT_REGISTER_EXPLICIT=0
 PAPERCLIP_COCKPIT_ALLOWED_PLATFORMS=telegram
 PAPERCLIP_COCKPIT_ALLOWED_CHATS=
+PAPERCLIP_COCKPIT_PRESENTATION=human
 ```
 
 ## Project Config
@@ -85,6 +88,114 @@ When enabled, the plugin resets Hermes gateway sessions that Hermes marked as `r
 
 `reset_session_age_minutes` and `reset_idle_minutes` are optional stale-context guards. They reset the Hermes chat session before the LLM runs when a command-cockpit session is too old or idle too long. This keeps Telegram control surfaces from carrying stale plans or phantom background work for hours.
 
+### Async Project Backend
+
+For project workflows where a chat message creates durable Paperclip work, keep the plugin generic and put the project behavior in config:
+
+```json
+{
+  "actions": {
+    "ask": {
+      "exec": ["node", "scripts/project.mjs", "ask"]
+    },
+    "synth": {
+      "exec": ["node", "scripts/project.mjs", "synthesize"]
+    },
+    "result": {
+      "exec": ["node", "scripts/project.mjs", "result"]
+    }
+  },
+  "monitor": {
+    "enabled": true,
+    "interval_seconds": 60,
+    "ignore_existing_roots": true,
+    "terminal_statuses": ["done", "blocked", "cancelled"],
+    "synthesis_title_pattern": "^Synthesis:",
+    "synthesis_action": "synth",
+    "notify": {
+      "exec": ["node", "scripts/paperclip-cockpit-telegram.mjs", "send-result", "{issue}"]
+    }
+  }
+}
+```
+
+The intended chat flow is:
+
+```text
+natural text -> pre_gateway_dispatch rewrite -> configured ask action
+ask action creates a root issue + child issues and returns a short acknowledgement
+paperclip-cockpit-monitor watches Paperclip in the background
+when child issues are terminal, monitor runs the configured synth action
+when synthesis is terminal, monitor sends the configured Telegram result
+```
+
+Install the monitor as a macOS LaunchAgent from the project root:
+
+```bash
+node scripts/paperclip-cockpit-monitor.mjs install
+node scripts/paperclip-cockpit-monitor.mjs status
+```
+
+Use `ignore_existing_roots: true` for live projects so the first monitor start does not backfill old completed sessions into Telegram. A project guard should check the monitor process alongside Paperclip and the Hermes gateway.
+
+### Telegram Inline Buttons
+
+Project Telegram buttons are config-driven. The Hermes Telegram adapter exposes a generic `telegram_callback_query` hook; the plugin handles only callback data with the configured prefix:
+
+```json
+{
+  "telegram": {
+    "enabled": true,
+    "callback_prefix": "pc",
+    "buttons": {
+      "enabled": true,
+      "labels": {
+        "synthesis": "Synthesis",
+        "all_voices": "All voices",
+        "export": "Export",
+        "clarify": "Clarify"
+      }
+    },
+    "callbacks": {
+      "result": { "action": "result", "args": "{arg}" },
+      "voice": { "action": "result", "args": "{arg}" },
+      "latest": { "action": "latest", "args": "{arg}" },
+      "export": { "action": "memory", "args": "{arg}" },
+      "clarify": { "message": "Write a follow-up as a normal message for {arg}." }
+    }
+  }
+}
+```
+
+Buttons and callbacks use the Telegram Bot API directly; they do not ask the LLM to interpret a button click.
+
+If you prefer the old technical output by default, set:
+
+```json
+{
+  "presentation": {
+    "show_technical_by_default": true
+  }
+}
+```
+
+That makes the default `help`, `status`, `agents`, `tasks`, `task`, and `comments` views use the technical format unless the command explicitly asks for a human presentation mode.
+
+Durable Paperclip comments created by write operations are also configurable:
+
+```json
+{
+  "notifications": {
+    "comments": {
+      "move_status_changed": "Status changed via cockpit: {old_status} -> {new_status}.",
+      "auto_finalized": "Automatically finalized: all visible child issues are in terminal statuses."
+    }
+  }
+}
+```
+
+Available placeholders include `{old_status}`, `{new_status}`, `{issue_id}`, and `{issue_identifier}`.
+
 Company selection order:
 
 1. `--company "Company Name"` in a command.
@@ -93,18 +204,84 @@ Company selection order:
 4. The basename of `terminal.cwd` from the Hermes profile config.
 5. The Hermes profile directory name.
 
+### Human-Readable Presentation
+
+The default presentation mode is `human`: Telegram output is compact, readable, and low-noise. Technical detail is still available explicitly:
+
+```text
+/pc help full
+/pc status full
+/pc agents full
+/pc tasks full
+/pc task ABC-1 full
+/pc comments ABC-1 full
+/pc debug
+/pc capabilities
+```
+
+Projects can tune the visible voice without changing plugin code:
+
+```json
+{
+  "presentation": {
+    "mode": "human",
+    "language": "en",
+    "home": {
+      "intro": "Connected to Paperclip.",
+      "items": [
+        { "action": "status", "text": "show current state" },
+        { "action": "agents", "text": "show agents" },
+        { "action": "tasks", "text": "show tasks" }
+      ]
+    },
+    "limits": {
+      "agents": 12,
+      "tasks": 10,
+      "comments": 3,
+      "comment_chars": 500,
+      "runs": 0
+    },
+    "visibility": {
+      "status_runs": false,
+      "uuids": false
+    }
+  }
+}
+```
+
+Set `presentation.language` to `ru` for Russian technical help headings, safety labels, and built-in command descriptions. Project actions can expose help text with `description`:
+
+```json
+{
+  "presentation": {
+    "language": "ru"
+  },
+  "actions": {
+    "status": {
+      "usage": "status",
+      "description": "кратко показать состояние проекта",
+      "exec": ["node", "scripts/project.mjs", "status"]
+    }
+  }
+}
+```
+
+Use `labels`, `terms`, and `aliases` for project vocabulary. The plugin code stays generic; project-specific nouns belong in config.
+
 ## Commands
 
 ```text
 /pc help
 /pc companies
 /pc health
+/pc status [full]
 /pc agents [--company NAME] [--tags|--tag TAG]
 /pc tasks [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]
 /pc task ISSUE
 /pc comments ISSUE
 /pc move ISSUE <todo|in_progress|blocked|done|cancelled>
 /pc capabilities
+/pc debug
 ```
 
 Short aliases:
@@ -154,6 +331,36 @@ Project configs can also map explicit natural-language intents to project action
 
 This keeps project words in `paperclip-cockpit.json`: the plugin only knows how to route an intent to an action. Use `require_tail` and `min_tail_chars` for actions that create work, so vague confirmations do not become empty tasks.
 
+For reusable workflow helpers, project actions can call a plugin builtin instead of a project script. The first builtin is `finalize`, which closes a parent issue tree when all visible child issues are already in terminal statuses (`done`, `blocked`, or `cancelled`):
+
+```json
+{
+  "actions": {
+    "finalize": {
+      "usage": "finalize ISSUE",
+      "builtin": "finalize",
+      "description": "close a package when all child issues are finished"
+    }
+  }
+}
+```
+
+Run it as `/pc finalize ABC-12` or `/pc finalize ABC-12 --dry-run`. Real status changes still require `PAPERCLIP_COCKPIT_ENABLE_WRITES=1`.
+
+Projects can also attach a reusable hook after `/pc move` so terminal child statuses automatically try to finalize parent packages:
+
+```json
+{
+  "hooks": {
+    "after_move": {
+      "auto_finalize_parents_on_statuses": ["done", "blocked", "cancelled"]
+    }
+  }
+}
+```
+
+With that enabled, `/pc move ABC-12 done` still updates the target issue first, then attempts the same parent-tree finalization logic and reports whether any parents were auto-finalized.
+
 Write rewrites are disabled by default. To allow phrases like `move THE-9 done`, set both:
 
 ```bash
@@ -167,11 +374,16 @@ Copy or reference `skills/paperclip-control/SKILL.md` from your Hermes assistant
 
 - Paperclip facts should come from the configured command, not memory.
 - Writes require explicit user intent.
+- Routine state should use compact human commands; use `full` or `debug` only when technical detail is needed.
 - Replies should label Paperclip API facts separately from inference.
+- Durable work needs a real Paperclip issue/run/automation identifier; local notes, `delegate_task`, and `execute_code` are not a substitute for trackable Paperclip state.
 
 Project-specific wording belongs in `paperclip-cockpit.json`, not in the plugin.
 
 ## Development
+
+Roadmap for the configurable human-readable Telegram presentation layer:
+[`docs/human-readable-roadmap.md`](docs/human-readable-roadmap.md).
 
 Run local checks:
 

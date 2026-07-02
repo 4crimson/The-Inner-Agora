@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+_CONFIG_READ_WARNINGS: dict[str, str] = {}
 
 PLUGIN_NAME = "paperclip-cockpit"
 VERSION = "0.6.2"
@@ -23,7 +24,9 @@ HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
 
 TASK_STATUSES = {"todo", "in_progress", "blocked", "done", "cancelled"}
 OPEN_STATUSES = {"todo", "in_progress", "blocked"}
+TERMINAL_STATUSES = {"done", "blocked", "cancelled"}
 ISSUE_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,12}-\d+)\b", re.IGNORECASE)
+BARE_ISSUE_NUMBER_RE = re.compile(r"\b(\d{1,7})\b")
 COMMAND_RE = re.compile(r"[^0-9a-z_]+")
 
 DEFAULT_LABELS = {
@@ -143,6 +146,13 @@ DEFAULT_PRESENTATION = {
         "show_details": False,
         "show_debug_hint": True,
     },
+}
+
+DEFAULT_NOTIFICATIONS = {
+    "comments": {
+        "move_status_changed": "Status changed via Paperclip Cockpit: {old_status} -> {new_status}.",
+        "auto_finalized": "Automatically finalized via Paperclip Cockpit: all visible child issues are in terminal statuses.",
+    }
 }
 
 DEFAULT_HELP_TEXT = {
@@ -324,13 +334,19 @@ def _terminal_cwd() -> str:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
+    path_key = str(path)
     try:
         data = json.loads(path.read_text("utf-8"))
     except FileNotFoundError:
+        _CONFIG_READ_WARNINGS.pop(path_key, None)
         return {}
     except Exception as exc:
-        logger.warning("Could not read Paperclip Cockpit config %s: %s", path, exc)
+        message = str(exc)
+        if _CONFIG_READ_WARNINGS.get(path_key) != message:
+            logger.warning("Could not read Paperclip Cockpit config %s: %s", path, exc)
+            _CONFIG_READ_WARNINGS[path_key] = message
         return {}
+    _CONFIG_READ_WARNINGS.pop(path_key, None)
     return data if isinstance(data, dict) else {}
 
 
@@ -365,7 +381,10 @@ def _config() -> dict[str, Any]:
         "markers": DEFAULT_MARKERS,
         "actions": {},
         "intents": {},
+        "issue": {},
         "gateway": {},
+        "hooks": {},
+        "notifications": DEFAULT_NOTIFICATIONS,
         "presentation": DEFAULT_PRESENTATION,
     }
     for path in _config_paths():
@@ -376,6 +395,197 @@ def _config() -> dict[str, Any]:
 def _gateway_config() -> dict[str, Any]:
     config = _config().get("gateway", {})
     return config if isinstance(config, dict) else {}
+
+
+def _hooks_config() -> dict[str, Any]:
+    config = _config().get("hooks", {})
+    return config if isinstance(config, dict) else {}
+
+
+def _notifications_config() -> dict[str, Any]:
+    raw = _config().get("notifications", {})
+    return _merge_dict(DEFAULT_NOTIFICATIONS, raw if isinstance(raw, dict) else {})
+
+
+def _notification_comment_template(key: str) -> str:
+    comments = _notifications_config().get("comments", {})
+    if not isinstance(comments, dict):
+        comments = {}
+    return str(comments.get(key) or DEFAULT_NOTIFICATIONS["comments"].get(key) or "")
+
+
+class _SafeFormatDict(dict[str, Any]):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
+
+
+def _notification_text(key: str, **values: Any) -> str:
+    template = _notification_comment_template(key).strip()
+    if not template:
+        return ""
+    try:
+        return template.format_map(_SafeFormatDict({name: "" if value is None else value for name, value in values.items()})).strip()
+    except Exception:
+        logger.warning("Paperclip Cockpit could not format notification template %s", key)
+        return template
+
+
+def _telegram_config() -> dict[str, Any]:
+    raw = _config().get("telegram", {})
+    return raw if isinstance(raw, dict) else {}
+
+
+def _telegram_enabled() -> bool:
+    telegram = _telegram_config()
+    if "enabled" in telegram:
+        return _as_bool(telegram.get("enabled"), False)
+    return _as_bool(telegram.get("buttons_enabled") or telegram.get("callbacks_enabled"), False)
+
+
+def _telegram_callback_prefix() -> str:
+    raw = _telegram_config().get("callback_prefix") or "pc"
+    prefix = re.sub(r"[^0-9a-z_]+", "", str(raw).casefold())
+    return prefix or "pc"
+
+
+def _telegram_bot_token() -> str:
+    telegram = _telegram_config()
+    return str(os.environ.get("TELEGRAM_BOT_TOKEN") or telegram.get("bot_token") or "").strip()
+
+
+def _telegram_home_chat() -> str:
+    telegram = _telegram_config()
+    return str(os.environ.get("TELEGRAM_HOME_CHANNEL") or telegram.get("home_chat_id") or telegram.get("chat_id") or "").strip()
+
+
+def _telegram_api(method: str, payload: dict[str, Any], *, timeout: int = 20) -> dict[str, Any]:
+    token = _telegram_bot_token()
+    if not token:
+        raise PaperclipError("Telegram bot token is not configured.")
+    url = f"https://api.telegram.org/bot{token}/{method}"
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        method="POST",
+        headers={"content-type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            text = response.read().decode("utf-8")
+            data = json.loads(text) if text else {}
+            return data if isinstance(data, dict) else {}
+    except urllib.error.HTTPError as exc:
+        text = exc.read().decode("utf-8", "replace")
+        raise PaperclipError(f"Telegram {method} failed: HTTP {exc.code} {text}") from exc
+    except Exception as exc:
+        raise PaperclipError(f"Telegram {method} failed: {exc}") from exc
+
+
+def _telegram_answer_callback(callback_query_id: str, text: str = "") -> None:
+    callback_id = str(callback_query_id or "").strip()
+    if not callback_id:
+        return
+    payload: dict[str, Any] = {"callback_query_id": callback_id}
+    if text:
+        payload["text"] = _clip(text, 180)
+    try:
+        _telegram_api("answerCallbackQuery", payload, timeout=10)
+    except Exception as exc:
+        logger.info("Paperclip Cockpit Telegram callback answer failed: %s", exc)
+
+
+def _telegram_message_chunks(text: str, limit: int = 3900) -> list[str]:
+    body = str(text or "").strip() or "OK"
+    chunks: list[str] = []
+    while len(body) > limit:
+        split_at = body.rfind("\n\n", 0, limit)
+        if split_at < 1200:
+            split_at = body.rfind("\n", 0, limit)
+        if split_at < 1200:
+            split_at = limit
+        chunks.append(body[:split_at].strip())
+        body = body[split_at:].strip()
+    chunks.append(body)
+    return chunks
+
+
+def _telegram_send_message(chat_id: str, text: str, reply_markup: dict[str, Any] | None = None) -> None:
+    chat = str(chat_id or "").strip() or _telegram_home_chat()
+    if not chat:
+        raise PaperclipError("Telegram chat id is not configured.")
+    chunks = _telegram_message_chunks(text)
+    for index, chunk in enumerate(chunks):
+        payload: dict[str, Any] = {
+            "chat_id": chat,
+            "text": chunk,
+            "disable_web_page_preview": True,
+        }
+        if index == 0 and reply_markup:
+            payload["reply_markup"] = reply_markup
+        _telegram_api("sendMessage", payload, timeout=20)
+
+
+def _telegram_payload_from_output(output: str) -> tuple[str, dict[str, Any] | None]:
+    try:
+        payload = json.loads(str(output or "").strip())
+    except Exception:
+        return str(output or ""), None
+    if not isinstance(payload, dict):
+        return str(output or ""), None
+    text = str(payload.get("text") or payload.get("message") or "").strip()
+    reply_markup = payload.get("reply_markup")
+    if not isinstance(reply_markup, dict):
+        reply_markup = None
+    return text or "OK", reply_markup
+
+
+def _telegram_callback_actions() -> dict[str, dict[str, Any]]:
+    defaults: dict[str, dict[str, Any]] = {
+        "result": {"action": "result", "args": "{arg}"},
+        "latest": {"action": "latest", "args": "{arg}"},
+        "voice": {"action": "result", "args": "{arg}"},
+        "export": {"action": "memory", "args": "{arg}"},
+        "clarify": {"message": "Write a follow-up as a normal message for {arg}."},
+        "noop": {"answer": "OK"},
+    }
+    raw = _telegram_config().get("callbacks", {})
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            if isinstance(value, dict):
+                defaults[str(key)] = value
+    return defaults
+
+
+def _format_callback_args(template: str, arg: str) -> str:
+    try:
+        return template.format_map(_SafeFormatDict({"arg": arg}))
+    except Exception:
+        return arg
+
+
+def _post_issue_comment(issue_id: str, body: str, *, log_context: str) -> bool:
+    text = str(body or "").strip()
+    if not text:
+        return False
+    try:
+        _api(f"/issues/{issue_id}/comments", method="POST", body={"body": text})
+        return True
+    except Exception as exc:
+        logger.info("Paperclip comment failed for %s: %s", log_context, exc)
+        return False
+
+
+def _after_move_auto_finalize_statuses() -> set[str]:
+    hooks = _hooks_config()
+    after_move = hooks.get("after_move", {}) if isinstance(hooks, dict) else {}
+    if not isinstance(after_move, dict):
+        return set()
+    values = (
+        after_move.get("auto_finalize_parents_on_statuses")
+        or after_move.get("auto_finalize_statuses")
+        or after_move.get("finalize_on_statuses")
+    )
+    return {str(item).strip().casefold() for item in _listify(values) if str(item).strip()}
 
 
 def _reset_on_gateway_shutdown_enabled() -> bool:
@@ -518,6 +728,10 @@ def _human_enabled() -> bool:
     return True
 
 
+def _show_technical_by_default() -> bool:
+    return _as_bool(_presentation_config().get("show_technical_by_default"), False)
+
+
 def _presentation_section(key: str, fallback: str) -> str:
     sections = _presentation_config().get("sections", {})
     return str(sections.get(key) or fallback)
@@ -617,6 +831,19 @@ def _sort_issues_recent(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
         issues,
         key=lambda item: str(item.get("lastActivityAt") or item.get("updatedAt") or item.get("createdAt") or ""),
         reverse=True,
+    )
+
+
+def _issue_sort_key(issue: dict[str, Any]) -> tuple[Any, ...]:
+    ident = str(issue.get("identifier") or "")
+    match = re.match(r"^([A-Z][A-Z0-9]{1,12})-(\d+)$", ident, re.IGNORECASE)
+    if match:
+        return (0, match.group(1).casefold(), int(match.group(2)))
+    return (
+        1,
+        str(issue.get("createdAt") or ""),
+        str(issue.get("updatedAt") or ""),
+        str(issue.get("id") or ""),
     )
 
 
@@ -743,10 +970,69 @@ def _agent_name(agent_by_id: dict[str, dict[str, Any]], agent_id: str | None) ->
     return str(agent.get("name", agent_id)) if agent else str(agent_id)
 
 
-def _issue_ref(raw_args: str) -> str:
+def _issue_config() -> dict[str, Any]:
+    raw = _config().get("issue", {})
+    return raw if isinstance(raw, dict) else {}
+
+
+def _default_issue_prefix() -> str:
+    issue_config = _issue_config()
+    raw = (
+        os.environ.get("PAPERCLIP_COCKPIT_DEFAULT_ISSUE_PREFIX")
+        or issue_config.get("default_prefix")
+        or issue_config.get("prefix")
+        or ""
+    )
+    prefix = re.sub(r"[^A-Z0-9]", "", str(raw or "").upper())
+    if not re.match(r"^[A-Z][A-Z0-9]{1,12}$", prefix):
+        return ""
+    return prefix
+
+
+def _issue_ref_from_text(raw_args: str, *, allow_bare: bool = False) -> str:
     match = ISSUE_RE.search(raw_args or "")
     if match:
         return match.group(1).upper()
+    if allow_bare:
+        prefix = _default_issue_prefix()
+        bare = BARE_ISSUE_NUMBER_RE.search(raw_args or "")
+        if prefix and bare:
+            return f"{prefix}-{bare.group(1)}"
+    return ""
+
+
+def _bare_issue_context(lowered: str) -> bool:
+    if not _default_issue_prefix():
+        return False
+    return (
+        _contains_alias(lowered, "task")
+        or _contains_alias(lowered, "comments")
+        or _contains_any(
+            lowered,
+            {
+                "issue",
+                "ticket",
+                "show",
+                "покажи",
+                "открой",
+                "что по",
+                "статус",
+                "таск",
+                "таска",
+                "таску",
+                "задач",
+                "сесс",
+                "коммент",
+                "заметк",
+            },
+        )
+    )
+
+
+def _issue_ref(raw_args: str) -> str:
+    issue_ref = _issue_ref_from_text(raw_args, allow_bare=True)
+    if issue_ref:
+        return issue_ref
     words = _parse_words(raw_args)
     return words[0] if words else ""
 
@@ -904,7 +1190,7 @@ def _human_home() -> str:
 
 
 def _help(raw_args: str = "") -> str:
-    if _human_enabled() and not _is_full_request(raw_args):
+    if _human_enabled() and not _show_technical_by_default() and not _is_full_request(raw_args):
         return _human_home()
     return _technical_help(raw_args)
 
@@ -1020,7 +1306,7 @@ def _status_cmd(raw_args: str = "") -> str:
     words, company_token = _extract_company(words)
     if words and not company_token:
         company_token = " ".join(words)
-    if not _human_enabled() or full:
+    if not _human_enabled() or full or _show_technical_by_default():
         return _technical_status(company_token)
     return _human_status(company_token)
 
@@ -1049,7 +1335,7 @@ def _agents_cmd(raw_args: str) -> str:
     if tag_filter:
         agents = [agent for agent in agents if tag_filter in {tag.casefold() for tag in _agent_tags(agent)}]
 
-    if _human_enabled() and not full:
+    if _human_enabled() and not full and not _show_technical_by_default():
         limit = _presentation_limit("agents", 12) or 12
         active = sorted([agent for agent in agents if _is_active_agent(agent)], key=lambda item: str(item.get("name", "")).casefold())
         idle = sorted([agent for agent in agents if not _is_active_agent(agent)], key=lambda item: str(item.get("name", "")).casefold())
@@ -1135,7 +1421,7 @@ def _tasks_cmd(raw_args: str) -> str:
 
     issues = _sort_issues_recent(issues)
 
-    if _human_enabled() and not full:
+    if _human_enabled() and not full and not _show_technical_by_default():
         title_scope = "Open" if scope == "open" else scope.replace("_", " ").title()
         lines = [f"{title_scope} {_label('tasks')}: {len(issues)}"]
         if not issues:
@@ -1178,7 +1464,7 @@ def _task_cmd(raw_args: str) -> str:
     agent_by_id = {agent["id"]: agent for agent in agents}
     comments = [item for item in _api(f"/issues/{issue['id']}/comments") if not item.get("deletedAt")]
 
-    if _human_enabled() and not full:
+    if _human_enabled() and not full and not _show_technical_by_default():
         comment_limit = _presentation_limit("comments", 3)
         comment_chars = _presentation_limit("comment_chars", 500) or 500
         assignee = _agent_name(agent_by_id, issue.get("assigneeAgentId"))
@@ -1235,7 +1521,7 @@ def _comments_cmd(raw_args: str) -> str:
     issue = _api(f"/issues/{issue_ref}")
     comments = [item for item in _api(f"/issues/{issue['id']}/comments") if not item.get("deletedAt")]
 
-    if _human_enabled() and not full:
+    if _human_enabled() and not full and not _show_technical_by_default():
         comment_limit = _presentation_limit("comments", 3)
         comment_chars = _presentation_limit("comment_chars", 500) or 500
         lines = [
@@ -1275,17 +1561,32 @@ def _move_cmd(raw_args: str) -> str:
     old_status = issue.get("status")
     if old_status == next_status:
         return f"{issue.get('identifier') or issue.get('id')} already {next_status}"
+    _post_issue_comment(
+        str(issue["id"]),
+        _notification_text(
+            "move_status_changed",
+            issue_id=issue.get("id"),
+            issue_identifier=issue.get("identifier"),
+            old_status=old_status,
+            new_status=next_status,
+        ),
+        log_context=f"move {issue.get('id')}",
+    )
     updated = _api(f"/issues/{issue['id']}", method="PATCH", body={"status": next_status})
-    try:
-        _api(
-            f"/issues/{issue['id']}/comments",
-            method="POST",
-            body={"body": f"Status changed via Paperclip Cockpit: {old_status} -> {next_status}."},
-        )
-    except Exception as exc:
-        logger.info("Paperclip comment after move failed: %s", exc)
     ident = updated.get("identifier") or issue.get("identifier") or issue.get("id")
-    return f"Moved {ident}: {old_status} -> {next_status}\nOpen: {_issue_url(issue)}"
+    lines = [f"Moved {ident}: {old_status} -> {next_status}"]
+    auto_finalize_statuses = _after_move_auto_finalize_statuses()
+    if next_status in auto_finalize_statuses:
+        finalize_result = _finalize_issue_tree(updated, dry_run=False)
+        finalized = [item for item in finalize_result["changed"] if str(item.get("id") or "") != str(updated.get("id") or "")]
+        if finalized:
+            lines.extend(["", "Auto-finalized parents:"])
+            for item in finalized:
+                lines.append(f"- {item.get('identifier') or _compact_id(item.get('id'))}: {_line(item.get('title'), 180)}")
+        elif finalize_result["open_root_children"]:
+            lines.extend(["", "Parents stay open: some sibling issues are not in terminal statuses."])
+    lines.append(f"Open: {_issue_url(issue)}")
+    return "\n".join(lines)
 
 
 def _capabilities_cmd(_: str) -> str:
@@ -1302,6 +1603,7 @@ def _capabilities_cmd(_: str) -> str:
         f"- slash_command_writes: {_writes_enabled()}",
         f"- natural_language_writes: {_nl_writes_enabled()}",
         f"- reset_on_gateway_shutdown: {_reset_on_gateway_shutdown_enabled()}",
+        f"- after_move_auto_finalize_statuses: {', '.join(sorted(_after_move_auto_finalize_statuses())) or '-'}",
         f"- explicit_commands_registered: {_env_bool('PAPERCLIP_COCKPIT_REGISTER_EXPLICIT', False)}",
         f"- project_actions: {', '.join(_actions().keys()) or '-'}",
     ]
@@ -1360,6 +1662,9 @@ def _format_error(exc: Exception) -> str:
 def _run_action(name: str, action: dict[str, Any], raw_args: str) -> str:
     if action.get("disabled"):
         return f"Project action disabled: {name}"
+    builtin = str(action.get("builtin") or action.get("paperclip_builtin") or "").strip().casefold()
+    if builtin:
+        return _run_builtin_action(name, builtin, raw_args, action)
     command = action.get("exec") or action.get("command")
     if isinstance(command, str):
         args = _parse_words(command)
@@ -1409,6 +1714,166 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str) -> str:
     if error:
         body = f"{body}\n\nstderr:\n{error}".strip()
     return present(f"Project action exited with {result.returncode}.\n\n{body}")
+
+
+def _visible_children(by_parent: dict[str, list[dict[str, Any]]], issue_id: str) -> list[dict[str, Any]]:
+    children = by_parent.get(issue_id, [])
+    return sorted([child for child in children if not child.get("hiddenAt")], key=_issue_sort_key)
+
+
+def _collect_issue_tree(root: dict[str, Any], issues: list[dict[str, Any]]) -> tuple[list[tuple[dict[str, Any], int]], dict[str, list[dict[str, Any]]]]:
+    by_parent: dict[str, list[dict[str, Any]]] = {}
+    for item in issues:
+        if item.get("hiddenAt") or not item.get("parentId"):
+            continue
+        by_parent.setdefault(str(item["parentId"]), []).append(item)
+
+    items: list[tuple[dict[str, Any], int]] = []
+
+    def visit(issue: dict[str, Any], depth: int) -> None:
+        for child in _visible_children(by_parent, str(issue.get("id") or "")):
+            items.append((child, depth))
+            visit(child, depth + 1)
+
+    visit(root, 1)
+    return items, by_parent
+
+
+def _resolve_root_issue(issue: dict[str, Any]) -> dict[str, Any]:
+    current = issue
+    seen: set[str] = set()
+    while current.get("parentId"):
+        parent_id = str(current.get("parentId") or "")
+        if not parent_id or parent_id in seen:
+            break
+        seen.add(parent_id)
+        current = _api(f"/issues/{parent_id}")
+    return current
+
+
+def _finalize_issue_tree(start_issue: dict[str, Any], dry_run: bool = False) -> dict[str, Any]:
+    root = _resolve_root_issue(start_issue)
+    issues = [item for item in _api(f"/companies/{root['companyId']}/issues") if not item.get("hiddenAt")]
+    items, by_parent = _collect_issue_tree(root, issues)
+    issue_by_id = {str(root["id"]): root, **{str(issue["id"]): issue for issue, _depth in items}}
+    changed: list[dict[str, Any]] = []
+
+    for issue, depth in sorted(items, key=lambda item: (-item[1], _issue_sort_key(item[0]))):
+        children = _visible_children(by_parent, str(issue.get("id") or ""))
+        if not children or issue.get("status") in TERMINAL_STATUSES:
+            continue
+        if not all((issue_by_id.get(str(child.get("id") or ""), child).get("status") in TERMINAL_STATUSES) for child in children):
+            continue
+        if not dry_run:
+            _post_issue_comment(
+                str(issue["id"]),
+                _notification_text(
+                    "auto_finalized",
+                    issue_id=issue.get("id"),
+                    issue_identifier=issue.get("identifier"),
+                    status=issue.get("status"),
+                ),
+                log_context=f"finalize {issue.get('id')}",
+            )
+            _api(f"/issues/{issue['id']}", method="PATCH", body={"status": "done"})
+            issue["status"] = "done"
+        else:
+            issue["status"] = "done"
+        changed.append(issue)
+
+    root_children = _visible_children(by_parent, str(root.get("id") or ""))
+    open_root_children = [
+        child for child in root_children if issue_by_id.get(str(child.get("id") or ""), child).get("status") not in TERMINAL_STATUSES
+    ]
+
+    if root_children and not open_root_children and root.get("status") not in TERMINAL_STATUSES:
+        if not dry_run:
+            _post_issue_comment(
+                str(root["id"]),
+                _notification_text(
+                    "auto_finalized",
+                    issue_id=root.get("id"),
+                    issue_identifier=root.get("identifier"),
+                    status=root.get("status"),
+                ),
+                log_context=f"finalize root {root.get('id')}",
+            )
+            _api(f"/issues/{root['id']}", method="PATCH", body={"status": "done"})
+            root["status"] = "done"
+        else:
+            root["status"] = "done"
+        changed.append(root)
+
+    return {
+        "root": root,
+        "changed": changed,
+        "root_children": root_children,
+        "open_root_children": open_root_children,
+    }
+
+
+def _finalize_builtin(name: str, raw_args: str, _: dict[str, Any]) -> str:
+    words = _parse_words(raw_args)
+    dry_run = False
+    filtered: list[str] = []
+    for word in words:
+        if word in {"--dry-run", "dry-run", "dryrun"}:
+            dry_run = True
+            continue
+        filtered.append(word)
+
+    issue_ref = _issue_ref(" ".join(filtered))
+    if not issue_ref:
+        return f"Usage: {_slash(_action_usage(name, {'usage': f'{name} ISSUE [--dry-run]'}) )}"
+
+    if not dry_run and not _writes_enabled():
+        return (
+            "Paperclip writes are disabled. Set PAPERCLIP_COCKPIT_ENABLE_WRITES=1 "
+            f"to enable {_format_command(_action_usage(name, {'usage': f'{name} ISSUE'}))}."
+        )
+
+    start = _api(f"/issues/{issue_ref}")
+    finalize_result = _finalize_issue_tree(start, dry_run=dry_run)
+    root = finalize_result["root"]
+    changed = finalize_result["changed"]
+    root_children = finalize_result["root_children"]
+    open_root_children = finalize_result["open_root_children"]
+
+    lines = [
+        f"Finalize tree: {root.get('identifier') or _compact_id(root.get('id'))}",
+        str(root.get("title") or "").strip(),
+        f"- dry_run: {'yes' if dry_run else 'no'}",
+        f"- root status: {root.get('status') or 'unknown'}",
+        f"- children: {len(root_children)}",
+    ]
+    if open_root_children:
+        lines.extend(["", "Root issue stays open: some child issues are not in terminal statuses."])
+        for child in open_root_children:
+            lines.append(
+                f"- {child.get('identifier') or _compact_id(child.get('id'))} - {_status_word(child.get('status') or 'unknown')} - {_line(child.get('title'), 180)}"
+            )
+        if changed:
+            lines.append("")
+            lines.append("Finalized nested parents:")
+            for issue in changed:
+                lines.append(f"- {issue.get('identifier') or _compact_id(issue.get('id'))}")
+        return "\n".join(lines)
+
+    lines.append("")
+    if not changed:
+        lines.append("No changes: the issue tree is already finalized or does not need auto-finalization.")
+    else:
+        lines.append("Would finalize:" if dry_run else "Finalized:")
+        for issue in changed:
+            lines.append(f"- {issue.get('identifier') or _compact_id(issue.get('id'))}: {_line(issue.get('title'), 180)}")
+    lines.append(f"Open: {_issue_url(root)}")
+    return "\n".join(lines)
+
+
+def _run_builtin_action(name: str, builtin: str, raw_args: str, action: dict[str, Any]) -> str:
+    if builtin == "finalize":
+        return _finalize_builtin(name, raw_args, action)
+    return f"Unknown Paperclip Cockpit builtin action: {builtin}"
 
 
 def _router(raw_args: str) -> str:
@@ -1609,8 +2074,7 @@ def _rewrite_text(text: str) -> str | None:
     if intent_rewrite:
         return intent_rewrite
 
-    issue_match = ISSUE_RE.search(raw)
-    issue_ref = issue_match.group(1).upper() if issue_match else ""
+    issue_ref = _issue_ref_from_text(raw, allow_bare=_bare_issue_context(lowered))
     marker = _contains_any(lowered, _markers())
 
     if issue_ref and _nl_writes_enabled() and _contains_any(lowered, {"move", "перемести", "двинь", "поставь", "закрой", "отмени"}):
@@ -1621,7 +2085,11 @@ def _rewrite_text(text: str) -> str | None:
     if issue_ref and _contains_alias(lowered, "comments"):
         return _slash(_term("comments"), issue_ref)
 
-    if issue_ref and (marker or _contains_alias(lowered, "task") or _contains_any(lowered, {"покажи", "что по", "show"})):
+    if issue_ref and (
+        marker
+        or _contains_alias(lowered, "task")
+        or _contains_any(lowered, {"покажи", "посмотри", "открой", "что по", "show", "open", "таск", "таска", "таску"})
+    ):
         return _slash(_term("task"), issue_ref)
 
     rewritten = _rewrite_alias_command(raw, lowered, "health")
@@ -1819,6 +2287,78 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
     return {"action": "rewrite", "text": rewritten}
 
 
+def _telegram_callback_query(
+    adapter: Any = None,
+    query: Any = None,
+    data: str = "",
+    chat_id: Any = None,
+    chat_type: str | None = None,
+    thread_id: str | None = None,
+    user_id: str = "",
+    user_name: str | None = None,
+    **_: Any,
+) -> dict[str, str] | None:
+    if not _telegram_enabled():
+        return None
+
+    prefix = _telegram_callback_prefix()
+    text = str(data or "")
+    if not text.startswith(f"{prefix}:"):
+        return None
+
+    callback_id = str(getattr(query, "id", "") or "")
+    parts = text.split(":", 2)
+    callback_name = parts[1] if len(parts) > 1 else ""
+    callback_arg = parts[2] if len(parts) > 2 else ""
+    actions = _telegram_callback_actions()
+    spec = actions.get(callback_name)
+    if not spec:
+        _telegram_answer_callback(callback_id, "Неизвестное действие.")
+        return {"action": "handled"}
+
+    if adapter is not None and hasattr(adapter, "_is_callback_user_authorized"):
+        try:
+            allowed = bool(
+                adapter._is_callback_user_authorized(
+                    str(user_id or ""),
+                    chat_id=chat_id,
+                    chat_type=chat_type,
+                    thread_id=thread_id,
+                    user_name=user_name,
+                )
+            )
+        except Exception:
+            allowed = False
+        if not allowed:
+            _telegram_answer_callback(callback_id, "Нет доступа.")
+            return {"action": "handled"}
+
+    answer = str(spec.get("answer") or "Открываю...")
+    _telegram_answer_callback(callback_id, answer)
+
+    message = spec.get("message")
+    if message:
+        _telegram_send_message(str(chat_id or ""), _format_callback_args(str(message), callback_arg))
+        return {"action": "handled"}
+
+    action_name = str(spec.get("action") or "").strip()
+    if not action_name:
+        return {"action": "handled"}
+    action = _actions().get(action_name)
+    if not action:
+        _telegram_send_message(str(chat_id or ""), f"Action is not configured: {action_name}")
+        return {"action": "handled"}
+
+    raw_args = _format_callback_args(str(spec.get("args") or "{arg}"), callback_arg).strip()
+    output = _run_action(action_name, action, raw_args)
+    if _as_bool(spec.get("telegram_payload") or spec.get("payload"), False):
+        message_text, reply_markup = _telegram_payload_from_output(output)
+        _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
+    else:
+        _telegram_send_message(str(chat_id or ""), output)
+    return {"action": "handled"}
+
+
 def _safe(handler: Any, raw_args: str) -> str:
     try:
         return _clip_output(handler(raw_args))
@@ -1879,3 +2419,4 @@ def register(ctx: Any) -> None:
 
     if _env_bool("PAPERCLIP_COCKPIT_PRE_GATEWAY", True) and hasattr(ctx, "register_hook"):
         ctx.register_hook("pre_gateway_dispatch", _pre_gateway_dispatch)
+        ctx.register_hook("telegram_callback_query", _telegram_callback_query)

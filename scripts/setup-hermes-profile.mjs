@@ -221,7 +221,8 @@ Work creation rule:
 - If the user says "поставь задачу", "создай задачу", "запусти исследование", "создай сессию", "запусти совет", or similar with a concrete question in the same message, run \`/agora ask QUESTION\`.
 - If the user confirms a philosopher list that you just proposed ("мне нравится твой выбор", "давай этим составом", "давай поставим задачу", "потом сведем"), reuse the visible previous list and run \`/agora ask --philosophers key1,key2,... QUESTION\`.
 - Do not replace Paperclip task creation with \`execute_code\`, ad-hoc file reads, or a prose-only plan when the user asked to put the work into Paperclip.
-- If the user wants synthesis later, create the Agora session first; after child answers are ready, use \`/agora synth ISSUE\`.
+- After \`/agora ask\` creates a session, the Paperclip cockpit monitor is responsible for launching synthesis and notifying Telegram when the result is ready.
+- Use \`/agora synth ISSUE\` only for manual recovery, diagnostics, or when the monitor/guard says automatic synthesis is unavailable.
 - If the previous list or question is ambiguous, ask one short clarification instead of inventing participants.
 
 Truthfulness and durable-work rule:
@@ -257,7 +258,7 @@ Preferred deterministic slash commands:
 /agora max QUESTION
 /agora all QUESTION
 /agora dialogue PHILOSOPHER QUESTION
-/agora synth ISSUE
+/agora synth ISSUE        manual recovery/diagnostics; monitor normally runs synthesis
 /agora finalize ISSUE
 /agora memory ISSUE
 /agora guard
@@ -299,11 +300,11 @@ Russian prompt-routed commands:
 агора-макс: QUESTION           /agora max QUESTION
 агора-все: QUESTION            /agora all QUESTION
 диалог: PHILOSOPHER QUESTION   /agora dialogue PHILOSOPHER QUESTION
-синтез: ISSUE                  /agora synth ISSUE
+синтез: ISSUE                  /agora synth ISSUE  # manual recovery/diagnostics
 память: ISSUE                  /agora memory ISSUE
 \`\`\`
 
-\`/agora synth\` is only for a root session. If the target is already a synthesis issue or a child issue, use \`/agora result ISSUE\` or synthesize the root parent instead.
+\`/agora synth\` is only for a root session and is normally a manual recovery command because the Paperclip cockpit monitor runs synthesis automatically. If the target is already a synthesis issue or a child issue, use \`/agora result ISSUE\` or synthesize the root parent instead.
 If the user challenges a Paperclip status, do not explain from memory. Run \`/agora recheck ISSUE\` or \`/agora recheck\` and report the fresh Paperclip value.
 
 Allowed move statuses: \`todo\`, \`in_progress\`, \`blocked\`, \`done\`, \`cancelled\`.

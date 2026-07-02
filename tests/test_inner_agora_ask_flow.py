@@ -1,0 +1,167 @@
+import json
+import os
+import subprocess
+import tempfile
+import threading
+import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+AGORA_SCRIPT = ROOT / "scripts" / "agora.mjs"
+
+
+class AskFlowHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    companies = [{"id": "company-1", "name": "The Inner Agora", "status": "active", "issuePrefix": "THE"}]
+    agents = [
+        {"id": "assistant-1", "name": "Agora Assistant / Синтезатор", "status": "idle"},
+        {"id": "plato-1", "name": "Платон", "status": "idle"},
+        {"id": "descartes-1", "name": "Декарт", "status": "idle"},
+        {"id": "heidegger-1", "name": "Хайдеггер", "status": "idle"},
+        {"id": "socrates-1", "name": "Сократ", "status": "idle"},
+        {"id": "sartre-1", "name": "Жан-Поль Сартр", "status": "idle"},
+    ]
+    projects = [{"id": "project-1", "name": "Agora Sessions"}]
+    goals = [{"id": "goal-1", "title": "Run philosophical research dialogues with The Inner Agora"}]
+    created_issues = []
+    comments = []
+    wakeups = []
+
+    @classmethod
+    def reset(cls):
+        cls.created_issues = []
+        cls.comments = []
+        cls.wakeups = []
+
+    def send_json(self, payload, status=200):
+        self.close_connection = True
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(body)))
+        self.send_header("connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def read_json_body(self):
+        length = int(self.headers.get("content-length") or "0")
+        body = self.rfile.read(length).decode("utf-8") if length else "{}"
+        return json.loads(body or "{}")
+
+    def do_GET(self):
+        routes = {
+            "/api/companies": self.companies,
+            "/api/companies/company-1/agents": self.agents,
+            "/api/companies/company-1/projects": self.projects,
+            "/api/companies/company-1/goals": self.goals,
+        }
+        if self.path in routes:
+            self.send_json(routes[self.path])
+            return
+        self.send_json({"error": "not found", "path": self.path}, 404)
+
+    def do_POST(self):
+        payload = self.read_json_body()
+        if self.path == "/api/companies/company-1/issues":
+            index = len(self.created_issues)
+            issue = {
+                **payload,
+                "id": "root-1" if index == 0 else f"child-{index}",
+                "identifier": "THE-900" if index == 0 else f"THE-{900 + index}",
+                "companyId": "company-1",
+                "createdAt": "2026-07-01T20:00:00.000Z",
+                "updatedAt": "2026-07-01T20:00:00.000Z",
+            }
+            self.created_issues.append(issue)
+            self.send_json(issue, 201)
+            return
+
+        if self.path.startswith("/api/agents/") and self.path.endswith("/wakeup"):
+            agent_id = self.path.split("/")[3]
+            self.wakeups.append({"agentId": agent_id, "payload": payload})
+            self.send_json({"id": f"run-{len(self.wakeups)}", "status": "queued"}, 202)
+            return
+
+        if self.path == "/api/issues/root-1/comments":
+            self.comments.append(payload)
+            self.send_json({"id": f"comment-{len(self.comments)}", **payload}, 201)
+            return
+
+        self.send_json({"error": "not found", "path": self.path}, 404)
+
+    def log_message(self, *_):
+        return
+
+
+class TestHTTPServer(ThreadingHTTPServer):
+    daemon_threads = True
+    block_on_close = False
+
+
+class InnerAgoraAskFlowTests(unittest.TestCase):
+    def run_ask(self, question):
+        AskFlowHandler.reset()
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                env.pop("INNER_AGORA_MODE", None)
+                result = subprocess.run(
+                    ["node", str(AGORA_SCRIPT), "ask", question],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                return {
+                    "stdout": result.stdout,
+                    "issues": list(AskFlowHandler.created_issues),
+                    "comments": list(AskFlowHandler.comments),
+                    "wakeups": list(AskFlowHandler.wakeups),
+                }
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_ask_creates_durable_work_and_returns_immediate_monitor_ack(self):
+        result = self.run_ask("давай спросим агору про свободу ребенка и власть родителей")
+        stdout = result["stdout"]
+
+        self.assertIn("# Поставил вопрос в Агору: THE-900", stdout)
+        self.assertIn("Выбрал 5 голосов:", stdout)
+        self.assertIn("Напишу сюда, когда будет готов синтез.", stdout)
+        self.assertIn("Дальше автоматически: monitor запустит синтез", stdout)
+        self.assertNotIn("Next: node scripts/agora.mjs synthesize", stdout)
+
+        self.assertEqual(len(result["issues"]), 6)
+        root, *children = result["issues"]
+        self.assertEqual(root["title"].split(":", 1)[0], "Agora local")
+        self.assertTrue(all(child["parentId"] == "root-1" for child in children))
+        self.assertEqual(len(result["wakeups"]), 5)
+
+        self.assertEqual(len(result["comments"]), 1)
+        comment = result["comments"][0]["body"]
+        self.assertIn("Paperclip cockpit monitor запустит синтез", comment)
+        self.assertIn("Telegram получит итог с кнопками", comment)
+        self.assertNotIn("Когда ответы будут готовы:", comment)
+
+
+if __name__ == "__main__":
+    unittest.main()

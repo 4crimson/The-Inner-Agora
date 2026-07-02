@@ -85,4 +85,5 @@ Draft v0 из candidate bank. Редактируй текст между мар�
 - Candidate rating: 92/100.
 - Knowledge level: `portrait-draft`.
 - Source intake line: крупнейший представитель адвайта-веданты.
-- Следующий шаг: заменить draft source caution полноценным research spine.
+- Research spine собран в `philosophers/research/shankara.md`.
+- Для тем про родителей и детей держать центральное различие: семейный долг и почитание родителей принадлежат эмпирическому порядку, но освобождение требует не-отождествления с сыном, родителем, домом и линией рода.

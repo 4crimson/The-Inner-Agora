@@ -4,10 +4,86 @@
     "description": "The Inner Agora cockpit for Paperclip.",
     "register_pc_fallback": false
   },
+  "agora": {
+    "default_mode": "local",
+    "hermes_model": "google/gemma-4-26b-a4b-qat"
+  },
   "gateway": {
     "reset_on_gateway_shutdown": true,
     "reset_session_age_minutes": 60,
     "reset_idle_minutes": 15
+  },
+  "hooks": {
+    "after_move": {
+      "auto_finalize_parents_on_statuses": ["done", "blocked", "cancelled"]
+    }
+  },
+  "monitor": {
+    "enabled": true,
+    "state_file": ".paperclip-cockpit-monitor-state.json",
+    "interval_seconds": 60,
+    "max_roots": 20,
+    "ignore_existing_roots": true,
+    "terminal_statuses": ["done", "blocked", "cancelled"],
+    "auto_finalize_disposition_waits": {
+      "enabled": true,
+      "status": "done",
+      "system_comment_pattern": "needs a disposition",
+      "min_agent_comment_chars": 80,
+      "cancel_live_runs": true,
+      "force_release_after_cancel": true,
+      "release_assignee_after_cancel": true,
+      "clear_assignee_after_cancel": true,
+      "comment": "Автоматически закрыто через Paperclip cockpit monitor: ответ агента уже есть, Paperclip ждал disposition."
+    },
+    "cancel_terminal_live_runs": {
+      "enabled": true,
+      "only_with_disposition_marker": true,
+      "comment_pattern": "needs a disposition|Auto-finalized by Paperclip cockpit monitor|Автоматически закрыто через Paperclip cockpit monitor"
+    },
+    "synthesis_title_pattern": "^Синтез:|^Synthesis:",
+    "synthesis_action": "synth",
+    "launchd": {
+      "label": "local.paperclip-cockpit.inneragora"
+    },
+    "notify": {
+      "exec": ["node", "scripts/paperclip-cockpit-telegram.mjs", "send-result", "{issue}"]
+    }
+  },
+  "issue": {
+    "default_prefix": "THE"
+  },
+  "telegram": {
+    "enabled": true,
+    "profile": "inneragora",
+    "callback_prefix": "pc",
+    "home_chat_env": "TELEGRAM_HOME_CHANNEL",
+    "buttons": {
+      "enabled": true,
+      "voice_limit": 6,
+      "labels": {
+        "synthesis": "Синтез",
+        "all_voices": "Все голоса",
+        "export": "Экспорт",
+        "clarify": "Уточнить"
+      }
+    },
+    "callbacks": {
+      "result": { "action": "telegram_result", "args": "{arg}", "answer": "Открываю синтез...", "telegram_payload": true },
+      "latest": { "action": "telegram_latest", "args": "{arg}", "answer": "Показываю все голоса...", "telegram_payload": true },
+      "voice": { "action": "telegram_voice", "args": "{arg}", "answer": "Открываю голос...", "telegram_payload": true },
+      "export": { "action": "memory", "args": "{arg}", "answer": "Экспортирую..." },
+      "clarify": {
+        "answer": "Можно уточнять",
+        "message": "Напиши уточнение обычным сообщением по сессии {arg}. Я подхвачу его как новый conversational запрос."
+      }
+    }
+  },
+  "notifications": {
+    "comments": {
+      "move_status_changed": "Статус изменен через Agora cockpit: {old_status} -> {new_status}.",
+      "auto_finalized": "Пакет автоматически закрыт через Agora cockpit: все видимые дочерние задачи уже в финальных статусах."
+    }
   },
   "cwd": "/Users/admin/Documents/The Inner Agora",
   "language": "ru",
@@ -105,7 +181,11 @@
         "создай консилиум",
         "запусти консилиум",
         "консилиум по",
-        "собери совет"
+        "собери совет",
+        "давай спросим агору",
+        "спросим агору",
+        "хочу спросить агору",
+        "задай агоре"
       ],
       "require_tail": true,
       "min_tail_chars": 20,
@@ -125,7 +205,28 @@
         "дай последнюю выжимку",
         "последняя выжимка",
         "итог синтеза",
-        "покажи итог синтеза"
+        "покажи итог синтеза",
+        "готов ли синтез",
+        "синтез готов",
+        "готов результат",
+        "готов ли результат",
+        "что с синтезом",
+        "как там синтез"
+      ],
+      "match": "contains"
+    },
+    "create_synthesis": {
+      "action": "synth",
+      "aliases": [
+        "собери синтез",
+        "сделай синтез",
+        "запусти синтез",
+        "синтезируй",
+        "собери итог",
+        "сделай итог",
+        "подведи итог",
+        "create synthesis",
+        "synthesize"
       ],
       "match": "contains"
     },
@@ -167,9 +268,30 @@
         "последняя таска с подтасками",
         "результаты последней таски",
         "результаты последней задачи",
+        "что там по последней сессии",
+        "что по последней сессии",
+        "что там по последней задаче",
+        "что по последней задаче",
+        "что там по последней таске",
+        "что по последней таске",
         "summary of last task",
         "last task summary"
       ],
+      "match": "contains"
+    },
+    "philosopher_detail": {
+      "action": "voice",
+      "aliases": [
+        "что сказал",
+        "что сказала",
+        "что писал",
+        "что писала",
+        "подробнее по",
+        "расскажи по",
+        "прочитать по",
+        "покажи по"
+      ],
+      "require_tail": true,
       "match": "contains"
     }
   },
@@ -256,6 +378,35 @@
       "exec": ["node", "scripts/agora.mjs", "result"],
       "timeout": 180
     },
+    "voice": {
+      "usage": "voice PHILOSOPHER [ISSUE] [--full]",
+      "aliases": ["voice", "голос"],
+      "natural_aliases": ["голос", "голос философа"],
+      "description": "показать материал одного философа из последней или указанной сессии",
+      "exec": ["node", "scripts/agora.mjs", "voice"],
+      "timeout": 180
+    },
+    "telegram_result": {
+      "usage": "telegram_result ISSUE",
+      "description": "служебный Telegram payload для синтеза с inline-кнопками",
+      "exec": ["node", "scripts/paperclip-cockpit-telegram.mjs", "payload-result"],
+      "timeout": 180,
+      "presentation": { "mode": "raw", "clip": 30000 }
+    },
+    "telegram_voice": {
+      "usage": "telegram_voice ISSUE",
+      "description": "служебный Telegram payload для отдельного голоса с inline-кнопками",
+      "exec": ["node", "scripts/paperclip-cockpit-telegram.mjs", "payload-voice"],
+      "timeout": 180,
+      "presentation": { "mode": "raw", "clip": 30000 }
+    },
+    "telegram_latest": {
+      "usage": "telegram_latest ISSUE",
+      "description": "служебный Telegram payload для сессии с inline-кнопками",
+      "exec": ["node", "scripts/paperclip-cockpit-telegram.mjs", "payload-latest"],
+      "timeout": 180,
+      "presentation": { "mode": "raw", "clip": 30000 }
+    },
     "mode": {
       "usage": "mode [get|set MODE]",
       "aliases": ["режим"],
@@ -313,9 +464,9 @@
       "timeout": 600
     },
     "synth": {
-      "usage": "synth ISSUE",
+      "usage": "synth [ISSUE]",
       "aliases": ["synthesize", "синтез"],
-      "natural_aliases": ["синтез"],
+      "natural_aliases": ["синтез", "собери синтез", "сделай синтез", "синтезируй"],
       "description": "создать задачу синтеза для корневой сессии",
       "exec": ["node", "scripts/agora.mjs", "synthesize"],
       "timeout": 900
@@ -325,7 +476,7 @@
       "aliases": ["close", "закрыть", "финализировать"],
       "natural_aliases": ["закрой пакет", "закрыть пакет", "закрой сессию", "закрыть сессию", "финализируй пакет"],
       "description": "закрыть пакет, если все дочерние задачи завершены",
-      "exec": ["node", "scripts/agora.mjs", "finalize"],
+      "builtin": "finalize",
       "timeout": 180
     },
     "memory": {
