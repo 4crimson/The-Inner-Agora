@@ -13,6 +13,8 @@ CHAMBER_SCHEMA = ROOT / "data" / "schema" / "chamber.schema.json"
 PHILOSOPHY_CHAMBER = ROOT / "chambers" / "philosophy" / "chamber.json"
 CHAMBER_LOADER = ROOT / "scripts" / "chamber-loader.mjs"
 COCKPIT_CONFIG = ROOT / "paperclip-cockpit.json"
+BOARD_CHAMBER = ROOT / "chambers" / "board-directors" / "chamber.json"
+BOARD_ROLES = ROOT / "chambers" / "board-directors" / "roles.json"
 
 
 def write_test_chamber(chambers_dir, chamber_id="strategy"):
@@ -44,6 +46,32 @@ def write_test_chamber(chambers_dir, chamber_id="strategy"):
         },
     }
     (chamber_dir / "chamber.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (chamber_dir / "roles.json").write_text(
+        json.dumps(
+            [
+                {
+                    "key": "advisor",
+                    "name": "Strategy Advisor",
+                    "englishName": "Strategy Advisor",
+                    "era": "Test",
+                    "title": "test advisor",
+                    "aliases": ["advisor"],
+                    "tags": ["strategy"],
+                    "centralIntuition": "Test intuition.",
+                    "voice": "Test voice.",
+                    "tension": "Test tension.",
+                    "chamberId": chamber_id,
+                    "riskTier": "advisory",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (chamber_dir / "presets").mkdir()
+    (chamber_dir / "presets" / "mvp.json").write_text(
+        json.dumps({"id": "mvp", "name": "Test MVP", "roleKeys": ["advisor"]}),
+        encoding="utf-8",
+    )
     return manifest
 
 
@@ -246,6 +274,49 @@ class Phase2ChamberTests(unittest.TestCase):
         self.assertIn("companyName=Strategy Room Company", result.stdout)
         self.assertIn("projectName=Strategy Room Sessions", result.stdout)
         self.assertIn("goalTitle=Run strategy room decisions", result.stdout)
+
+    def test_chamber_loader_lists_board_directors(self):
+        result = self.run_node(CHAMBER_LOADER, "list", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertIn("board-directors", [item["id"] for item in payload["chambers"]])
+
+    def test_board_directors_roles_are_draft_but_valid(self):
+        chamber = json.loads(BOARD_CHAMBER.read_text(encoding="utf-8"))
+        roles = json.loads(BOARD_ROLES.read_text(encoding="utf-8"))
+
+        self.assertEqual(chamber["status"], "draft")
+        self.assertGreaterEqual(len(roles), 3)
+        self.assertTrue(all(role["chamberId"] == "board-directors" for role in roles))
+        self.assertTrue(all(role["riskTier"] == "advisory" for role in roles))
+
+    def test_board_directors_dry_run_uses_board_roles(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "ask",
+            "--dry-run",
+            "go/no-go по найму CTO",
+            env={"INNER_AGORA_ACTIVE_CHAMBER": "board-directors"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("CEO", result.stdout)
+        self.assertIn("CFO", result.stdout)
+        self.assertIn("Legal", result.stdout)
+        self.assertNotIn("Платон", result.stdout)
+
+    def test_importer_print_roles_uses_active_chamber_roles(self):
+        result = self.run_node(
+            ROOT / "scripts" / "import-inner-agora.mjs",
+            "--print-roles",
+            env={"INNER_AGORA_ACTIVE_CHAMBER": "board-directors"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("source=chambers/board-directors/roles.json", result.stdout)
+        self.assertIn("role=ceo chamberId=board-directors riskTier=advisory", result.stdout)
+        self.assertNotIn("role=socrates", result.stdout)
 
 
 if __name__ == "__main__":

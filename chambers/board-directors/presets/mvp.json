@@ -1,0 +1,11 @@
+{
+  "id": "mvp",
+  "name": "MVP board directors council",
+  "roleKeys": [
+    "ceo",
+    "cfo",
+    "legal",
+    "product",
+    "people"
+  ]
+}

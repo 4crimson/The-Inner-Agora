@@ -1,0 +1,29 @@
+{
+  "id": "board-directors",
+  "name": "Board Directors",
+  "description": "Черновая палата совета директоров для управленческих go/no-go решений.",
+  "status": "draft",
+  "labels": {
+    "company": "board",
+    "companies": "boards",
+    "agent": "director",
+    "agents": "directors",
+    "task": "decision",
+    "tasks": "decisions"
+  },
+  "roles": [
+    "roles.json"
+  ],
+  "presets": [
+    "presets/mvp.json"
+  ],
+  "synthesisRole": "ceo",
+  "transparencyPolicy": "board-advisory-draft",
+  "allowedSkills": [],
+  "company": {
+    "name": "Board Directors",
+    "projectName": "Board Decisions",
+    "goalTitle": "Run advisory board decision reviews",
+    "companyId": null
+  }
+}

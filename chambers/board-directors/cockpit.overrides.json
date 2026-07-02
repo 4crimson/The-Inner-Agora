@@ -1,0 +1,69 @@
+{
+  "agora": {
+    "default_mode": "local"
+  },
+  "language": "ru",
+  "company_hints": [
+    "Board Directors"
+  ],
+  "presentation": {
+    "language": "ru",
+    "home": {
+      "title": "Board Directors",
+      "intro": "Черновая палата совета директоров подключена к Paperclip.",
+      "items": [
+        {
+          "action": "status",
+          "text": "кратко показать состояние"
+        },
+        {
+          "action": "tasks",
+          "text": "решения и задачи"
+        },
+        {
+          "action": "agents",
+          "text": "состав директоров"
+        }
+      ]
+    }
+  },
+  "labels": {
+    "company": "board",
+    "companies": "boards",
+    "agent": "director",
+    "agents": "directors",
+    "task": "decision",
+    "tasks": "decisions",
+    "comment": "note",
+    "comments": "notes"
+  },
+  "terms": {
+    "companies": "boards",
+    "agents": "directors",
+    "tasks": "decisions",
+    "task": "decision",
+    "comments": "notes"
+  },
+  "aliases": {
+    "agents": [
+      "directors",
+      "board",
+      "совет директоров",
+      "директора",
+      "состав"
+    ],
+    "tasks": [
+      "decisions",
+      "board tasks",
+      "решения",
+      "задачи",
+      "очередь"
+    ]
+  },
+  "markers": [
+    "board",
+    "directors",
+    "совет директоров",
+    "директора"
+  ]
+}

@@ -383,7 +383,7 @@ const goalTitle = process.env.INNER_AGORA_GOAL_TITLE || chamber.company.goalTitl
 - Modify: `scripts/agora.mjs`
 - Test: `tests/test_phase2_chambers.py`
 
-- [ ] **Step 1: Write failing board chamber tests**
+- [x] **Step 1: Write failing board chamber tests**
 
 Add:
 
@@ -400,7 +400,7 @@ def test_board_directors_roles_are_draft_but_valid(self):
     self.assertTrue(all(role["chamberId"] == "board-directors" for role in roles))
 ```
 
-- [ ] **Step 2: Create draft roles**
+- [x] **Step 2: Create draft roles**
 
 Initial roles:
 - `ceo`
@@ -411,7 +411,7 @@ Initial roles:
 
 Each role must include the Phase 1 role fields and `"riskTier": "advisory"`.
 
-- [ ] **Step 3: Make dry-run ask work in board chamber**
+- [x] **Step 3: Make dry-run ask work in board chamber**
 
 Add enough selection/preset routing that this command works without Paperclip:
 

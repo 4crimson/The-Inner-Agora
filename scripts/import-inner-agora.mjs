@@ -71,8 +71,18 @@ function normalizeChamberMode(value) {
 
 const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
 
+function shouldUseActiveChamberRoles() {
+  return CHAMBER_MODE === "chambers" || Boolean(process.env.INNER_AGORA_ACTIVE_CHAMBER) || activeChamberId() !== DEFAULT_CHAMBER_ID;
+}
+
+function chamberRelativePath(chamber, relativePath) {
+  return path.isAbsolute(relativePath) ? relativePath : path.join(CHAMBERS_DIR, chamber.id, relativePath);
+}
+
 function roleSourcePath() {
-  return CHAMBER_MODE === "chambers" ? PHILOSOPHY_ROLES_PATH : LEGACY_ROLES_PATH;
+  if (!shouldUseActiveChamberRoles()) return LEGACY_ROLES_PATH;
+  const chamber = activeChamber();
+  return chamberRelativePath(chamber, chamber.roles[0]);
 }
 
 const runtimeConfig = {

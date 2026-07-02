@@ -43,8 +43,18 @@ function normalizeChamberMode(value) {
 
 const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
 
+function shouldUseActiveChamberRoles() {
+  return CHAMBER_MODE === "chambers" || Boolean(process.env.INNER_AGORA_ACTIVE_CHAMBER) || activeChamberId() !== DEFAULT_CHAMBER_ID;
+}
+
+function chamberRelativePath(chamber, relativePath) {
+  return path.isAbsolute(relativePath) ? relativePath : path.join(CHAMBERS_DIR, chamber.id, relativePath);
+}
+
 function roleSourcePath() {
-  return CHAMBER_MODE === "chambers" ? PHILOSOPHY_ROLES_PATH : LEGACY_ROLES_PATH;
+  if (!shouldUseActiveChamberRoles()) return LEGACY_ROLES_PATH;
+  const chamber = activeChamber();
+  return chamberRelativePath(chamber, chamber.roles[0]);
 }
 
 function loadRoles() {
@@ -57,9 +67,10 @@ function loadRoles() {
 }
 
 function mvpPresetPath() {
-  return process.env.INNER_AGORA_MVP_PRESET_PATH
-    ? path.resolve(process.env.INNER_AGORA_MVP_PRESET_PATH)
-    : DEFAULT_MVP_PRESET_PATH;
+  if (process.env.INNER_AGORA_MVP_PRESET_PATH) return path.resolve(process.env.INNER_AGORA_MVP_PRESET_PATH);
+  if (!shouldUseActiveChamberRoles()) return DEFAULT_MVP_PRESET_PATH;
+  const chamber = activeChamber();
+  return chamberRelativePath(chamber, chamber.presets[0]);
 }
 
 function loadMvpPresetRoleKeys() {
@@ -621,6 +632,10 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
 
   if (mode === "all" || options.all) return roles;
 
+  if (activeChamberId() !== "philosophy") {
+    return selectChamberRoles(request, mode);
+  }
+
   const text = request.toLowerCase();
   const selected = [];
   const add = (...keys) => {
@@ -711,6 +726,49 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
   const requestedLimit = requestedVoiceLimit(request);
   const limit = requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
   return uniqueRoles(selected).slice(0, limit);
+}
+
+function selectedRoleLimit(request, mode) {
+  const limits = {
+    min: 3,
+    local: 5,
+    balanced: 7,
+    max: 12,
+  };
+  const modeLimit = limits[mode] || limits.balanced;
+  const requestedLimit = requestedVoiceLimit(request);
+  return requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
+}
+
+function genericRoleScore(item, request) {
+  const haystack = looseText(
+    [
+      item.key,
+      item.name,
+      item.englishName,
+      item.title,
+      item.centralIntuition,
+      ...(item.aliases || []),
+      ...(item.tags || []),
+    ].join(" "),
+  );
+  return looseText(request)
+    .split(/\s+/)
+    .filter((token) => token.length >= 3)
+    .reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+function selectChamberRoles(request, mode) {
+  const selected = roles
+    .map((item) => ({ item, score: roleScoreInText(item, request) + genericRoleScore(item, request) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.item.key.localeCompare(right.item.key))
+    .map((entry) => entry.item);
+
+  for (const key of loadMvpPresetRoleKeys()) selected.push(roleByKey.get(key));
+  for (const role of roles) selected.push(role);
+
+  return uniqueRoles(selected).slice(0, selectedRoleLimit(request, mode));
 }
 
 function modePolicy(mode) {
