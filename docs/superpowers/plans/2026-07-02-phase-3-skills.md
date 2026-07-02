@@ -494,7 +494,7 @@ git commit -m "Expose resolved role skills in Agora CLI"
 - Create: `tests/fixtures/baseline/skills-board-product-json.json`
 - Verify all changed files
 
-- [ ] **Step 1: Add regression command**
+- [x] **Step 1: Add regression command**
 
 Add:
 
@@ -506,7 +506,7 @@ Add:
 }
 ```
 
-- [ ] **Step 2: Record and verify regression**
+- [x] **Step 2: Record and verify regression**
 
 Run:
 
@@ -518,7 +518,7 @@ CHAMBER_MODE=chambers node scripts/regression.mjs check
 
 Expected: both checks include `ok skills-board-product-json`.
 
-- [ ] **Step 3: Full verification**
+- [x] **Step 3: Full verification**
 
 Run:
 
@@ -536,7 +536,7 @@ git diff --check
 
 Expected: all pass.
 
-- [ ] **Step 4: Commit verification**
+- [x] **Step 4: Commit verification**
 
 ```bash
 git add scripts/regression.mjs tests/fixtures/baseline/skills-board-product-json.json docs/superpowers/plans/2026-07-02-phase-3-skills.md

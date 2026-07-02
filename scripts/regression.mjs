@@ -43,6 +43,11 @@ const DEFAULT_COMMANDS = [
     env: { INNER_AGORA_ACTIVE_CHAMBER: "board-directors" },
     args: ["node", "scripts/agora.mjs", "ask", "--dry-run", "go/no-go по найму CTO"],
   },
+  {
+    name: "skills-board-product-json",
+    env: { INNER_AGORA_ACTIVE_CHAMBER: "board-directors" },
+    args: ["node", "scripts/agora.mjs", "skills", "product", "--json"],
+  },
 ];
 
 function usage(exitCode = 0) {

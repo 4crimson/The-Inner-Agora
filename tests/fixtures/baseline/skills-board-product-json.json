@@ -1,0 +1,14 @@
+{
+  "name": "skills-board-product-json",
+  "args": [
+    "node",
+    "scripts/agora.mjs",
+    "skills",
+    "product",
+    "--json"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "stdout": "{\n  \"chamberId\": \"board-directors\",\n  \"roleKey\": \"product\",\n  \"roleName\": \"Product / Продуктовый директор\",\n  \"skills\": [\n    {\n      \"id\": \"source-citation\",\n      \"name\": \"Source Citation\",\n      \"description\": \"Shared transparency protocol for source-backed, reconstructed, imitated, and modern-transfer claims.\",\n      \"riskTier\": \"L0\",\n      \"allowedTools\": []\n    },\n    {\n      \"id\": \"web-research\",\n      \"name\": \"Web Research\",\n      \"description\": \"Read-only web research for current facts, source discovery, and source verification.\",\n      \"riskTier\": \"L1\",\n      \"allowedTools\": [\n        \"web-search\",\n        \"web-open\"\n      ]\n    }\n  ],\n  \"diagnostics\": []\n}",
+  "stderr": ""
+}
