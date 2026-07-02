@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import unittest
 from pathlib import Path
@@ -58,6 +59,57 @@ class Phase4IntentSlotTests(unittest.TestCase):
         data = json.loads(result.stdout)
         self.assertEqual(data["mode"], "balanced")
         self.assertEqual(data["roles"], ["plato"])
+
+    def test_prompt_names_chambers_and_forbids_direct_writes(self):
+        result = self.run_node(INTENT_SCRIPT, "prompt", "совет директоров, нужен go/no-go по найму CTO")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("board-directors", result.stdout)
+        self.assertIn("philosophy", result.stdout)
+        self.assertIn("не создает Paperclip", result.stdout)
+
+    def test_regex_fallback_extracts_status_result_role_and_board_session(self):
+        cases = {
+            "дай выжимку по последней таске": "result",
+            "готов ли синтез по последней задаче?": "status",
+            "а что сказал Платон?": "role_detail",
+            "совет директоров, нужен go/no-go по найму CTO": "new_session",
+        }
+        for text, intent in cases.items():
+            with self.subTest(text=text):
+                result = self.run_node(INTENT_SCRIPT, "extract", "--routing-mode", "regex", "--json", text)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["slots"]["intent"], intent)
+
+    def test_llm_extractor_uses_injected_response_without_network(self):
+        fake = json.dumps(
+            {
+                "intent": "new_session",
+                "chamber": "philosophy",
+                "mode": "min",
+                "topic": "что такое свобода у Сартра и Камю",
+                "roles": ["Сартр", "Камю"],
+                "taskRef": None,
+                "missingSlots": [],
+                "confidence": 0.93,
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "INNER_AGORA_FAKE_LLM_RESPONSE": fake}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "extract",
+            "--routing-mode",
+            "llm",
+            "--json",
+            "коротко спроси агору: что такое свобода у Сартра и Камю",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["source"], "llm")
+        self.assertEqual(payload["slots"]["mode"], "min")
+        self.assertEqual(payload["slots"]["roles"], ["sartre", "camus"])
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { loadChamber } from "./chamber-loader.mjs";
+import { listChambers, loadChamber } from "./chamber-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
@@ -17,6 +17,8 @@ function usage(exitCode = 0) {
   console.log(`Usage:
   node scripts/intent-slots.mjs parse-json
   node scripts/intent-slots.mjs normalize --json
+  node scripts/intent-slots.mjs prompt "human text"
+  node scripts/intent-slots.mjs extract [--routing-mode regex|llm] [--json] "human text"
   node scripts/intent-slots.mjs fixture-one --json
 `);
   process.exit(exitCode);
@@ -60,6 +62,18 @@ function looseText(value) {
 
 function roleAliases(role) {
   return [role.key, role.name, role.englishName, ...(Array.isArray(role.aliases) ? role.aliases : [])].filter(Boolean);
+}
+
+function roleKeyInText(text, chamberId = DEFAULT_CHAMBER_ID) {
+  const haystack = looseText(text);
+  if (!haystack) return "";
+  for (const role of loadRolesForChamber(chamberId)) {
+    for (const alias of roleAliases(role)) {
+      const normalized = looseText(alias);
+      if (normalized && haystack.includes(normalized)) return role.key;
+    }
+  }
+  return "";
 }
 
 function resolveRoleKey(token, chamberId = DEFAULT_CHAMBER_ID) {
@@ -150,6 +164,171 @@ export function normalizeIntentSlots(slots, options = {}) {
   return next;
 }
 
+function modeFromText(text) {
+  const loose = looseText(text);
+  if (hasAny(loose, ["коротко", "быстро", "кратко", "min"])) return "min";
+  if (hasAny(loose, ["глубоко", "подробно", "полный", "максимально", "max"])) return "max";
+  if (hasAny(loose, ["всех", "все", "all"]) && hasAny(loose, ["голоса", "философы", "директора", "roles"])) return "all";
+  return "balanced";
+}
+
+function cleanTopic(text) {
+  return String(text || "")
+    .replace(/^\s*(давай|хочу|можешь|пожалуйста)\s+/i, "")
+    .replace(/\b(спросим|спроси|запусти|собери|создай|поставь|задай|исследуем|исследуй|консилиум|совет|агора|агоре|философов)\b/giu, " ")
+    .replace(/\b(коротко|быстро|кратко|глубоко|подробно|полный|максимально)\b/giu, " ")
+    .replace(/^\s*(про|по теме|о том|о)\s+/iu, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[,.:;\s]+|[,.:;\s]+$/g, "")
+    .trim();
+}
+
+function baseSlots(overrides = {}) {
+  return {
+    intent: "other",
+    chamber: null,
+    mode: null,
+    topic: null,
+    roles: [],
+    taskRef: null,
+    missingSlots: [],
+    confidence: 0.5,
+    ...overrides,
+  };
+}
+
+function chamberFromText(text) {
+  const loose = looseText(text);
+  if (hasAny(loose, ["совет директоров", "директоров", "бизнес", "cto", "ceo", "cfo", "go no go", "go"])) return "board-directors";
+  if (hasAny(loose, ["агора", "философ", "платон", "сократ", "сартр", "камю", "нагарджуна", "стоики"])) return "philosophy";
+  return null;
+}
+
+function hasAny(text, fragments) {
+  return fragments.some((fragment) => text.includes(fragment));
+}
+
+export function regexFallbackSlots(userText, context = {}) {
+  const text = String(userText || "").trim();
+  const loose = looseText(text);
+  const chamber = chamberFromText(text) || context.activeChamber || DEFAULT_CHAMBER_ID;
+
+  if (hasAny(loose, ["помощь", "help", "команды"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "help", chamber: chamberFromText(text), confidence: 0.9 }));
+  }
+
+  if (hasAny(loose, ["что там", "готов", "статус", "status"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "status", confidence: 0.88 }));
+  }
+
+  if (hasAny(loose, ["выжим", "результат", "итог", "синтез", "summary"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "result", confidence: 0.86 }));
+  }
+
+  const taskMatch = text.match(/\b([A-Z][A-Z0-9]{1,12}-\d+|\d{1,7})\b/i);
+  if (taskMatch && hasAny(loose, ["покажи", "посмотри", "таск", "таску", "задач", "issue", "task"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "task_lookup", taskRef: taskMatch[1].toUpperCase(), confidence: 0.9 }));
+  }
+
+  const roleChamber = chamberFromText(text) || "philosophy";
+  const roleKey = roleKeyInText(text, roleChamber);
+  if (roleKey && hasAny(loose, ["что сказал", "подробнее", "голос", "позици", "ответ"])) {
+    return normalizeIntentSlots(
+      baseSlots({ intent: "role_detail", chamber: roleChamber, roles: [roleKey], confidence: 0.88 }),
+      { chamberId: roleChamber },
+    );
+  }
+
+  const asksForSession = hasAny(loose, ["спрос", "задай", "поставь", "исслед", "собери", "создай", "консилиум", "совет", "go no go", "go"]);
+  if (asksForSession || chamber === "board-directors") {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "new_session",
+        chamber,
+        mode: modeFromText(text),
+        topic: cleanTopic(text) || null,
+        roles: roleKey ? [roleKey] : [],
+        confidence: 0.82,
+      }),
+      { chamberId: chamber },
+    );
+  }
+
+  return normalizeIntentSlots(baseSlots({ intent: "other", chamber: chamberFromText(text), confidence: 0.4 }));
+}
+
+function chamberPromptLine(chamber) {
+  const roles = loadRolesForChamber(chamber.id)
+    .slice(0, 16)
+    .map((role) => role.name)
+    .join(", ");
+  return `- ${chamber.id}: ${chamber.name}; roles: ${roles}`;
+}
+
+export function buildSlotExtractionPrompt(userText, context = {}) {
+  const chambers = listChambers(CHAMBERS_DIR).map(chamberPromptLine).join("\n");
+  const active = context.activeChamber || DEFAULT_CHAMBER_ID;
+  return `Ты локальный JSON slot extractor для Hermes/Paperclip.
+Модель не создает Paperclip issue, comment, wakeup и не выполняет команды. Она только возвращает слоты; deterministic code сделает действие.
+Верни один компактный JSON без markdown и без рассуждений.
+
+Доступные chambers:
+${chambers}
+
+Активная chamber: ${active}
+
+Схема:
+{"intent":"new_session|status|result|task_lookup|role_detail|help|other","chamber":"philosophy|board-directors|null","mode":"min|balanced|max|all|null","topic":"string|null","roles":["string"],"taskRef":"string|null","missingSlots":["string"],"confidence":0.0}
+
+Текст пользователя: ${userText}`;
+}
+
+async function callLocalModel(userText, options = {}) {
+  const baseUrl = (options.baseUrl || process.env.INNER_AGORA_LLM_BASE_URL || "http://127.0.0.1:1234/v1").replace(/\/+$/, "");
+  const model = options.model || process.env.INNER_AGORA_LLM_MODEL || "gemma-4-26b-a4b-it-mlx";
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      max_tokens: 700,
+      stream: false,
+      messages: [
+        { role: "system", content: buildSlotExtractionPrompt(userText, options.context || {}) },
+        { role: "user", content: String(userText || "") },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error(`local model request failed: ${response.status} ${response.statusText}`);
+  const payload = await response.json();
+  return payload.choices?.[0]?.message?.content || "";
+}
+
+async function extractWithLlm(userText, options = {}) {
+  const raw = process.env.INNER_AGORA_FAKE_LLM_RESPONSE || (await callLocalModel(userText, options));
+  try {
+    return normalizeIntentSlots(parseJsonObject(raw));
+  } catch (error) {
+    if (process.env.INNER_AGORA_FAKE_LLM_RESPONSE) throw error;
+    const repairPrompt = `Верни только исправленный JSON для этого ответа:\n${raw}`;
+    const repaired = await callLocalModel(repairPrompt, options);
+    return normalizeIntentSlots(parseJsonObject(repaired));
+  }
+}
+
+export async function extractIntentSlots(userText, options = {}) {
+  const routingMode = options.routingMode || process.env.ROUTING_MODE || "regex";
+  if (routingMode === "llm") {
+    try {
+      return { source: "llm", slots: await extractWithLlm(userText, options) };
+    } catch (error) {
+      return { source: "regex", fallbackReason: error?.message || String(error), slots: regexFallbackSlots(userText, options.context || {}) };
+    }
+  }
+  return { source: "regex", slots: regexFallbackSlots(userText, options.context || {}) };
+}
+
 function fixtureOne() {
   return normalizeIntentSlots({
     intent: "new_session",
@@ -175,6 +354,36 @@ function main() {
 
   if (command === "normalize") {
     process.stdout.write(stableJson(normalizeIntentSlots(parseJsonObject(readStdin()))));
+    return;
+  }
+
+  if (command === "prompt") {
+    console.log(buildSlotExtractionPrompt(args.filter((arg) => arg !== "--json").join(" ")));
+    return;
+  }
+
+  if (command === "extract") {
+    let routingMode = process.env.ROUTING_MODE || "regex";
+    const textParts = [];
+    for (let index = 0; index < args.length; index += 1) {
+      const arg = args[index];
+      if (arg === "--json") {
+        continue;
+      } else if (arg === "--routing-mode") {
+        routingMode = args[++index] || routingMode;
+      } else {
+        textParts.push(arg);
+      }
+    }
+    extractIntentSlots(textParts.join(" "), { routingMode })
+      .then((result) => {
+        if (json) process.stdout.write(stableJson(result));
+        else console.log(`${result.source}\t${result.slots.intent}\t${result.slots.topic || ""}`);
+      })
+      .catch((error) => {
+        console.error(error?.message || String(error));
+        process.exitCode = 1;
+      });
     return;
   }
 
