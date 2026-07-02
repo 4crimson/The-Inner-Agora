@@ -409,7 +409,7 @@ finally:
 methods = [method for method, _ in calls]
 message = calls[-1][1].get("text", "") if calls else ""
 print(json.dumps({
-    "ok": result == {"action": "handled"} and methods == ["answerCallbackQuery", "sendMessage"] and message == "result:THE-55",
+    "ok": result == {"action": "handled"} and methods == ["answerCallbackQuery", "sendMessage"] and message == "telegram_voice:THE-55",
     "result": result,
     "methods": methods,
     "message": message,

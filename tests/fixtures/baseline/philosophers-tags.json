@@ -1,0 +1,13 @@
+{
+  "name": "philosophers-tags",
+  "args": [
+    "node",
+    "scripts/agora.mjs",
+    "philosophers",
+    "--tags"
+  ],
+  "exitCode": 1,
+  "signal": null,
+  "stdout": "",
+  "stderr": "The Inner Agora is incomplete. Run: node scripts/import-inner-agora.mjs"
+}

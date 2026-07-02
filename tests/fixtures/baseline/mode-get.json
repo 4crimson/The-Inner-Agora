@@ -1,0 +1,13 @@
+{
+  "name": "mode-get",
+  "args": [
+    "node",
+    "scripts/agora.mjs",
+    "mode",
+    "get"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "stdout": "mode=local\nadapter=hermes_local\nstate=/Users/admin/Documents/The Inner Agora/.inner-agora-state.json\nupdatedAt=<TIMESTAMP>",
+  "stderr": ""
+}

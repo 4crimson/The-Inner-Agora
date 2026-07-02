@@ -1,0 +1,16 @@
+{
+  "name": "ask-unknown-philosopher-dry-run",
+  "args": [
+    "node",
+    "scripts/agora.mjs",
+    "ask",
+    "--dry-run",
+    "--philosophers",
+    "nonexistent-key",
+    "тест"
+  ],
+  "exitCode": 1,
+  "signal": null,
+  "stdout": "",
+  "stderr": "No known philosophers in --philosophers nonexistent-key"
+}

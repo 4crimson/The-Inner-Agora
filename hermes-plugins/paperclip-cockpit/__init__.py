@@ -1678,7 +1678,7 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str) -> str:
     if action.get("append_args", True):
         args.extend(_parse_words(raw_args))
 
-    cwd = str(action.get("cwd") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
+    cwd = str(action.get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
     timeout = int(action.get("timeout", 180))
     try:
         result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=timeout, check=False)

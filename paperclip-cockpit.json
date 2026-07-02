@@ -85,7 +85,6 @@
       "auto_finalized": "Пакет автоматически закрыт через Agora cockpit: все видимые дочерние задачи уже в финальных статусах."
     }
   },
-  "cwd": "/Users/admin/Documents/The Inner Agora",
   "language": "ru",
   "company_hints": ["The Inner Agora"],
   "presentation": {

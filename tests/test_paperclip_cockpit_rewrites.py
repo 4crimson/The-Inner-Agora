@@ -149,6 +149,22 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 )
                 self.assertEqual(self.plugin._rewrite_text("show ticket 42"), "/work ticket WK-42")
 
+    def test_run_action_can_take_cwd_from_environment(self):
+        config = {"actions": {"where": {"exec": ["pwd"], "append_args": False}}}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "paperclip-cockpit.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            action_cwd = Path(temp_dir) / "action-cwd"
+            action_cwd.mkdir()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=str(config_path),
+                PAPERCLIP_COCKPIT_CWD=str(action_cwd),
+            ):
+                self.assertEqual(
+                    self.plugin._run_action("where", config["actions"]["where"], ""),
+                    str(action_cwd.resolve()),
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
