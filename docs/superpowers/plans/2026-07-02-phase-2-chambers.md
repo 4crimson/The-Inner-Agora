@@ -354,11 +354,11 @@ Default active chamber: `philosophy`.
 - Modify: `scripts/import-inner-agora.mjs`
 - Test: `tests/test_phase2_chambers.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add tests that prove `getAgora()` and importer can read chamber company settings from `chamber.json` through environment-controlled state.
 
-- [ ] **Step 2: Implement manifest-backed company config**
+- [x] **Step 2: Implement manifest-backed company config**
 
 Use:
 

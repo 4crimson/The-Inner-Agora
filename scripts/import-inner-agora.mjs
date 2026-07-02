@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { loadChamber } from "./chamber-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -13,9 +15,11 @@ const PROMPTS_DIR = path.join(ROOT, "philosophers", "prompts");
 const PROMPT_START = "<!-- INNER_AGORA_PROMPT_START -->";
 const PROMPT_END = "<!-- INNER_AGORA_PROMPT_END -->";
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
-const COMPANY_NAME = process.env.INNER_AGORA_COMPANY_NAME || "The Inner Agora";
-const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
-const GOAL_TITLE = process.env.INNER_AGORA_GOAL_TITLE || "Run philosophical research dialogues with The Inner Agora";
+const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
+  ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
+  : path.join(ROOT, "chambers");
+const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
+const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const HERMES_COMMAND = process.env.INNER_AGORA_HERMES_COMMAND || "/Users/admin/.local/bin/inneragora";
 const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
 const CODEX_COMMAND = process.env.CODEX_CLI_PATH || "/Applications/Codex.app/Contents/Resources/codex";
@@ -30,6 +34,34 @@ const CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
 const CODEX_REASONING_EFFORT = process.env.INNER_AGORA_CODEX_REASONING_EFFORT || "medium";
 const AGENT_ADAPTER = normalizeAgentAdapter(process.env.INNER_AGORA_AGENT_ADAPTER || "codex_local");
 const HERMES_TIMEOUT_SEC = Number(process.env.INNER_AGORA_HERMES_TIMEOUT_SEC || 900);
+
+function readState() {
+  try {
+    return JSON.parse(fsSync.readFileSync(STATE_PATH, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function activeChamberId(state = readState()) {
+  return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || DEFAULT_CHAMBER_ID).trim();
+}
+
+function activeChamber(state = readState()) {
+  return loadChamber(CHAMBERS_DIR, activeChamberId(state));
+}
+
+function activeChamberCompanyConfig(state = readState()) {
+  const chamber = activeChamber(state);
+  const company = chamber.company || {};
+  return {
+    chamber,
+    companyId: String(process.env.INNER_AGORA_COMPANY_ID || company.companyId || "").trim(),
+    companyName: String(process.env.INNER_AGORA_COMPANY_NAME || company.name || "").trim(),
+    projectName: String(process.env.INNER_AGORA_PROJECT_NAME || company.projectName || "").trim(),
+    goalTitle: String(process.env.INNER_AGORA_GOAL_TITLE || company.goalTitle || "").trim(),
+  };
+}
 
 function normalizeChamberMode(value) {
   const normalized = String(value || "legacy").trim().toLowerCase();
@@ -269,8 +301,13 @@ async function loadRoles() {
 const loadPhilosophers = loadRoles;
 
 async function ensureCompany() {
+  const { companyId, companyName } = activeChamberCompanyConfig();
   const companies = await api("/companies");
-  const existing = companies.find((company) => company.name === COMPANY_NAME);
+  const existing = companies.find((company) => {
+    if (company.status === "archived") return false;
+    if (companyId && company.id === companyId) return true;
+    return company.name === companyName;
+  });
   if (existing && existing.status !== "archived") {
     console.log(`Using existing company: ${existing.name} (${existing.id})`);
     return existing;
@@ -279,7 +316,7 @@ async function ensureCompany() {
   const company = await api("/companies", {
     method: "POST",
     body: JSON.stringify({
-      name: COMPANY_NAME,
+      name: companyName,
       description:
         "Философская Agora в Paperclip + Hermes: набор машин-личностей для исследования, диалога и спора.",
       budgetMonthlyCents: 0,
@@ -451,8 +488,9 @@ async function ensureCodexAuthSymlink(agent) {
 }
 
 async function ensureGoal(companyId, assistantId) {
+  const { goalTitle } = activeChamberCompanyConfig();
   const goals = await api(`/companies/${companyId}/goals`);
-  const existing = goals.find((goal) => goal.title === GOAL_TITLE);
+  const existing = goals.find((goal) => goal.title === goalTitle);
   if (existing) {
     console.log(`Using existing goal: ${existing.title} (${existing.id})`);
     return existing;
@@ -461,7 +499,7 @@ async function ensureGoal(companyId, assistantId) {
   const goal = await api(`/companies/${companyId}/goals`, {
     method: "POST",
     body: JSON.stringify({
-      title: GOAL_TITLE,
+      title: goalTitle,
       description:
         "Создать рабочую систему философских диалогов: вопросы, сессии, позиции философов, конфликты, синтез и память.",
       level: "company",
@@ -537,8 +575,9 @@ async function ensureProjectWorkspace(project) {
 }
 
 async function ensureProject(companyId, goalId, assistantId) {
+  const { projectName } = activeChamberCompanyConfig();
   const projects = await api(`/companies/${companyId}/projects`);
-  const existing = projects.find((project) => project.name === PROJECT_NAME);
+  const existing = projects.find((project) => project.name === projectName);
   if (existing) {
     console.log(`Using existing project: ${existing.name} (${existing.id})`);
     return ensureProjectWorkspace(existing);
@@ -548,7 +587,7 @@ async function ensureProject(companyId, goalId, assistantId) {
   const project = await api(`/companies/${companyId}/projects`, {
     method: "POST",
     body: JSON.stringify({
-      name: PROJECT_NAME,
+      name: projectName,
       description: "Рабочее пространство для философских сессий, диалогов, синтезов и исследовательской памяти.",
       status: "in_progress",
       goalIds: [goalId],
@@ -580,17 +619,29 @@ async function printRoles() {
   }
 }
 
+function printChamberConfig() {
+  const { chamber, companyId, companyName, projectName, goalTitle } = activeChamberCompanyConfig();
+  console.log(`activeChamberId=${chamber.id}`);
+  console.log(`activeChamberName=${chamber.name}`);
+  console.log(`companyName=${companyName}`);
+  console.log(`projectName=${projectName}`);
+  console.log(`goalTitle=${goalTitle}`);
+  console.log(`companyId=${companyId}`);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`Usage:
-  node scripts/import-inner-agora.mjs [--print-roles]
+  node scripts/import-inner-agora.mjs [--print-roles|--print-chamber-config]
 `);
     return;
   }
-  const unknown = args.filter((arg) => arg !== "--print-roles");
+  const known = new Set(["--print-roles", "--print-chamber-config"]);
+  const unknown = args.filter((arg) => !known.has(arg));
   if (unknown.length) throw new Error(`Unknown argument: ${unknown[0]}`);
   if (args.includes("--print-roles")) return printRoles();
+  if (args.includes("--print-chamber-config")) return printChamberConfig();
 
   await api("/health");
 

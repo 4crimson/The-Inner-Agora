@@ -1,7 +1,9 @@
+import http.server
 import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -11,6 +13,62 @@ CHAMBER_SCHEMA = ROOT / "data" / "schema" / "chamber.schema.json"
 PHILOSOPHY_CHAMBER = ROOT / "chambers" / "philosophy" / "chamber.json"
 CHAMBER_LOADER = ROOT / "scripts" / "chamber-loader.mjs"
 COCKPIT_CONFIG = ROOT / "paperclip-cockpit.json"
+
+
+def write_test_chamber(chambers_dir, chamber_id="strategy"):
+    chamber_dir = Path(chambers_dir) / chamber_id
+    chamber_dir.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "id": chamber_id,
+        "name": "Strategy Room",
+        "description": "Temporary strategy chamber for tests.",
+        "status": "active",
+        "labels": {
+            "company": "room",
+            "companies": "rooms",
+            "agent": "advisor",
+            "agents": "advisors",
+            "task": "decision",
+            "tasks": "decisions",
+        },
+        "roles": ["roles.json"],
+        "presets": ["presets/mvp.json"],
+        "synthesisRole": "strategy-assistant",
+        "transparencyPolicy": "test-policy",
+        "allowedSkills": [],
+        "company": {
+            "name": "Strategy Room Company",
+            "projectName": "Strategy Room Sessions",
+            "goalTitle": "Run strategy room decisions",
+            "companyId": None,
+        },
+    }
+    (chamber_dir / "chamber.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest
+
+
+def start_json_api(routes):
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            return
+
+        def do_GET(self):
+            if self.path not in routes:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b'{"error":"not found"}')
+                return
+            payload = json.dumps(routes[self.path]).encode("utf-8")
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread, f"http://127.0.0.1:{server.server_port}/api"
 
 
 class Phase2ChamberTests(unittest.TestCase):
@@ -146,6 +204,48 @@ class Phase2ChamberTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("activeChamberId=philosophy", result.stdout)
+
+    def test_status_uses_active_chamber_company_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_test_chamber(temp_dir)
+            server, thread, api_base = start_json_api({"/api/companies": []})
+            try:
+                result = self.run_node(
+                    ROOT / "scripts" / "agora.mjs",
+                    "status",
+                    env={
+                        "INNER_AGORA_CHAMBERS_DIR": temp_dir,
+                        "INNER_AGORA_ACTIVE_CHAMBER": "strategy",
+                        "PAPERCLIP_API_BASE": api_base,
+                        "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                    },
+                )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=1)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("activeChamberId=strategy", result.stdout)
+        self.assertIn("Company not found: Strategy Room Company", result.stderr)
+
+    def test_importer_prints_active_chamber_company_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            write_test_chamber(temp_dir)
+            result = self.run_node(
+                ROOT / "scripts" / "import-inner-agora.mjs",
+                "--print-chamber-config",
+                env={
+                    "INNER_AGORA_CHAMBERS_DIR": temp_dir,
+                    "INNER_AGORA_ACTIVE_CHAMBER": "strategy",
+                },
+            )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("activeChamberId=strategy", result.stdout)
+        self.assertIn("companyName=Strategy Room Company", result.stdout)
+        self.assertIn("projectName=Strategy Room Sessions", result.stdout)
+        self.assertIn("goalTitle=Run strategy room decisions", result.stdout)
 
 
 if __name__ == "__main__":

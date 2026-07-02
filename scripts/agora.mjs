@@ -10,17 +10,16 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
 const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
 const DEFAULT_MVP_PRESET_PATH = path.join(ROOT, "chambers", "philosophy", "presets", "mvp.json");
-const CHAMBERS_DIR = path.join(ROOT, "chambers");
+const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
+  ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
+  : path.join(ROOT, "chambers");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
 const COCKPIT_CONFIG = readJsonFile(COCKPIT_CONFIG_PATH, {});
 const AGORA_CONFIG = COCKPIT_CONFIG.agora && typeof COCKPIT_CONFIG.agora === "object" ? COCKPIT_CONFIG.agora : {};
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
-const COMPANY_NAME = process.env.INNER_AGORA_COMPANY_NAME || "The Inner Agora";
 const ASSISTANT_NAME = "Agora Assistant / Синтезатор";
-const PROJECT_NAME = process.env.INNER_AGORA_PROJECT_NAME || "Agora Sessions";
-const GOAL_TITLE = process.env.INNER_AGORA_GOAL_TITLE || "Run philosophical research dialogues with The Inner Agora";
 const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.default_mode || "balanced";
 const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || AGORA_CONFIG.codex_model || "gpt-5.4";
 const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || AGORA_CONFIG.hermes_model || "google/gemma-4-26b-a4b-qat";
@@ -148,6 +147,18 @@ function activeChamberId(state = readState()) {
 
 function activeChamber(state = readState()) {
   return loadChamber(CHAMBERS_DIR, activeChamberId(state));
+}
+
+function activeChamberCompanyConfig(state = readState()) {
+  const chamber = activeChamber(state);
+  const company = chamber.company || {};
+  return {
+    chamber,
+    companyId: String(process.env.INNER_AGORA_COMPANY_ID || company.companyId || "").trim(),
+    companyName: String(process.env.INNER_AGORA_COMPANY_NAME || company.name || "").trim(),
+    projectName: String(process.env.INNER_AGORA_PROJECT_NAME || company.projectName || "").trim(),
+    goalTitle: String(process.env.INNER_AGORA_GOAL_TITLE || company.goalTitle || "").trim(),
+  };
 }
 
 function printActiveChamber(state = readState()) {
@@ -379,10 +390,15 @@ function paperclipFetchError(pathname, options, url, error, recovery) {
 }
 
 async function getAgora() {
+  const { chamber, companyId, companyName, projectName, goalTitle } = activeChamberCompanyConfig();
   const companies = await api("/companies");
-  const company = companies.find((item) => item.name === COMPANY_NAME && item.status !== "archived");
+  const company = companies.find((item) => {
+    if (item.status === "archived") return false;
+    if (companyId && item.id === companyId) return true;
+    return item.name === companyName;
+  });
   if (!company) {
-    throw new Error(`Company not found: ${COMPANY_NAME}. Run: node scripts/import-inner-agora.mjs`);
+    throw new Error(`Company not found: ${companyName}. Run: node scripts/import-inner-agora.mjs`);
   }
 
   const [agents, projects, goals] = await Promise.all([
@@ -392,10 +408,10 @@ async function getAgora() {
   ]);
 
   const assistant = agents.find((agent) => agent.name === ASSISTANT_NAME);
-  const project = projects.find((item) => item.name === PROJECT_NAME);
-  const goal = goals.find((item) => item.title === GOAL_TITLE);
+  const project = projects.find((item) => item.name === projectName);
+  const goal = goals.find((item) => item.title === goalTitle);
   if (!assistant || !project || !goal) {
-    throw new Error("The Inner Agora is incomplete. Run: node scripts/import-inner-agora.mjs");
+    throw new Error(`${chamber.name} is incomplete. Run: node scripts/import-inner-agora.mjs`);
   }
 
   const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
