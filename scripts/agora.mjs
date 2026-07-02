@@ -109,6 +109,8 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs policy [skill-id]
   node scripts/agora.mjs skills [role-key] [--json]
   node scripts/agora.mjs start [--json]
+  node scripts/agora.mjs wizard
+  node scripts/agora.mjs wizard-answer "answer"
   node scripts/agora.mjs understand [--routing-mode regex|llm] [--json] "human text"
   node scripts/agora.mjs natural [--routing-mode regex|llm] [--dry-run] [--json] "human text"
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
@@ -2407,6 +2409,142 @@ async function start(args = []) {
   return payload;
 }
 
+function wizardInitialSlots() {
+  return {
+    intent: "new_session",
+    chamber: null,
+    mode: "balanced",
+    topic: null,
+    roles: [],
+    taskRef: null,
+    missingSlots: ["topic"],
+    confidence: 0.8,
+  };
+}
+
+function writeWizard(wizard) {
+  return writeState({ wizard });
+}
+
+function chamberChoiceLines() {
+  return listChambers(CHAMBERS_DIR).map((chamber, index) => `${index + 1}. ${chamber.id} — ${chamber.name}`);
+}
+
+function printChamberQuestion() {
+  console.log("В какую палату поставить вопрос?");
+  for (const line of chamberChoiceLines()) console.log(line);
+}
+
+function printModeQuestion() {
+  console.log("Какую глубину разбора выбрать?");
+  console.log("1. коротко");
+  console.log("2. обычно");
+  console.log("3. глубоко");
+}
+
+function parseWizardChamber(answer) {
+  const value = looseText(answer);
+  const chambers = listChambers(CHAMBERS_DIR);
+  if (value === "1") return chambers[0]?.id || DEFAULT_CHAMBER_ID;
+  if (value === "2") return chambers[1]?.id || chambers[0]?.id || DEFAULT_CHAMBER_ID;
+  if (value.includes("board") || value.includes("директор") || value.includes("бизнес")) return "board-directors";
+  if (value.includes("philosophy") || value.includes("философ") || value.includes("агора")) return "philosophy";
+  return chambers.find((chamber) => value.includes(looseText(chamber.id)) || value.includes(looseText(chamber.name)))?.id || "";
+}
+
+function parseWizardMode(answer) {
+  const value = looseText(answer);
+  if (value === "1" || value.includes("корот") || value.includes("кратк") || value.includes("min")) return "min";
+  if (value === "3" || value.includes("глуб") || value.includes("подроб") || value.includes("max")) return "max";
+  if (value === "2" || value.includes("обыч") || value.includes("баланс") || value.includes("balanced")) return "balanced";
+  return "";
+}
+
+function wizardConfirmed(answer) {
+  return /^(да|yes|y|go|ок|окей|запускай|start)$/i.test(looseText(answer));
+}
+
+function wizardCancelled(answer) {
+  return /^(нет|no|n|cancel|отмена|стоп)$/i.test(looseText(answer));
+}
+
+function printWizardConfirmation(slots) {
+  const plan = decideNextStep(slots, {});
+  console.log("Запускать?");
+  console.log(plan.text || "/agora ask");
+  console.log("Ответь: да / нет");
+}
+
+async function wizard(args = []) {
+  writeWizard({
+    step: "topic",
+    slots: wizardInitialSlots(),
+    startedAt: new Date().toISOString(),
+  });
+  console.log("Какой вопрос поставить в Агору?");
+}
+
+async function wizardAnswer(args = []) {
+  const answer = args.join(" ").trim();
+  if (!answer) throw new Error('Usage: node scripts/agora.mjs wizard-answer "answer"');
+
+  const state = readState();
+  const current = state.wizard && typeof state.wizard === "object" ? state.wizard : null;
+  if (!current?.step) return wizard([]);
+  if (wizardCancelled(answer)) {
+    writeWizard(null);
+    console.log("Ок, wizard отменен.");
+    return;
+  }
+
+  const slots = { ...wizardInitialSlots(), ...(current.slots || {}) };
+  if (current.step === "topic") {
+    slots.topic = answer;
+    slots.missingSlots = [];
+    writeWizard({ ...current, step: "chamber", slots, updatedAt: new Date().toISOString() });
+    printChamberQuestion();
+    return;
+  }
+
+  if (current.step === "chamber") {
+    const chamber = parseWizardChamber(answer);
+    if (!chamber) {
+      printChamberQuestion();
+      return;
+    }
+    slots.chamber = chamber;
+    writeWizard({ ...current, step: "mode", slots, updatedAt: new Date().toISOString() });
+    printModeQuestion();
+    return;
+  }
+
+  if (current.step === "mode") {
+    const mode = parseWizardMode(answer);
+    if (!mode) {
+      printModeQuestion();
+      return;
+    }
+    slots.mode = mode;
+    writeWizard({ ...current, step: "confirm", slots, updatedAt: new Date().toISOString() });
+    printWizardConfirmation(slots);
+    return;
+  }
+
+  if (current.step === "confirm") {
+    if (!wizardConfirmed(answer)) {
+      console.log("Ответь: да / нет");
+      return;
+    }
+    writeWizard(null);
+    const plan = decideNextStep(slots, {});
+    if (plan.action !== "command") throw new Error(plan.question || "Wizard could not build a command");
+    return runPlannedCommand(plan.command);
+  }
+
+  writeWizard(null);
+  return wizard([]);
+}
+
 function parseNaturalArgs(args = []) {
   const options = {
     routingMode: process.env.ROUTING_MODE || "regex",
@@ -2464,6 +2602,8 @@ async function understand(args = []) {
 async function runPlannedCommand(command) {
   const [, plannedCommand, ...plannedArgs] = command;
   if (plannedCommand === "ask") return ask(plannedArgs);
+  if (plannedCommand === "wizard") return wizard(plannedArgs);
+  if (plannedCommand === "wizard-answer") return wizardAnswer(plannedArgs);
   if (plannedCommand === "latest") return latest(plannedArgs);
   if (plannedCommand === "voice") return voice(plannedArgs);
   if (plannedCommand === "task") return taskDetails(plannedArgs);
@@ -2471,13 +2611,36 @@ async function runPlannedCommand(command) {
   throw new Error(`Unsupported natural command: ${command.join(" ")}`);
 }
 
+function naturalCommandPayload(command, options, extra = {}) {
+  const text = command.join(" ");
+  const payload = {
+    action: "rewrite",
+    text,
+    plan: { action: "command", command, text, ...(extra.plan || {}) },
+    ...extra,
+  };
+  if (options.json) process.stdout.write(stableJson(payload));
+  else console.log(payload.text);
+  return payload;
+}
+
 async function natural(args = []) {
   const options = parseNaturalArgs(args);
+  const wizardState = readState().wizard;
+  if (wizardState?.step) {
+    const command = ["/agora", "wizard-answer", options.text];
+    if (options.dryRun || options.json) return naturalCommandPayload(command, options);
+    return runPlannedCommand(command);
+  }
+
   const context = naturalContext(options.text);
   const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode, context });
   const plan = decideNextStep(extracted.slots, context);
 
   if (options.dryRun || options.json) {
+    if (plan.action === "clarify" && Array.isArray(plan.missingSlots) && plan.missingSlots.includes("topic")) {
+      return naturalCommandPayload(["/agora", "wizard"], options, { source: extracted.source, slots: extracted.slots, plan });
+    }
     const payload =
       plan.action === "command"
         ? { action: "rewrite", text: plan.text, source: extracted.source, slots: extracted.slots, plan }
@@ -2488,6 +2651,7 @@ async function natural(args = []) {
   }
 
   if (plan.action === "clarify") {
+    if (Array.isArray(plan.missingSlots) && plan.missingSlots.includes("topic")) return wizard([]);
     console.log(plan.question);
     return plan;
   }
@@ -2504,6 +2668,8 @@ async function main() {
   if (command === "policy") return policyCommand(args);
   if (command === "skills") return skillsCommand(args);
   if (command === "start") return start(args);
+  if (command === "wizard") return wizard(args);
+  if (command === "wizard-answer" || command === "wizard_answer") return wizardAnswer(args);
   if (command === "understand") return understand(args);
   if (command === "natural") return natural(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);

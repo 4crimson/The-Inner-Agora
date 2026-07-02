@@ -204,6 +204,53 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def run_wizard_sequence(self):
+        AskFlowHandler.reset()
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                outputs = []
+                for command in [
+                    ["wizard"],
+                    ["wizard-answer", "что значит свобода у Сартра"],
+                    ["wizard-answer", "philosophy"],
+                    ["wizard-answer", "min"],
+                    ["wizard-answer", "да"],
+                ]:
+                    result = subprocess.run(
+                        ["node", str(AGORA_SCRIPT), *command],
+                        cwd=ROOT,
+                        env=env,
+                        text=True,
+                        capture_output=True,
+                        check=True,
+                    )
+                    outputs.append(result.stdout)
+                return {
+                    "stdout": "\n".join(outputs),
+                    "issues": list(AskFlowHandler.created_issues),
+                    "comments": list(AskFlowHandler.comments),
+                    "wakeups": list(AskFlowHandler.wakeups),
+                }
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_ask_creates_durable_work_and_returns_immediate_monitor_ack(self):
         result = self.run_ask("давай спросим агору про свободу ребенка и власть родителей")
         stdout = result["stdout"]
@@ -236,6 +283,19 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertEqual(child["assigneeAgentId"], "plato-1")
         self.assertIn("уточни у Платона понятие долга", child["description"])
         self.assertEqual(result["wakeups"][0]["agentId"], "plato-1")
+
+    def test_wizard_confirmation_creates_same_session_as_direct_ask(self):
+        result = self.run_wizard_sequence()
+
+        self.assertIn("Какой вопрос", result["stdout"])
+        self.assertIn("Запускать?", result["stdout"])
+        self.assertIn("Поставил вопрос в Агору: THE-900", result["stdout"])
+        self.assertEqual(len(result["issues"]), 4)
+        root, *children = result["issues"]
+        self.assertEqual(root["title"].split(":", 1)[0], "Agora min")
+        self.assertIn("что значит свобода у Сартра", root["description"])
+        self.assertTrue(all(child["parentId"] == "root-1" for child in children))
+        self.assertEqual(len(result["wakeups"]), 3)
 
 
 if __name__ == "__main__":

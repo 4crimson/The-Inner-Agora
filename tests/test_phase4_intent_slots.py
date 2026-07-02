@@ -231,6 +231,150 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["action"], "rewrite")
         self.assertEqual(payload["text"], "/agora voice plato")
 
+    def test_natural_missing_topic_rewrites_to_wizard_start(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "хочу запустить агору",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertEqual(payload["text"], "/agora wizard")
+
+    def test_wizard_pending_reply_rewrites_to_wizard_answer(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(json.dumps({"wizard": {"step": "topic", "slots": {}}}), encoding="utf-8")
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "что значит свобода у Сартра",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertEqual(payload["text"], "/agora wizard-answer что значит свобода у Сартра")
+
+    def test_wizard_start_initializes_state_and_prompts_topic(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(ROOT / "scripts" / "agora.mjs", "wizard", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertIn("Какой вопрос", result.stdout)
+            self.assertEqual(state["wizard"]["step"], "topic")
+
+    def test_wizard_topic_answer_prompts_chamber_and_updates_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "wizard": {
+                            "step": "topic",
+                            "slots": {
+                                "intent": "new_session",
+                                "chamber": None,
+                                "mode": "balanced",
+                                "topic": None,
+                                "roles": [],
+                                "taskRef": None,
+                                "missingSlots": ["topic"],
+                                "confidence": 0.8,
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "wizard-answer",
+                "что значит свобода у Сартра",
+                env=env,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertIn("палату", result.stdout.lower())
+        self.assertEqual(state["wizard"]["step"], "chamber")
+        self.assertEqual(state["wizard"]["slots"]["topic"], "что значит свобода у Сартра")
+
+    def test_wizard_chamber_answer_prompts_depth_and_updates_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "wizard": {
+                            "step": "chamber",
+                            "slots": {
+                                "intent": "new_session",
+                                "chamber": None,
+                                "mode": "balanced",
+                                "topic": "что значит свобода у Сартра",
+                                "roles": [],
+                                "taskRef": None,
+                                "missingSlots": [],
+                                "confidence": 0.8,
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(ROOT / "scripts" / "agora.mjs", "wizard-answer", "философия", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertIn("глуб", result.stdout.lower())
+        self.assertEqual(state["wizard"]["step"], "mode")
+        self.assertEqual(state["wizard"]["slots"]["chamber"], "philosophy")
+
+    def test_wizard_mode_answer_prompts_confirmation_and_reuses_planner(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "wizard": {
+                            "step": "mode",
+                            "slots": {
+                                "intent": "new_session",
+                                "chamber": "philosophy",
+                                "mode": "balanced",
+                                "topic": "что значит свобода у Сартра",
+                                "roles": [],
+                                "taskRef": None,
+                                "missingSlots": [],
+                                "confidence": 0.8,
+                            },
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(ROOT / "scripts" / "agora.mjs", "wizard-answer", "коротко", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertIn("Запускать", result.stdout)
+        self.assertIn("/agora ask --mode min", result.stdout)
+        self.assertEqual(state["wizard"]["step"], "confirm")
+        self.assertEqual(state["wizard"]["slots"]["mode"], "min")
+
     def test_follow_up_phrase_plans_child_request_against_last_root(self):
         slots = {
             "intent": "new_session",
