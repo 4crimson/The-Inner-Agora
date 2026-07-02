@@ -771,7 +771,18 @@ function selectChamberRoles(request, mode) {
   return uniqueRoles(selected).slice(0, selectedRoleLimit(request, mode));
 }
 
-function modePolicy(mode) {
+function isPhilosophyChamber(chamber = activeChamber()) {
+  return chamber.id === "philosophy";
+}
+
+function modePolicy(mode, chamber = activeChamber()) {
+  if (!isPhilosophyChamber(chamber)) {
+    if (mode === "all") return "Режим all: участвуют все роли из текущей палаты.";
+    if (mode === "max") return "Режим max: широкий совет ролей для выявления конфликтов, рисков и условий решения.";
+    if (mode === "balanced") return "Режим balanced: 5-7 релевантных ролей, достаточно глубоко без расползания.";
+    if (mode === "local") return "Режим local: короткий совет без внешней проверки; полезен для быстрых локальных запусков.";
+    return "Режим min: 3 роли, быстрый первый разбор.";
+  }
   if (mode === "all") return "Режим all: участвуют все философские машины из текущего состава.";
   if (mode === "max") return "Режим max: широкий совет, но не обязательно весь пантеон; цель — сильный конфликт перспектив.";
   if (mode === "balanced") return "Режим balanced: 5-7 релевантных голосов, достаточно глубоко без расползания.";
@@ -799,11 +810,34 @@ function roleLine(item) {
 /** @deprecated Use roleLine. */
 const philosopherLine = roleLine;
 
-function buildRootDescription({ request, mode, selected }) {
+function buildRootDescription({ request, mode, selected, chamber = activeChamber() }) {
+  if (!isPhilosophyChamber(chamber)) {
+    const agentLabel = chamber.labels?.agents || "roles";
+    const taskLabel = chamber.labels?.task || "task";
+    return [
+      `Запрос пользователя для ${chamber.name}.`,
+      "",
+      modePolicy(mode, chamber),
+      "",
+      `Выбранные участники (${agentLabel}):`,
+      selected.map(roleLine).join("\n"),
+      "",
+      "Исходный вопрос:",
+      request,
+      "",
+      "Как работать с этой задачей:",
+      `- Тип корневой задачи: ${taskLabel}.`,
+      `- Child-задачи создаются отдельно и назначаются выбранным участникам (${agentLabel}).`,
+      "- Участники дают собственные advisory-позиции и не финализируют общий вывод.",
+      "- После ответов запусти синтез: `node scripts/agora.mjs synthesize ISSUE_ID_OR_KEY`.",
+      "- Итоговый memo должен сохранить расхождения, условия решения, риски и следующий шаг.",
+    ].join("\n");
+  }
+
   return [
     "Запрос пользователя для The Inner Agora.",
     "",
-    modePolicy(mode),
+    modePolicy(mode, chamber),
     "",
     "Выбранные философские машины:",
     selected.map(roleLine).join("\n"),
@@ -944,14 +978,15 @@ async function ask(args) {
   const { request, mode, dryRun, all, noArchitects, philosopherList } = parseAskArgs(args);
   if (!request) throw new Error('Usage: node scripts/agora.mjs ask "your question"');
 
+  const chamber = activeChamber();
   const selected = selectPhilosophers(request, mode, philosopherList, { all, noArchitects });
 
   if (dryRun) {
-    console.log("# Dry-run: The Inner Agora council");
+    console.log(isPhilosophyChamber(chamber) ? "# Dry-run: The Inner Agora council" : `# Dry-run: ${chamber.name} council`);
     console.log(`mode=${mode}`);
     console.log(`voices=${selected.map((item) => item.name).join(", ")}`);
     console.log("");
-    console.log(buildRootDescription({ request, mode, selected }));
+    console.log(buildRootDescription({ request, mode, selected, chamber }));
     return;
   }
 
@@ -963,7 +998,7 @@ async function ask(args) {
 
   const rootIssue = await createIssue(agora.company.id, {
     title: `Agora ${mode}: ${cleanTitle(request)}`,
-    description: buildRootDescription({ request, mode, selected }),
+    description: buildRootDescription({ request, mode, selected, chamber }),
     status: "todo",
     workMode: "standard",
     priority: mode === "max" || mode === "all" ? "critical" : "high",

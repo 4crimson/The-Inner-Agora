@@ -38,6 +38,11 @@ const DEFAULT_COMMANDS = [
     name: "philosophers-tags",
     args: ["node", "scripts/agora.mjs", "philosophers", "--tags"],
   },
+  {
+    name: "board-directors-ask-dry-run",
+    env: { INNER_AGORA_ACTIVE_CHAMBER: "board-directors" },
+    args: ["node", "scripts/agora.mjs", "ask", "--dry-run", "go/no-go по найму CTO"],
+  },
 ];
 
 function usage(exitCode = 0) {

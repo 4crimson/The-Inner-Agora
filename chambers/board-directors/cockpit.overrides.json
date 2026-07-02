@@ -28,12 +28,12 @@
     }
   },
   "labels": {
-    "company": "board",
-    "companies": "boards",
-    "agent": "director",
-    "agents": "directors",
-    "task": "decision",
-    "tasks": "decisions",
+    "company": "совет",
+    "companies": "советы",
+    "agent": "директор",
+    "agents": "директора",
+    "task": "решение",
+    "tasks": "решения",
     "comment": "note",
     "comments": "notes"
   },

@@ -429,7 +429,7 @@ Expected: selected voices are board roles, not philosophers.
 - Modify: `scripts/regression.mjs`
 - Create: `tests/fixtures/baseline/board-directors-ask-dry-run.json`
 
-- [ ] **Step 1: Add regression command**
+- [x] **Step 1: Add regression command**
 
 Add a dry-run command with `INNER_AGORA_ACTIVE_CHAMBER=board-directors`:
 
@@ -441,7 +441,7 @@ Add a dry-run command with `INNER_AGORA_ACTIVE_CHAMBER=board-directors`:
 }
 ```
 
-- [ ] **Step 2: Record and verify**
+- [x] **Step 2: Record and verify**
 
 Run:
 
