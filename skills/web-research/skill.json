@@ -1,0 +1,10 @@
+{
+  "id": "web-research",
+  "name": "Web Research",
+  "description": "Read-only web research for current facts, source discovery, and source verification.",
+  "riskTier": "L1",
+  "allowedTools": [
+    "web-search",
+    "web-open"
+  ]
+}

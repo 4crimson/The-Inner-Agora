@@ -1,0 +1,10 @@
+{
+  "id": "memory-export",
+  "name": "Memory Export",
+  "description": "Export a completed Paperclip session into local memory files through deterministic project commands.",
+  "riskTier": "L1",
+  "allowedTools": [
+    "paperclip-api",
+    "filesystem-write"
+  ]
+}

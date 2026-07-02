@@ -1,0 +1,7 @@
+{
+  "id": "source-citation",
+  "name": "Source Citation",
+  "description": "Shared transparency protocol for source-backed, reconstructed, imitated, and modern-transfer claims.",
+  "riskTier": "L0",
+  "allowedTools": []
+}

@@ -185,7 +185,7 @@ git commit -m "Add skill manifest schema and loader"
 - Create: `skills/memory-export/SKILL.md`
 - Test: `tests/test_phase3_skills.py`
 
-- [ ] **Step 1: Write failing starter skill tests**
+- [x] **Step 1: Write failing starter skill tests**
 
 Add tests:
 
@@ -215,14 +215,14 @@ python3 -m unittest tests.test_phase3_skills
 
 Expected before implementation: FAIL because starter skills do not exist.
 
-- [ ] **Step 2: Create starter manifests**
+- [x] **Step 2: Create starter manifests**
 
 Use these risk tiers:
 - `web-research`: `L1`, `allowedTools`: `["web-search", "web-open"]`
 - `source-citation`: `L0`, `allowedTools`: `[]`
 - `memory-export`: `L1`, `allowedTools`: `["paperclip-api", "filesystem-write"]`
 
-- [ ] **Step 3: Create starter SKILL.md files**
+- [x] **Step 3: Create starter SKILL.md files**
 
 Each `SKILL.md` must contain a prompt block:
 
@@ -234,7 +234,7 @@ Each `SKILL.md` must contain a prompt block:
 
 `source-citation` prompt block must contain the current transparency protocol text.
 
-- [ ] **Step 4: Verify starter skills**
+- [x] **Step 4: Verify starter skills**
 
 Run:
 

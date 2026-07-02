@@ -64,6 +64,24 @@ class Phase3SkillTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in payload["skills"]], ["source-citation"])
         self.assertIn("not allowed by chamber", payload["diagnostics"][0]["message"])
 
+    def test_skill_loader_lists_starter_skills(self):
+        result = self.run_node(SKILL_LOADER, "list", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(
+            sorted(item["id"] for item in payload["skills"]),
+            ["memory-export", "source-citation", "web-research"],
+        )
+
+    def test_source_citation_prompt_exposes_transparency_policy(self):
+        result = self.run_node(SKILL_LOADER, "prompt", "source-citation", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertIn("Протокол прозрачности", payload["prompt"])
+        self.assertIn("[источник]", payload["prompt"])
+
 
 if __name__ == "__main__":
     unittest.main()
