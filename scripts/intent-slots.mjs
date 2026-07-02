@@ -10,8 +10,9 @@ const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
   ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
   : path.join(ROOT, "chambers");
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
-const INTENTS = new Set(["new_session", "status", "result", "task_lookup", "role_detail", "help", "other"]);
+const INTENTS = new Set(["new_session", "status", "result", "synthesis", "task_lookup", "role_detail", "help", "other"]);
 const MODES = new Set(["min", "balanced", "max", "all"]);
+const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
 
 function usage(exitCode = 0) {
   console.log(`Usage:
@@ -174,10 +175,38 @@ function modeFromText(text) {
 }
 
 function cleanTopic(text) {
-  return String(text || "")
-    .replace(/^\s*(давай|хочу|можешь|пожалуйста)\s+/i, "")
-    .replace(/\b(спросим|спроси|запусти|собери|создай|поставь|задай|исследуем|исследуй|консилиум|совет|агора|агоре|философов)\b/giu, " ")
-    .replace(/\b(коротко|быстро|кратко|глубоко|подробно|полный|максимально)\b/giu, " ")
+  let value = String(text || "");
+  for (const fragment of [
+    "давай",
+    "хочу",
+    "можешь",
+    "пожалуйста",
+    "спросим",
+    "спроси",
+    "запусти",
+    "собери",
+    "создай",
+    "поставь",
+    "задай",
+    "исследуем",
+    "исследуй",
+    "консилиум",
+    "совет директоров",
+    "совет",
+    "агора",
+    "агоре",
+    "философов",
+    "коротко",
+    "быстро",
+    "кратко",
+    "глубоко",
+    "подробно",
+    "полный",
+    "максимально",
+  ]) {
+    value = value.replace(new RegExp(fragment, "giu"), " ");
+  }
+  return value
     .replace(/^\s*(про|по теме|о том|о)\s+/iu, "")
     .replace(/\s+/g, " ")
     .replace(/^[,.:;\s]+|[,.:;\s]+$/g, "")
@@ -218,8 +247,16 @@ export function regexFallbackSlots(userText, context = {}) {
     return normalizeIntentSlots(baseSlots({ intent: "help", chamber: chamberFromText(text), confidence: 0.9 }));
   }
 
-  if (hasAny(loose, ["что там", "готов", "статус", "status"])) {
+  if (hasAny(loose, ["готов"]) && hasAny(loose, ["синтез", "результат"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "status", topic: "synthesis", confidence: 0.88 }));
+  }
+
+  if (hasAny(loose, ["что там", "статус", "status"])) {
     return normalizeIntentSlots(baseSlots({ intent: "status", confidence: 0.88 }));
+  }
+
+  if (hasAny(loose, ["собери синтез", "сделай синтез", "запусти синтез", "синтезируй", "собери итог", "сделай итог"])) {
+    return normalizeIntentSlots(baseSlots({ intent: "synthesis", confidence: 0.86 }));
   }
 
   if (hasAny(loose, ["выжим", "результат", "итог", "синтез", "summary"])) {
@@ -357,7 +394,8 @@ export function decideNextStep(slots, context = {}) {
   }
 
   if (normalized.intent === "new_session") {
-    const command = ["/agora", "ask", "--mode", normalized.mode || "balanced"];
+    const command = ["/agora", "ask"];
+    if (normalized.mode && normalized.mode !== "balanced") command.push("--mode", normalized.mode);
     if (normalized.roles.length) command.push("--voices", normalized.roles.join(","));
     command.push(normalized.topic);
     return {
@@ -373,13 +411,30 @@ export function decideNextStep(slots, context = {}) {
     return { action: "command", command, text: commandText(command), ack: "Покажу отдельный голос." };
   }
 
-  if (normalized.intent === "result" || normalized.intent === "status") {
+  if (normalized.intent === "result") {
     const command = ["/agora", "latest"];
     return { action: "command", command, text: commandText(command), ack: "Проверю последнюю сессию." };
   }
 
+  if (normalized.intent === "status") {
+    const synthesisStatus = looseText(normalized.topic).includes("synthesis") || looseText(normalized.topic).includes("синтез");
+    const command = synthesisStatus ? ["/agora", "result"] : ["/agora", "latest"];
+    return {
+      action: "command",
+      command,
+      text: commandText(command),
+      ack: synthesisStatus ? "Проверю готовность синтеза." : "Проверю последнюю сессию.",
+    };
+  }
+
+  if (normalized.intent === "synthesis") {
+    const command = ["/agora", "synth"];
+    return { action: "command", command, text: commandText(command), ack: "Запущу синтез." };
+  }
+
   if (normalized.intent === "task_lookup") {
-    const command = ["/agora", "task", normalized.taskRef];
+    const taskRef = /^\d+$/.test(normalized.taskRef || "") ? `${DEFAULT_ISSUE_PREFIX}-${normalized.taskRef}` : normalized.taskRef;
+    const command = ["/agora", "session", taskRef];
     return { action: "command", command, text: commandText(command), ack: "Покажу задачу." };
   }
 

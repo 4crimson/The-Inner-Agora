@@ -149,6 +149,36 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 )
                 self.assertEqual(self.plugin._rewrite_text("show ticket 42"), "/work ticket WK-42")
 
+    def test_natural_rewrite_can_delegate_to_configured_understander(self):
+        config = {
+            "command": {"name": "agora"},
+            "natural_language": {
+                "delegate": {
+                    "exec": [
+                        "node",
+                        "scripts/agora.mjs",
+                        "natural",
+                        "--routing-mode",
+                        "regex",
+                        "--dry-run",
+                        "--json",
+                        "{text}",
+                    ]
+                }
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_CWD=str(ROOT),
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ):
+                self.assertEqual(self.plugin._rewrite_text("дай выжимку по последней таске"), "/agora latest")
+
     def test_run_action_can_take_cwd_from_environment(self):
         config = {"actions": {"where": {"exec": ["pwd"], "append_args": False}}}
         with tempfile.TemporaryDirectory() as temp_dir:

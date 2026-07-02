@@ -407,6 +407,11 @@ def _notifications_config() -> dict[str, Any]:
     return _merge_dict(DEFAULT_NOTIFICATIONS, raw if isinstance(raw, dict) else {})
 
 
+def _natural_language_config() -> dict[str, Any]:
+    raw = _config().get("natural_language", {})
+    return raw if isinstance(raw, dict) else {}
+
+
 def _notification_comment_template(key: str) -> str:
     comments = _notifications_config().get("comments", {})
     if not isinstance(comments, dict):
@@ -2052,6 +2057,58 @@ def _rewrite_intent(raw: str, lowered: str) -> str | None:
     return None
 
 
+def _rewrite_delegate(raw: str) -> str | None:
+    delegate = _natural_language_config().get("delegate")
+    if not isinstance(delegate, dict) or _as_bool(delegate.get("disabled"), False):
+        return None
+    command = delegate.get("exec") or delegate.get("command")
+    if isinstance(command, str):
+        args = _parse_words(command)
+    elif isinstance(command, list):
+        args = [str(item) for item in command]
+    else:
+        return None
+    if not args:
+        return None
+
+    values = _SafeFormatDict({"text": raw})
+    try:
+        args = [arg.format_map(values) for arg in args]
+    except Exception as exc:
+        logger.warning("Paperclip natural delegate format failed: %s", exc)
+        return None
+
+    cwd = str(delegate.get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
+    timeout = int(delegate.get("timeout", 30))
+    try:
+        result = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        logger.info("Paperclip natural delegate timed out after %ss", timeout)
+        return None
+    except Exception as exc:
+        logger.info("Paperclip natural delegate failed before execution: %s", exc)
+        return None
+
+    if result.returncode != 0:
+        logger.info("Paperclip natural delegate exited %s: %s", result.returncode, result.stderr.strip())
+        return None
+
+    try:
+        payload = json.loads(result.stdout.strip() or "{}")
+    except Exception as exc:
+        logger.info("Paperclip natural delegate returned non-JSON output: %s", exc)
+        return None
+    if not isinstance(payload, dict) or payload.get("action") != "rewrite":
+        return None
+    rewritten = str(payload.get("text") or "").strip()
+    if not rewritten:
+        return None
+    if not rewritten.casefold().startswith(_slash().casefold()):
+        logger.info("Paperclip natural delegate rejected non-command rewrite: %s", rewritten)
+        return None
+    return rewritten
+
+
 def _rewrite_text(text: str) -> str | None:
     if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
         return None
@@ -2065,6 +2122,10 @@ def _rewrite_text(text: str) -> str | None:
         return None
     if raw.startswith("/"):
         return None
+
+    delegated = _rewrite_delegate(raw)
+    if delegated:
+        return delegated
 
     action_rewrite = _rewrite_action(raw, lowered)
     if action_rewrite:

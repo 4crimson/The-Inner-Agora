@@ -3,6 +3,19 @@
     "default_mode": "local",
     "hermes_model": "google/gemma-4-26b-a4b-qat"
   },
+  "natural_language": {
+    "delegate": {
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "natural",
+        "--dry-run",
+        "--json",
+        "{text}"
+      ],
+      "timeout": 45
+    }
+  },
   "language": "ru",
   "company_hints": [
     "The Inner Agora"
