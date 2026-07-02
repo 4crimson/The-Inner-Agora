@@ -231,6 +231,64 @@ class InnerAgoraConversationCycleTests(unittest.TestCase):
             )
         return result
 
+    def test_two_telegram_chats_keep_separate_last_root_state(self):
+        FullCycleHandler.reset()
+        server = TestHTTPServer(("127.0.0.1", 0), FullCycleHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config = json.loads(REAL_CONFIG.read_text(encoding="utf-8"))
+                config["cwd"] = str(ROOT)
+                config.setdefault("agora", {})["default_mode"] = "local"
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_dir = Path(temp_dir) / "state"
+                profile_dir = Path(temp_dir) / "profiles"
+                config_path.write_text(json.dumps(config), encoding="utf-8")
+                base_env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_DIR": str(state_dir),
+                    "INNER_AGORA_PROFILE_DIR": str(profile_dir),
+                    "INNER_AGORA_LEGACY_STATE_PATH": str(Path(temp_dir) / "missing-legacy.json"),
+                    "STATE_MODE": "per-chat",
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                    "PAPERCLIP_COCKPIT_NL_REWRITE": "1",
+                    "PAPERCLIP_COCKPIT_NL_WRITES": "0",
+                }
+
+                def rewrite_for(chat_id, text):
+                    class Source:
+                        platform = "telegram"
+
+                    Source.chat_id = chat_id
+
+                    class Event:
+                        source = Source()
+
+                    Event.text = text
+
+                    with EnvPatch(**base_env, INNER_AGORA_CHAT_ID=chat_id):
+                        return self.plugin._pre_gateway_dispatch(Event())
+
+                first = rewrite_for("chat-a", "давай спросим агору про свободу ребенка")
+                first_command = shlex.split(first["text"])
+                self.run_node([AGORA_SCRIPT, "ask", *first_command[2:]], {**base_env, "INNER_AGORA_CHAT_ID": "chat-a"})
+
+                second = rewrite_for("chat-b", "давай спросим агору про свободу родителей")
+                second_command = shlex.split(second["text"])
+                self.run_node([AGORA_SCRIPT, "ask", *second_command[2:]], {**base_env, "INNER_AGORA_CHAT_ID": "chat-b"})
+
+                chat_a_state = json.loads((state_dir / "chat-a.json").read_text(encoding="utf-8"))
+                chat_b_state = json.loads((state_dir / "chat-b.json").read_text(encoding="utf-8"))
+                self.assertNotEqual(chat_a_state["lastRootIssueRef"], chat_b_state["lastRootIssueRef"])
+                self.assertEqual(chat_a_state["chatId"], "chat-a")
+                self.assertEqual(chat_b_state["chatId"], "chat-b")
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_natural_telegram_like_round_trip_without_live_bot_side_effects(self):
         FullCycleHandler.reset()
         server = TestHTTPServer(("127.0.0.1", 0), FullCycleHandler)
