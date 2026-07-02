@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -71,6 +72,41 @@ class Phase5ModelRoutingTests(unittest.TestCase):
         self.assertEqual(overridden.returncode, 0, overridden.stderr)
         overridden_payload = json.loads(overridden.stdout)
         self.assertEqual(overridden_payload["model"], "test/slot-model")
+
+    def test_setup_profile_uses_models_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base_config = json.loads((ROOT / "models.config.json").read_text(encoding="utf-8"))
+            base_config["adapters"]["hermes_local"]["model"] = "test/local-model"
+            base_config["adapters"]["hermes_local"]["baseUrl"] = "http://127.0.0.1:9999/v1"
+            models_config = Path(temp_dir) / "models.config.json"
+            models_config.write_text(json.dumps(base_config), encoding="utf-8")
+            hermes_home = Path(temp_dir) / "hermes"
+
+            result = self.run_node(
+                ROOT / "scripts" / "setup-hermes-profile.mjs",
+                env={
+                    "HERMES_HOME": str(hermes_home),
+                    "INNER_AGORA_MODELS_CONFIG": str(models_config),
+                    "INNER_AGORA_WRAPPER_PATH": str(Path(temp_dir) / "bin" / "inneragora"),
+                },
+            )
+
+            config_path = hermes_home / "profiles" / "inneragora" / "config.yaml"
+            config_text = config_path.read_text(encoding="utf-8")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("default: test/local-model", config_text)
+        self.assertIn("base_url: http://127.0.0.1:9999/v1", config_text)
+
+    def test_no_gemma_literal_remains_in_mjs_files(self):
+        result = subprocess.run(
+            ["git", "grep", "gemma-4-26b", "--", "*.mjs"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stdout)
 
 
 if __name__ == "__main__":

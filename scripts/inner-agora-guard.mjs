@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { hermesProfileConfig } from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILE_NAME = process.env.INNER_AGORA_HERMES_PROFILE_NAME || "inneragora";
@@ -16,7 +17,7 @@ const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
 const COCKPIT_CONFIG_PATH = path.join(ROOT, "paperclip-cockpit.json");
 const PLUGIN_NAMES = ["paperclip-cockpit"];
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
-const EXPECTED_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const EXPECTED_HERMES_MODEL = hermesProfileConfig().model;
 const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
 const HERMES_AGENT_DIR = process.env.INNER_AGORA_HERMES_AGENT_DIR || path.join(os.homedir(), ".hermes", "hermes-agent");
 const TELEGRAM_ADAPTER_PATH = path.join(HERMES_AGENT_DIR, "plugins", "platforms", "telegram", "adapter.py");

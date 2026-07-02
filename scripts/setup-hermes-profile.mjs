@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hermesProfileConfig } from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PROFILE_NAME = process.env.INNER_AGORA_HERMES_PROFILE_NAME || "inneragora";
@@ -22,8 +23,9 @@ const PLUGINS = ["paperclip-cockpit"].map((name) => ({
   target: path.join(PROFILE_DIR, "plugins", name),
 }));
 const WRAPPER_PATH = process.env.INNER_AGORA_WRAPPER_PATH || path.join(os.homedir(), ".local", "bin", "inneragora");
-const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
-const HERMES_BASE_URL = process.env.INNER_AGORA_HERMES_BASE_URL || "http://192.168.1.229:1234/v1";
+const HERMES_PROFILE = hermesProfileConfig();
+const HERMES_MODEL = HERMES_PROFILE.model;
+const HERMES_BASE_URL = HERMES_PROFILE.baseUrl;
 
 function configTemplate() {
   return `model:

@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { decideNextStep, extractIntentSlots } from "./intent-slots.mjs";
 import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
+import {
+  codexAdapterConfig as configuredCodexAdapterConfig,
+  hermesAdapterConfig as configuredHermesAdapterConfig,
+} from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -26,8 +30,8 @@ const AGORA_CONFIG = COCKPIT_CONFIG.agora && typeof COCKPIT_CONFIG.agora === "ob
 const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const ASSISTANT_NAME = "Agora Assistant / Синтезатор";
 const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.default_mode || "balanced";
-const DEFAULT_CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || AGORA_CONFIG.codex_model || "gpt-5.4";
-const DEFAULT_HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || AGORA_CONFIG.hermes_model || "google/gemma-4-26b-a4b-qat";
+const DEFAULT_CODEX_MODEL = configuredCodexAdapterConfig().model;
+const DEFAULT_HERMES_MODEL = configuredHermesAdapterConfig().model;
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
 const ISSUE_REF_RE = /\b([A-Z][A-Z0-9]{1,12}-\d+)\b/i;
 const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";

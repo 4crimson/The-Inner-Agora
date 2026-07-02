@@ -114,8 +114,7 @@
     }
   },
   "agora": {
-    "default_mode": "local",
-    "hermes_model": "google/gemma-4-26b-a4b-qat"
+    "default_mode": "local"
   },
   "natural_language": {
     "start": {

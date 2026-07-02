@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
+import { slotExtractorConfig } from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
@@ -422,8 +423,9 @@ lastRootIssueRef: ${lastRoot}
 }
 
 async function callLocalModel(userText, options = {}) {
-  const baseUrl = (options.baseUrl || process.env.INNER_AGORA_LLM_BASE_URL || "http://127.0.0.1:1234/v1").replace(/\/+$/, "");
-  const model = options.model || process.env.INNER_AGORA_LLM_MODEL || "gemma-4-26b-a4b-it-mlx";
+  const extractorConfig = slotExtractorConfig();
+  const baseUrl = (options.baseUrl || extractorConfig.baseUrl).replace(/\/+$/, "");
+  const model = options.model || extractorConfig.model;
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json" },

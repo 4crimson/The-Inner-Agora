@@ -8,6 +8,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadChamber } from "./chamber-loader.mjs";
 import { loadSkillPrompt } from "./skill-loader.mjs";
+import {
+  codexAdapterConfig as configuredCodexAdapterConfig,
+  hermesAdapterConfig as configuredHermesAdapterConfig,
+} from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
@@ -25,7 +29,9 @@ const SKILLS_DIR = process.env.INNER_AGORA_SKILLS_DIR
 const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const HERMES_COMMAND = process.env.INNER_AGORA_HERMES_COMMAND || "/Users/admin/.local/bin/inneragora";
-const HERMES_MODEL = process.env.INNER_AGORA_HERMES_MODEL || "google/gemma-4-26b-a4b-qat";
+const CONFIGURED_HERMES_ADAPTER = configuredHermesAdapterConfig();
+const CONFIGURED_CODEX_ADAPTER = configuredCodexAdapterConfig();
+const HERMES_MODEL = CONFIGURED_HERMES_ADAPTER.model;
 const CODEX_COMMAND = process.env.CODEX_CLI_PATH || "/Applications/Codex.app/Contents/Resources/codex";
 const CODEX_AUTH_SOURCE =
   process.env.INNER_AGORA_CODEX_AUTH_SOURCE || path.join(os.homedir(), ".codex", "auth.json");
@@ -34,8 +40,8 @@ const PAPERCLIP_INSTANCE_ROOT =
 const PAPERCLIP_AGENT_WORKSPACE =
   process.env.INNER_AGORA_PAPERCLIP_AGENT_WORKSPACE ||
   path.join(PAPERCLIP_INSTANCE_ROOT, "workspaces", "inner-agora-agent-workspace");
-const CODEX_MODEL = process.env.INNER_AGORA_CODEX_MODEL || "gpt-5.4";
-const CODEX_REASONING_EFFORT = process.env.INNER_AGORA_CODEX_REASONING_EFFORT || "medium";
+const CODEX_MODEL = CONFIGURED_CODEX_ADAPTER.model;
+const CODEX_REASONING_EFFORT = CONFIGURED_CODEX_ADAPTER.reasoningEffort || "medium";
 const AGENT_ADAPTER = normalizeAgentAdapter(process.env.INNER_AGORA_AGENT_ADAPTER || "codex_local");
 const HERMES_TIMEOUT_SEC = Number(process.env.INNER_AGORA_HERMES_TIMEOUT_SEC || 900);
 
@@ -124,6 +130,7 @@ const hermesAdapterConfig = {
   persistSession: true,
   timeoutSec: HERMES_TIMEOUT_SEC,
   graceSec: 10,
+  baseUrl: CONFIGURED_HERMES_ADAPTER.baseUrl,
   env: {
     INNER_AGORA_LANGUAGE: { type: "plain", value: "ru" },
     INNER_AGORA_MODE: { type: "plain", value: "philosophical-research" },
