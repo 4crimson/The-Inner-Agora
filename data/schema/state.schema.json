@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inner-agora.local/schema/state.schema.json",
+  "title": "Inner Agora state",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "chatId": { "type": "string", "minLength": 1 },
+    "updatedAt": { "type": "string" },
+    "activeChamberId": { "type": "string" },
+    "mode": { "enum": ["min", "local", "balanced", "max", "all"] },
+    "lastIssueRef": { "type": "string" },
+    "lastIssueId": { "type": "string" },
+    "lastIssueTitle": { "type": "string" },
+    "lastIssueStatus": { "type": "string" },
+    "lastIssueSeenAt": { "type": "string" },
+    "lastRootIssueRef": { "type": "string" },
+    "lastRootIssueId": { "type": "string" },
+    "lastSynthesisRef": { "type": "string" },
+    "lastSynthesisId": { "type": "string" },
+    "lastSynthesisSeenAt": { "type": "string" },
+    "lastAdapterName": { "type": "string" },
+    "lastAdapterModel": { "type": "string" },
+    "lastAdapterReason": { "type": "string" },
+    "lastAdapterRiskTier": { "type": "string" },
+    "wizard": {}
+  }
+}
