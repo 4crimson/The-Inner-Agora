@@ -281,6 +281,21 @@ function adapterDisplayLine(adapter) {
   return `adapter=${adapter.name}, model=${adapter.model}, reason=${adapter.reason}, risk=${adapter.riskTier}`;
 }
 
+function adapterFromState(state = readState()) {
+  if (!state.lastAdapterName) return null;
+  return {
+    name: state.lastAdapterName,
+    model: state.lastAdapterModel || "-",
+    reason: state.lastAdapterReason || "-",
+    riskTier: state.lastAdapterRiskTier || "-",
+  };
+}
+
+function adapterFromIssue(issue) {
+  const adapter = issue?.metadata?.innerAgora?.adapter || issue?.metadata?.innerAgoraAdapter || null;
+  return adapter?.name ? adapter : null;
+}
+
 function printMode(mode, state = readState()) {
   const adapter = adapterForMode(mode);
   console.log(`mode=${mode}`);
@@ -1768,9 +1783,16 @@ function rootFromMap(issue, byId) {
 async function status(args = []) {
   const issueRef = latestIssueRef(args);
   if (issueRef) return taskDetails([issueRef]);
+  const state = readState();
+  const lastAdapter = adapterFromState(state);
 
   printActiveChamber();
   console.log("");
+  if (lastAdapter) {
+    console.log("Последний маршрут модели:");
+    console.log(`- ${adapterDisplayLine(lastAdapter)}`);
+    console.log("");
+  }
 
   const { company, agents } = await getAgora();
   const [issues, runs] = await Promise.all([
@@ -1938,11 +1960,13 @@ async function latest(args) {
   const children = childrenOf(root, allIssues);
   const synthesis = latestSynthesisChild(root, allIssues, agora);
   const philosopherChildren = children.filter((issue) => issue.id !== synthesis?.id);
+  const rootAdapter = adapterFromIssue(root);
   rememberIssue(synthesis || root, {
     lastRootIssueRef: root.identifier || root.id,
     lastRootIssueId: root.id,
     lastSynthesisRef: synthesis?.identifier || "",
     lastSynthesisId: synthesis?.id || "",
+    ...(rootAdapter ? adapterStatePatch(rootAdapter) : {}),
   });
 
   console.log(`# Последняя Paperclip-сессия: ${root.identifier || root.id}`);
@@ -1951,6 +1975,11 @@ async function latest(args) {
   console.log(`- created: ${root.createdAt || "-"}`);
   console.log(`- updated: ${root.updatedAt || "-"}`);
   console.log(`- url: http://127.0.0.1:3100/issues/${root.id}`);
+  if (rootAdapter) {
+    console.log("");
+    console.log("## Маршрут модели");
+    console.log(`- ${adapterDisplayLine(rootAdapter)}`);
+  }
   console.log("");
   console.log("## Вопрос");
   console.log(rootQuestion(root));

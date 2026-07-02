@@ -28,6 +28,7 @@ class AskFlowHandler(BaseHTTPRequestHandler):
     created_issues = []
     comments = []
     issue_comments = {}
+    heartbeat_runs = []
     wakeups = []
 
     @classmethod
@@ -35,6 +36,7 @@ class AskFlowHandler(BaseHTTPRequestHandler):
         cls.created_issues = []
         cls.comments = []
         cls.issue_comments = {}
+        cls.heartbeat_runs = []
         cls.wakeups = []
 
     @classmethod
@@ -70,6 +72,7 @@ class AskFlowHandler(BaseHTTPRequestHandler):
             "/api/companies/company-1/projects": self.projects,
             "/api/companies/company-1/goals": self.goals,
             "/api/companies/company-1/issues": self.created_issues,
+            "/api/companies/company-1/heartbeat-runs": self.heartbeat_runs,
         }
         if self.path in routes:
             self.send_json(routes[self.path])
@@ -373,6 +376,106 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def run_latest_with_adapter_metadata(self):
+        AskFlowHandler.reset()
+        AskFlowHandler.created_issues.append(
+            {
+                "id": "root-1",
+                "identifier": "THE-900",
+                "companyId": "company-1",
+                "title": "Agora local: freedom",
+                "description": "Исходный вопрос:\nчто значит свобода",
+                "status": "todo",
+                "createdAt": "2026-07-02T09:00:00.000Z",
+                "updatedAt": "2026-07-02T09:10:00.000Z",
+                "metadata": {
+                    "innerAgora": {
+                        "adapter": {
+                            "name": "hermes_local",
+                            "model": "test/hermes-local",
+                            "reason": "localMode",
+                            "riskTier": "reflective",
+                        }
+                    }
+                },
+            }
+        )
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                result = subprocess.run(
+                    ["node", str(AGORA_SCRIPT), "latest", "THE-900"],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+                return {"stdout": result.stdout, "state": state}
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def run_status_with_adapter_state(self):
+        AskFlowHandler.reset()
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                state_path.write_text(
+                    json.dumps(
+                        {
+                            "lastAdapterName": "hermes_local",
+                            "lastAdapterModel": "test/hermes-local",
+                            "lastAdapterReason": "localMode",
+                            "lastAdapterRiskTier": "reflective",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                result = subprocess.run(
+                    ["node", str(AGORA_SCRIPT), "status"],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                )
+                return result.stdout
+        finally:
+            server.shutdown()
+            server.server_close()
+
     def test_ask_creates_durable_work_and_returns_immediate_monitor_ack(self):
         result = self.run_ask("давай спросим агору про свободу ребенка и власть родителей")
         stdout = result["stdout"]
@@ -453,6 +556,22 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("Выжимка синтеза", child["description"])
         self.assertIn("Сартр: свобода как ответственность", child["description"])
         self.assertEqual(result["wakeups"][0]["agentId"], "heidegger-1")
+
+    def test_latest_prints_adapter_metadata_from_root_issue(self):
+        result = self.run_latest_with_adapter_metadata()
+
+        self.assertIn("## Маршрут модели", result["stdout"])
+        self.assertIn("adapter=hermes_local", result["stdout"])
+        self.assertIn("model=test/hermes-local", result["stdout"])
+        self.assertEqual(result["state"]["lastAdapterName"], "hermes_local")
+        self.assertEqual(result["state"]["lastAdapterModel"], "test/hermes-local")
+
+    def test_status_prints_last_adapter_route_from_state(self):
+        stdout = self.run_status_with_adapter_state()
+
+        self.assertIn("Последний маршрут модели:", stdout)
+        self.assertIn("adapter=hermes_local", stdout)
+        self.assertIn("model=test/hermes-local", stdout)
 
 
 if __name__ == "__main__":
