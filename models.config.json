@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "slotExtractor": {
+    "adapter": "lmstudio_slots",
+    "model": "gemma-4-26b-a4b-it-mlx",
+    "baseUrl": "http://127.0.0.1:1234/v1"
+  },
+  "adapters": {
+    "hermes_local": {
+      "type": "hermes_local",
+      "model": "google/gemma-4-26b-a4b-qat",
+      "baseUrl": "http://192.168.1.229:1234/v1",
+      "reasoningEffort": "none"
+    },
+    "codex_local": {
+      "type": "codex_local",
+      "model": "gpt-5.4",
+      "reasoningEffort": "medium"
+    }
+  },
+  "routingRule": {
+    "default": "codex_local",
+    "localMode": "hermes_local",
+    "shortDialogueSingleRole": "hermes_local",
+    "fullCouncilHighStakes": "codex_local"
+  }
+}
