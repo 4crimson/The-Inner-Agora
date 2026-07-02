@@ -162,6 +162,35 @@ class Phase4IntentSlotTests(unittest.TestCase):
         plan = json.loads(result.stdout)
         self.assertEqual(plan["command"], ["/agora", "voice", "plato"])
 
+    def test_agora_understand_returns_slots_and_plan(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "understand",
+            "--routing-mode",
+            "regex",
+            "--json",
+            "дай выжимку по последней таске",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["slots"]["intent"], "result")
+        self.assertEqual(payload["plan"]["command"], ["/agora", "latest"])
+
+    def test_agora_natural_dry_run_returns_rewrite_text(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "а что сказал Платон?",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertEqual(payload["text"], "/agora voice plato")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
+import { decideNextStep, extractIntentSlots } from "./intent-slots.mjs";
 import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -106,6 +107,8 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs chamber [list|current|use <id>]
   node scripts/agora.mjs policy [skill-id]
   node scripts/agora.mjs skills [role-key] [--json]
+  node scripts/agora.mjs understand [--routing-mode regex|llm] [--json] "human text"
+  node scripts/agora.mjs natural [--routing-mode regex|llm] [--dry-run] [--json] "human text"
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs recheck [issue-id-or-key]
@@ -144,6 +147,10 @@ function writeState(patch) {
   };
   fs.writeFileSync(STATE_PATH, `${JSON.stringify(next, null, 2)}\n`);
   return next;
+}
+
+function stableJson(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
 }
 
 function rememberIssue(issue, patch = {}) {
@@ -2253,6 +2260,77 @@ async function exportMemory(args) {
   console.log(`Exported: ${filePath}`);
 }
 
+function parseNaturalArgs(args = []) {
+  const options = {
+    routingMode: process.env.ROUTING_MODE || "regex",
+    json: false,
+    dryRun: false,
+    text: "",
+  };
+  const textParts = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--routing-mode") {
+      options.routingMode = args[++index] || options.routingMode;
+    } else if (arg === "--json") {
+      options.json = true;
+    } else if (arg === "--dry-run") {
+      options.dryRun = true;
+    } else {
+      textParts.push(arg);
+    }
+  }
+  options.text = textParts.join(" ").trim();
+  if (!options.text) throw new Error('Usage: node scripts/agora.mjs natural "human text"');
+  return options;
+}
+
+async function understand(args = []) {
+  const options = parseNaturalArgs(args);
+  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode });
+  const plan = decideNextStep(extracted.slots);
+  const payload = { ...extracted, plan };
+  if (options.json) {
+    process.stdout.write(stableJson(payload));
+    return payload;
+  }
+  console.log(`${payload.source}: ${payload.slots.intent}`);
+  console.log(plan.text || plan.question || plan.action);
+  return payload;
+}
+
+async function runPlannedCommand(command) {
+  const [, plannedCommand, ...plannedArgs] = command;
+  if (plannedCommand === "ask") return ask(plannedArgs);
+  if (plannedCommand === "latest") return latest(plannedArgs);
+  if (plannedCommand === "voice") return voice(plannedArgs);
+  if (plannedCommand === "task") return taskDetails(plannedArgs);
+  if (plannedCommand === "help") return usage(0);
+  throw new Error(`Unsupported natural command: ${command.join(" ")}`);
+}
+
+async function natural(args = []) {
+  const options = parseNaturalArgs(args);
+  const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode });
+  const plan = decideNextStep(extracted.slots);
+
+  if (options.dryRun || options.json) {
+    const payload =
+      plan.action === "command"
+        ? { action: "rewrite", text: plan.text, source: extracted.source, slots: extracted.slots, plan }
+        : { action: "message", text: plan.question, source: extracted.source, slots: extracted.slots, plan };
+    if (options.json) process.stdout.write(stableJson(payload));
+    else console.log(payload.text);
+    return payload;
+  }
+
+  if (plan.action === "clarify") {
+    console.log(plan.question);
+    return plan;
+  }
+  return runPlannedCommand(plan.command);
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (!command || command === "--help" || command === "-h") usage(0);
@@ -2262,6 +2340,8 @@ async function main() {
   if (command === "chamber" || command === "палата") return chamberCommand(args);
   if (command === "policy") return policyCommand(args);
   if (command === "skills") return skillsCommand(args);
+  if (command === "understand") return understand(args);
+  if (command === "natural") return natural(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
   if (command === "dialogue") return dialogue(args);
