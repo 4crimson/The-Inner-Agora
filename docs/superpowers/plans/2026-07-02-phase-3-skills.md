@@ -52,7 +52,7 @@ The resolver uses the same two-key rule for every tier. For `L2` and `L3`, missi
 - Create: `scripts/skill-loader.mjs`
 - Create: `tests/test_phase3_skills.py`
 
-- [ ] **Step 1: Write failing schema and loader tests**
+- [x] **Step 1: Write failing schema and loader tests**
 
 Add `tests/test_phase3_skills.py` with tests:
 
@@ -90,7 +90,7 @@ python3 -m unittest tests.test_phase3_skills
 
 Expected before implementation: FAIL because `data/schema/skill.schema.json` and `scripts/skill-loader.mjs` do not exist.
 
-- [ ] **Step 2: Create skill schema**
+- [x] **Step 2: Create skill schema**
 
 Create `data/schema/skill.schema.json` with:
 
@@ -117,7 +117,7 @@ Create `data/schema/skill.schema.json` with:
 }
 ```
 
-- [ ] **Step 3: Implement loader commands and exports**
+- [x] **Step 3: Implement loader commands and exports**
 
 Implement `scripts/skill-loader.mjs` with commands:
 
@@ -154,7 +154,7 @@ Resolver rules:
 - Missing installed skill is skipped.
 - `L2`/`L3` missing chamber allow-list is an `error`; `L0`/`L1` missing chamber allow-list is a `warning`.
 
-- [ ] **Step 4: Verify Task 1**
+- [x] **Step 4: Verify Task 1**
 
 Run:
 
