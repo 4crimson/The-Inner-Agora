@@ -188,7 +188,7 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
                 },
             },
             "actions": {
-                "result": {"exec": ["printf", "voice text"]},
+                "result": {"exec": ["node", "-e", "process.stdout.write('voice text')"]},
             },
         }
 
