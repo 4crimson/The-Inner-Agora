@@ -68,6 +68,10 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertIn("board-directors", result.stdout)
         self.assertIn("philosophy", result.stdout)
         self.assertIn("не создает Paperclip", result.stdout)
+        self.assertIn("dialogue_with_role только", result.stdout)
+        self.assertIn("спроси агору", result.stdout)
+        self.assertIn("дай выжимку", result.stdout)
+        self.assertIn("готов ли синтез", result.stdout)
 
     def test_regex_fallback_extracts_status_result_role_and_board_session(self):
         cases = {
@@ -141,6 +145,35 @@ class Phase4IntentSlotTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["source"], "regex")
         self.assertEqual(payload["slots"]["intent"], "result")
+
+    def test_llm_dialogue_intent_requires_contextual_dialogue_cue(self):
+        fake = json.dumps(
+            {
+                "intent": "dialogue_with_role",
+                "chamber": "philosophy",
+                "mode": None,
+                "topic": "отцы и дети",
+                "roles": ["plato"],
+                "taskRef": None,
+                "missingSlots": [],
+                "confidence": 0.9,
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "INNER_AGORA_FAKE_LLM_RESPONSE": fake}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "extract",
+            "--routing-mode",
+            "llm",
+            "--json",
+            "давай спросим агору про отцов и детей",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["source"], "regex")
+        self.assertEqual(payload["slots"]["intent"], "new_session")
 
     def test_plan_new_session_builds_agora_ask_command(self):
         slots = {

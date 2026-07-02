@@ -390,6 +390,7 @@ function chamberPromptLine(chamber) {
 export function buildSlotExtractionPrompt(userText, context = {}) {
   const chambers = listChambers(CHAMBERS_DIR).map(chamberPromptLine).join("\n");
   const active = context.activeChamber || DEFAULT_CHAMBER_ID;
+  const lastRoot = context.lastRootIssueRef || "нет";
   return `Ты локальный JSON slot extractor для Hermes/Paperclip.
 Модель не создает Paperclip issue, comment, wakeup и не выполняет команды. Она только возвращает слоты; deterministic code сделает действие.
 Верни один компактный JSON без markdown и без рассуждений.
@@ -398,6 +399,21 @@ export function buildSlotExtractionPrompt(userText, context = {}) {
 ${chambers}
 
 Активная chamber: ${active}
+lastRootIssueRef: ${lastRoot}
+
+Правила intent:
+- new_session: пользователь просит начать работу, например "спроси агору", "задай агоре", "собери совет", "консилиум", "исследуем", "совет директоров".
+- status: пользователь спрашивает "готово ли", "что там", "статус".
+- result: пользователь просит содержательный итог, например "дай выжимку", "покажи итог", "результат синтеза".
+- task_lookup/help: запросы конкретной задачи или помощи.
+- role_detail: пользователь спрашивает, что уже сказал конкретный голос, например "а что сказал Платон?".
+- dialogue_with_role только когда lastRootIssueRef не "нет" И пользователь спрашивает, что конкретная роль ответила бы/возразила бы в контексте прошлой сессии, например "что бы Хайдеггер ответил на второе возражение?". Не используй dialogue_with_role для "спроси агору", "собери совет", "задай вопрос" или нового общего исследования.
+
+Мини-примеры:
+- "готов ли синтез по последней задаче?" => intent=status
+- "дай выжимку по последней таске" => intent=result
+- "а что сказал Платон?" => intent=role_detail
+- "давай спросим агору про отцов и детей" => intent=new_session
 
 Схема:
 {"intent":"new_session|status|result|task_lookup|role_detail|dialogue_with_role|help|other","chamber":"philosophy|board-directors|null","mode":"min|balanced|max|all|null","topic":"string|null","roles":["string"],"taskRef":"string|null","missingSlots":["string"],"confidence":0.0}
@@ -439,10 +455,16 @@ async function extractWithLlm(userText, options = {}) {
   }
 }
 
-function needsDeterministicFallback(slots) {
+function needsDeterministicFallback(slots, userText = "", context = {}) {
   if (slots.confidence < 0.7) return true;
   if (slots.intent === "task_lookup" && !slots.taskRef) return true;
   if (slots.intent === "role_detail" && !slots.roles.length) return true;
+  if (slots.intent === "dialogue_with_role") {
+    const cueText = looseText(userText);
+    if (!context.lastRootIssueRef) return true;
+    if (!slots.roles.length) return true;
+    if (!hasAny(cueText, ["что бы", "ответил", "ответила", "возражение"])) return true;
+  }
   if (slots.intent === "new_session" && !slots.topic) return true;
   return false;
 }
@@ -452,7 +474,7 @@ export async function extractIntentSlots(userText, options = {}) {
   if (routingMode === "llm") {
     try {
       const slots = await extractWithLlm(userText, options);
-      if (needsDeterministicFallback(slots)) {
+      if (needsDeterministicFallback(slots, userText, options.context || {})) {
         return { source: "regex", fallbackReason: "llm_low_confidence_or_missing_critical_slot", slots: regexFallbackSlots(userText, options.context || {}) };
       }
       return { source: "llm", slots };
