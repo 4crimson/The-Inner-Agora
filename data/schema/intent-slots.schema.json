@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inner-agora.local/schema/intent-slots.schema.json",
+  "title": "Inner Agora Intent Slots",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["intent", "chamber", "mode", "topic", "roles", "taskRef", "missingSlots", "confidence"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["new_session", "status", "result", "task_lookup", "role_detail", "help", "other"]
+    },
+    "chamber": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "mode": {
+      "type": ["string", "null"],
+      "enum": ["min", "balanced", "max", "all", null]
+    },
+    "topic": {
+      "type": ["string", "null"]
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "taskRef": {
+      "type": ["string", "null"]
+    },
+    "missingSlots": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}
