@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -13,10 +14,11 @@ COCKPIT_CONFIG = ROOT / "paperclip-cockpit.json"
 
 
 class Phase2ChamberTests(unittest.TestCase):
-    def run_node(self, *args):
+    def run_node(self, *args, env=None):
         return subprocess.run(
             ["node", *map(str, args)],
             cwd=ROOT,
+            env={**os.environ, **(env or {})},
             text=True,
             capture_output=True,
         )
@@ -95,6 +97,55 @@ class Phase2ChamberTests(unittest.TestCase):
         merged = json.loads(result.stdout)
         current = json.loads(COCKPIT_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(merged, current)
+
+    def test_agora_chamber_list_shows_philosophy(self):
+        result = self.run_node(ROOT / "scripts" / "agora.mjs", "chamber", "list")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("philosophy", result.stdout)
+        self.assertIn("The Inner Agora", result.stdout)
+
+    def test_agora_chamber_use_persists_active_chamber(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "chamber",
+                "use",
+                "philosophy",
+                env={"INNER_AGORA_STATE_PATH": str(state_path)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(state_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["activeChamberId"], "philosophy")
+        self.assertIn("Активная палата: philosophy", result.stdout)
+
+    def test_agora_chamber_current_prefers_environment(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "chamber",
+            "current",
+            env={"INNER_AGORA_ACTIVE_CHAMBER": "philosophy"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("activeChamberId=philosophy", result.stdout)
+
+    def test_status_prints_active_chamber_before_paperclip_api(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "status",
+            env={
+                "INNER_AGORA_ACTIVE_CHAMBER": "philosophy",
+                "PAPERCLIP_API_BASE": "http://127.0.0.1:9/api",
+                "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+            },
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("activeChamberId=philosophy", result.stdout)
 
 
 if __name__ == "__main__":

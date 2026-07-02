@@ -306,7 +306,7 @@ Expected: no semantic diff versus the current config.
 - Test: `tests/test_phase2_chambers.py`
 - Verify: `scripts/regression.mjs`
 
-- [ ] **Step 1: Write failing chamber command tests**
+- [x] **Step 1: Write failing chamber command tests**
 
 Add:
 
@@ -327,7 +327,7 @@ def test_agora_chamber_use_persists_active_chamber(self):
 
 Expected before implementation: FAIL because `agora.mjs chamber` is unknown.
 
-- [ ] **Step 2: Implement `chamber` command**
+- [x] **Step 2: Implement `chamber` command**
 
 Add:
 
@@ -341,7 +341,7 @@ State field: `activeChamberId`.
 
 Default active chamber: `philosophy`.
 
-- [ ] **Step 3: Update status output**
+- [x] **Step 3: Update status output**
 
 `node scripts/agora.mjs status` should include active chamber in human-readable output when state is available.
 

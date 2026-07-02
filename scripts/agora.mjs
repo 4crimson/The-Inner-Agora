@@ -4,11 +4,14 @@ import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { listChambers, loadChamber } from "./chamber-loader.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
 const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
 const DEFAULT_MVP_PRESET_PATH = path.join(ROOT, "chambers", "philosophy", "presets", "mvp.json");
+const CHAMBERS_DIR = path.join(ROOT, "chambers");
+const DEFAULT_CHAMBER_ID = process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
 const STATE_PATH = process.env.INNER_AGORA_STATE_PATH || path.join(ROOT, ".inner-agora-state.json");
 const COCKPIT_CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
 const COCKPIT_CONFIG = readJsonFile(COCKPIT_CONFIG_PATH, {});
@@ -86,6 +89,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs synthesize [root-issue-id-or-key] [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
+  node scripts/agora.mjs chamber [list|current|use <id>]
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
   node scripts/agora.mjs status
   node scripts/agora.mjs recheck [issue-id-or-key]
@@ -136,6 +140,51 @@ function rememberIssue(issue, patch = {}) {
     lastIssueStatus: issue.status || "",
     lastIssueSeenAt: new Date().toISOString(),
   });
+}
+
+function activeChamberId(state = readState()) {
+  return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || DEFAULT_CHAMBER_ID).trim();
+}
+
+function activeChamber(state = readState()) {
+  return loadChamber(CHAMBERS_DIR, activeChamberId(state));
+}
+
+function printActiveChamber(state = readState()) {
+  const chamber = activeChamber(state);
+  console.log(`activeChamberId=${chamber.id}`);
+  console.log(`activeChamberName=${chamber.name}`);
+  return chamber;
+}
+
+function chamberCommand(args = []) {
+  const [action = "current", value] = args;
+
+  if (action === "list" || action === "ls") {
+    const current = activeChamberId();
+    for (const chamber of listChambers(CHAMBERS_DIR)) {
+      const marker = chamber.id === current ? "*" : "-";
+      console.log(`${marker} ${chamber.id}: ${chamber.name} (${chamber.status})`);
+    }
+    return;
+  }
+
+  if (action === "current" || action === "status" || action === "get") {
+    printActiveChamber();
+    return;
+  }
+
+  if (action === "use" || action === "set") {
+    if (!value) throw new Error("Usage: node scripts/agora.mjs chamber use <id>");
+    const chamber = loadChamber(CHAMBERS_DIR, value);
+    const state = writeState({ activeChamberId: chamber.id });
+    console.log(`Активная палата: ${chamber.id}`);
+    console.log(`Название: ${chamber.name}`);
+    if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
+    return;
+  }
+
+  throw new Error(`Unknown chamber command: ${action}`);
 }
 
 function normalizeMode(value) {
@@ -1290,6 +1339,9 @@ async function status(args = []) {
   const issueRef = latestIssueRef(args);
   if (issueRef) return taskDetails([issueRef]);
 
+  printActiveChamber();
+  console.log("");
+
   const { company, agents } = await getAgora();
   const [issues, runs] = await Promise.all([
     api(`/companies/${company.id}/issues`),
@@ -2014,6 +2066,7 @@ async function main() {
 
   if (command === "prepare") return prepare(args);
   if (command === "mode") return modeCommand(args);
+  if (command === "chamber" || command === "палата") return chamberCommand(args);
   if (command === "council" || command === "minimum-council" || command === "mvp") return minimumCouncil(args);
   if (command === "ask") return ask(args);
   if (command === "dialogue") return dialogue(args);
