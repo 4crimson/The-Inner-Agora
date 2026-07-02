@@ -131,6 +131,8 @@
 - [ ] Технически follow-up — это новая child-задача к тому же root issue (контекст синтеза вкладывается в описание), либо `dialogue` с конкретной ролью, которому передаётся выжимка синтеза. Ядро root→child переиспользуется, нового механизма в Paperclip не нужно.
 - [ ] `state.lastSynthesisRef` (уже существует) становится якорем: пока пользователь не начал явно новую тему, реплики по умолчанию трактуются в контексте последней сессии — с явной возможностью сказать «новый вопрос» и оторваться от контекста.
 
+**Срез реализации 2026-07-02:** ядро human assistant уже работает через `intent-slots.mjs` + `agora.mjs natural`: local LM Studio extractor, regex fallback, deterministic planner, Paperclip cockpit delegate, кнопки на synthesis/voice payload, explicit follow-up к `lastRootIssueRef`. Оставшиеся пункты этой секции — полноценный wizard/onboarding и неявная time-window эвристика без explicit marker.
+
 ## Фаза 5 — Гибридная маршрутизация моделей (1–2 недели)
 
 - [ ] Правило выбора адаптера как функция (приватность + сложность) → локальная/облачная модель, вместо глобального `INNER_AGORA_AGENT_ADAPTER`.

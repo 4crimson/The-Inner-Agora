@@ -341,6 +341,8 @@ switch (slots.intent) {
 
 Эвристика по умолчанию: реплика без явного маркера новой темы в течение N минут после синтеза трактуется как follow-up с пометкой «продолжаю в контексте THE-X; скажи "новый вопрос", если хочешь начать с чистого листа». Никогда не решать молча в спорном случае — это тот же принцип «никаких тихих домыслов».
 
+**Implementation note 2026-07-02:** Phase 4 MVP uses a generic `roles[]` slot instead of philosophy-only `philosophers[]`, validates slots in `data/schema/intent-slots.schema.json`, and routes natural Telegram text through `scripts/agora.mjs natural`. The LLM path is local-only via LM Studio and defaults to `gemma-4-26b-a4b-it-mlx` when `ROUTING_MODE=llm`; regex remains deterministic fallback. Explicit follow-up markers such as "уточни" and "продолжи" bind to `state.lastRootIssueRef` and create a child task through `agora.mjs follow-up`. The softer time-window heuristic and `dialogueWithContext()` remain follow-up work.
+
 **Как проверить:**
 - Юнит-тесты на `decideNextStep` для всех комбинаций `missingSlots` (0/1/2+).
 - Ручной сценарный тест: 6 типичных фраз пользователя ("хочу разобрать вопрос свободы", "надо решить, нанимать ли CTO", "давай что-нибудь глубокое про истину", "визард", "/agora ask --min ...", и — после готового синтеза — "а что бы Хайдеггер ответил на второе возражение?") должны давать ожидаемый результат без падения в fallback.

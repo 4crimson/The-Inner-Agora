@@ -371,11 +371,23 @@ async function extractWithLlm(userText, options = {}) {
   }
 }
 
+function needsDeterministicFallback(slots) {
+  if (slots.confidence < 0.7) return true;
+  if (slots.intent === "task_lookup" && !slots.taskRef) return true;
+  if (slots.intent === "role_detail" && !slots.roles.length) return true;
+  if (slots.intent === "new_session" && !slots.topic) return true;
+  return false;
+}
+
 export async function extractIntentSlots(userText, options = {}) {
   const routingMode = options.routingMode || process.env.ROUTING_MODE || "regex";
   if (routingMode === "llm") {
     try {
-      return { source: "llm", slots: await extractWithLlm(userText, options) };
+      const slots = await extractWithLlm(userText, options);
+      if (needsDeterministicFallback(slots)) {
+        return { source: "regex", fallbackReason: "llm_low_confidence_or_missing_critical_slot", slots: regexFallbackSlots(userText, options.context || {}) };
+      }
+      return { source: "llm", slots };
     } catch (error) {
       return { source: "regex", fallbackReason: error?.message || String(error), slots: regexFallbackSlots(userText, options.context || {}) };
     }

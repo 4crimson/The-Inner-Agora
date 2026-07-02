@@ -112,6 +112,35 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["slots"]["mode"], "min")
         self.assertEqual(payload["slots"]["roles"], ["sartre", "camus"])
 
+    def test_llm_extractor_falls_back_when_critical_slot_is_missing(self):
+        fake = json.dumps(
+            {
+                "intent": "task_lookup",
+                "chamber": "philosophy",
+                "mode": None,
+                "topic": None,
+                "roles": [],
+                "taskRef": None,
+                "missingSlots": ["taskRef"],
+                "confidence": 0.5,
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "INNER_AGORA_FAKE_LLM_RESPONSE": fake}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "extract",
+            "--routing-mode",
+            "llm",
+            "--json",
+            "дай выжимку по последней таске",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["source"], "regex")
+        self.assertEqual(payload["slots"]["intent"], "result")
+
     def test_plan_new_session_builds_agora_ask_command(self):
         slots = {
             "intent": "new_session",
