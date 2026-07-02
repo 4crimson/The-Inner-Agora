@@ -8,6 +8,7 @@ import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { decideNextStep, extractIntentSlots } from "./intent-slots.mjs";
 import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
 import { adapterForRequest } from "./model-routing.mjs";
+import { composeChamberPolicy, fallbackTransparencyPolicy } from "./policy-loader.mjs";
 import {
   readProfile,
   readState,
@@ -840,22 +841,11 @@ function modePolicy(mode, chamber = activeChamber()) {
   return "Режим min: 3 голоса, быстрый первый разбор.";
 }
 
-function fallbackTransparencyPolicy(policyId, error) {
-  return [
-    `Протокол прозрачности (${policyId}, fallback: ${error.message || error}):`,
-    "- Основной skill prompt не загрузился; используй базовый протокол ниже.",
-    "Протокол прозрачности:",
-    "- По возможности помечай ключевые утверждения: [источник], [реконструкция], [имитация], [современный перенос].",
-    "- [источник] — когда опираешься на конкретный текст, работу, фрагмент или устойчиво известную позицию; называй источник настолько точно, насколько уверен.",
-    "- [реконструкция] — когда выводишь позицию из общей философской оптики, но не даешь прямую цитату.",
-    "- [имитация] — когда это стилистическое разыгрывание голоса, темперамента или манеры.",
-    "- [современный перенос] — когда применяешь философа к теме, которой исторически не было в его горизонте.",
-    "- Не выдумывай точные цитаты, страницы, ссылки и названия. Если не уверен, пиши: нужна проверка источника.",
-    "- В конце ответа добавь блок `Пометки:` с пунктами: Источники, Реконструкция, Имитация голоса, Современный перенос, Требует проверки.",
-  ].join("\n");
-}
-
-function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
+function transparencyPolicy(chamberOrPolicyId = activeChamber()) {
+  if (typeof chamberOrPolicyId !== "string") {
+    return composeChamberPolicy(chamberOrPolicyId, { skillsDir: SKILLS_DIR });
+  }
+  const policyId = chamberOrPolicyId || activeChamber().transparencyPolicy;
   try {
     return loadSkillPrompt(SKILLS_DIR, policyId);
   } catch (error) {
@@ -864,8 +854,8 @@ function transparencyPolicy(policyId = activeChamber().transparencyPolicy) {
 }
 
 function policyCommand(args = []) {
-  const policyId = args[0] || activeChamber().transparencyPolicy;
-  console.log(transparencyPolicy(policyId));
+  const policyId = args[0] || "";
+  console.log(policyId ? transparencyPolicy(policyId) : transparencyPolicy(activeChamber()));
 }
 
 function publicSkill(skill) {
@@ -982,12 +972,52 @@ function buildRootDescription({ request, mode, selected, chamber = activeChamber
   ].join("\n");
 }
 
-function buildRoleDescription({ rootIssue, request, mode, philosopher }) {
+function buildRoleDescription({ rootIssue, request, mode, philosopher, chamber = activeChamber() }) {
+  if (!isPhilosophyChamber(chamber)) {
+    const agentLabel = chamber.labels?.agent || "role";
+    const agentsLabel = chamber.labels?.agents || "roles";
+    const taskLabel = chamber.labels?.task || "task";
+    return [
+      `Ты выступаешь как ${agentLabel} "${philosopher.name}" в палате "${chamber.name}".`,
+      "",
+      `Корневое ${taskLabel}: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
+      modePolicy(mode, chamber),
+      "",
+      "Профиль:",
+      `- Область: ${philosopher.era}`,
+      `- Фокус: ${philosopher.title}`,
+      `- Центральная интуиция: ${philosopher.centralIntuition}`,
+      `- Манера: ${philosopher.voice}`,
+      `- Напряжение / слепая зона: ${philosopher.tension}`,
+      "",
+      "Вопрос:",
+      request,
+      "",
+      transparencyPolicy(chamber),
+      "",
+      "Формат ответа:",
+      "1. Как я пересобираю запрос в своей зоне ответственности.",
+      "2. Моя advisory-позиция.",
+      "3. Какие предпосылки, данные или проверки отсутствуют.",
+      `4. С кем из выбранных ${agentsLabel} я бы спорил и почему.`,
+      "5. Что синтезатор должен забрать в итог.",
+      "6. Пометки: данные, предположения, риски, условия решения, что требует проверки.",
+      "",
+      "Ограничения:",
+      "- Не говори за всю палату.",
+      "- Не финализируй общий вывод.",
+      "- Не выдавай профессиональную рекомендацию там, где нужна проверка или профильный специалист.",
+      "- Не сглаживай собственную позицию ради согласия.",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
   return [
     `Ты выступаешь как философская машина "${philosopher.name}" в The Inner Agora.`,
     "",
     `Корневая сессия: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
-    modePolicy(mode),
+    modePolicy(mode, chamber),
     "",
     "Профиль:",
     `- Эпоха: ${philosopher.era}`,
@@ -1002,7 +1032,7 @@ function buildRoleDescription({ rootIssue, request, mode, philosopher }) {
     "Вопрос:",
     request,
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
     "",
     "Формат ответа:",
     "1. Как я пересобираю вопрос в своих понятиях.",
@@ -1024,9 +1054,11 @@ function buildRoleDescription({ rootIssue, request, mode, philosopher }) {
 /** @deprecated Use buildRoleDescription. */
 const buildPhilosopherDescription = buildRoleDescription;
 
-function buildDialogueDescription({ request, philosopher }) {
+function buildDialogueDescription({ request, philosopher, chamber = activeChamber() }) {
   return [
-    `Диалог пользователя с философской машиной "${philosopher.name}" в The Inner Agora.`,
+    isPhilosophyChamber(chamber)
+      ? `Диалог пользователя с философской машиной "${philosopher.name}" в The Inner Agora.`
+      : `Диалог пользователя с ролью "${philosopher.name}" в палате "${chamber.name}".`,
     "",
     "Профиль:",
     `- Эпоха: ${philosopher.era}`,
@@ -1041,7 +1073,7 @@ function buildDialogueDescription({ request, philosopher }) {
     "Вопрос / начало диалога:",
     request,
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
     "",
     "Веди живой философский диалог. Если вопрос поставлен поверхностно, сопротивляйся и уточняй. Отвечай по-русски, если пользователь не просит иначе. Даже в диалоге заканчивай содержательные ответы коротким блоком `Пометки:`.",
   ]
@@ -1049,9 +1081,11 @@ function buildDialogueDescription({ request, philosopher }) {
     .join("\n");
 }
 
-function buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher }) {
+function buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher, chamber = activeChamber() }) {
   return [
-    `Контекстный диалог с философской машиной "${philosopher.name}" в The Inner Agora.`,
+    isPhilosophyChamber(chamber)
+      ? `Контекстный диалог с философской машиной "${philosopher.name}" в The Inner Agora.`
+      : `Контекстный диалог с ролью "${philosopher.name}" в палате "${chamber.name}".`,
     "",
     `Корневая сессия: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
     "",
@@ -1072,7 +1106,7 @@ function buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthe
     `- Манера: ${philosopher.voice}`,
     `- Напряжение / слепая зона: ${philosopher.tension}`,
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
     "",
     "Ответь именно как продолжение этой сессии. Сначала отреагируй на вопрос пользователя, затем явно свяжи ответ с линиями синтеза. Не создавай новый общий обзор.",
   ]
@@ -1182,7 +1216,7 @@ async function ask(args) {
     const agent = agora.agentsByName.get(philosopher.name);
     const child = await createIssue(agora.company.id, {
       title: `${philosopher.name}: ${cleanTitle(request)}`,
-      description: buildRoleDescription({ rootIssue, request, mode, philosopher }),
+      description: buildRoleDescription({ rootIssue, request, mode, philosopher, chamber }),
       status: "todo",
       workMode: "standard",
       priority: mode === "max" || mode === "all" ? "critical" : "high",
@@ -1274,7 +1308,7 @@ function followUpRoles(request, roleList) {
   return selectPhilosophers(request, "min", "", { noArchitects: false }).slice(0, 1);
 }
 
-function buildFollowUpDescription({ rootIssue, request, philosopher }) {
+function buildFollowUpDescription({ rootIssue, request, philosopher, chamber = activeChamber() }) {
   return [
     `Follow-up к сессии: ${rootIssue.identifier || rootIssue.id}`,
     "",
@@ -1286,7 +1320,7 @@ function buildFollowUpDescription({ rootIssue, request, philosopher }) {
     "",
     "Ответь как продолжение уже начатой сессии. Не создавай новый общий обзор, а уточни именно этот follow-up.",
     "",
-    transparencyPolicy(),
+    transparencyPolicy(chamber),
   ].join("\n");
 }
 
@@ -1303,7 +1337,7 @@ async function followUp(args) {
     const agent = agora.agentsByName.get(philosopher.name);
     const child = await createIssue(agora.company.id, {
       title: `${philosopher.name}: follow-up ${cleanTitle(request)}`,
-      description: buildFollowUpDescription({ rootIssue, request, philosopher }),
+      description: buildFollowUpDescription({ rootIssue, request, philosopher, chamber: activeChamber() }),
       status: "todo",
       workMode: "standard",
       priority: "high",
@@ -1349,7 +1383,7 @@ async function dialogue(args) {
 
   const issue = await createIssue(agora.company.id, {
     title: `Диалог ${philosopher.name}: ${cleanTitle(request)}`,
-    description: buildDialogueDescription({ request, philosopher }),
+    description: buildDialogueDescription({ request, philosopher, chamber: activeChamber() }),
     status: "todo",
     workMode: "standard",
     priority: "high",
@@ -1395,7 +1429,7 @@ async function dialogueWithContext(args) {
 
   const issue = await createIssue(agora.company.id, {
     title: `Диалог ${philosopher.name}: ${cleanTitle(request)}`,
-    description: buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher }),
+    description: buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher, chamber: activeChamber() }),
     status: "todo",
     workMode: "standard",
     priority: "high",
