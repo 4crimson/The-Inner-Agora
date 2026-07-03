@@ -1,0 +1,22 @@
+{
+  "name": "telegram-paperclip-qa",
+  "version": "0.1.0",
+  "description": "Codex QA workflow plugin for Telegram and Paperclip acceptance cycles.",
+  "author": {
+    "name": "The Inner Agora"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Telegram Paperclip QA",
+    "shortDescription": "Run disciplined Telegram/Paperclip QA modes.",
+    "longDescription": "Defines tester, developer, retest, and release-review modes for config-driven Telegram/Paperclip QA cycles with explicit live-side-effect gates.",
+    "developerName": "The Inner Agora",
+    "category": "Productivity",
+    "capabilities": ["Workflow", "Testing"],
+    "defaultPrompt": [
+      "Use Telegram Paperclip QA tester mode",
+      "Prepare a developer handoff from QA bugs",
+      "Run release-review mode for Telegram QA"
+    ]
+  }
+}

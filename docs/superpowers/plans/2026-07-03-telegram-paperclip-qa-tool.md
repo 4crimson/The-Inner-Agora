@@ -488,11 +488,11 @@ git commit -m "Add Inner Agora Telegram QA config"
 - Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
 - Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/bug-template.md`
 
-- [ ] **Step 1: Scaffold plugin manifest**
+- [x] **Step 1: Scaffold plugin manifest**
 
 Create a repo-local plugin manifest with name `telegram-paperclip-qa`. Keep it installable later, but do not require marketplace install for this task.
 
-- [ ] **Step 2: Write skill**
+- [x] **Step 2: Write skill**
 
 `SKILL.md` must:
 
@@ -502,7 +502,7 @@ Create a repo-local plugin manifest with name `telegram-paperclip-qa`. Keep it i
 - require grouping bugs before developer mode;
 - require retest before claiming a bug fixed.
 
-- [ ] **Step 3: Write references**
+- [x] **Step 3: Write references**
 
 Each reference should be concise and mode-specific:
 
@@ -512,7 +512,7 @@ Each reference should be concise and mode-specific:
 - release review mode: full suite and cleanup report;
 - bug template: JSON and Markdown fields.
 
-- [ ] **Step 4: Validate plugin shape**
+- [x] **Step 4: Validate plugin shape**
 
 If the local plugin validator is available, run it. Otherwise run:
 
@@ -526,7 +526,14 @@ print('ok')
 PY
 ```
 
-- [ ] **Step 5: Commit**
+Evidence:
+
+- `python3 /Users/admin/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py codex-plugins/telegram-paperclip-qa` -> blocked by missing `yaml` module in local Python.
+- bundled Python validator retry -> same missing `yaml` module.
+- fallback structural validation script -> `ok`.
+- placeholder scan -> no TODO/placeholders.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add codex-plugins/telegram-paperclip-qa

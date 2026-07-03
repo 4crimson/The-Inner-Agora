@@ -1,0 +1,20 @@
+# Tester Mode
+
+Use tester mode to collect evidence. Do not patch code.
+
+Workflow:
+
+1. State the target suite and whether live side effects are allowed.
+2. Run `config-check` and a `--dry-run` preview first.
+3. If live testing is needed, ask for explicit confirmation before sending Telegram messages.
+4. Run the selected suite.
+5. Preserve the run id, manifest path, report path, and bugs path.
+6. Group failures by area: router, telegram-ui, paperclip-recovery, cleanup, local-model, state, docs.
+7. Stop after evidence and bug candidates. Hand accepted bugs to developer mode.
+
+Acceptance:
+
+- Every observed failure has a test id.
+- Every live artifact is in the manifest.
+- Cleanup residuals are visible.
+- Raw provider tokens, stack traces, or command errors in Telegram are product bugs.
