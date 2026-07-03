@@ -42,4 +42,4 @@ Before a live run, say plainly:
 This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?
 ```
 
-Proceed only after an affirmative answer for that specific run.
+Proceed only after an affirmative answer for that specific run, and include `--live-ok` on the exact live command.

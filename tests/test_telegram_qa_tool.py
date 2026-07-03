@@ -153,6 +153,39 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
         self.assertEqual(payload["suites"], [{"name": "help", "tests": 1}])
 
+    def test_health_checks_config_telegram_env_and_paperclip_company(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config = self.base_config()
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "health",
+                "--config",
+                config_path,
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(
+                [check["name"] for check in payload["checks"]],
+                ["config", "telegram-userbot", "paperclip-company"],
+            )
+            self.assertTrue(all(check["ok"] for check in payload["checks"]))
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls, [["check-env"]])
+
     def test_real_project_config_is_valid(self):
         result = self.run_cli("config-check", "--config", ROOT / "telegram-testing.config.json", "--json")
 
@@ -757,6 +790,7 @@ console.log(JSON.stringify(result));
                 config_path,
                 "--suite",
                 "liveish",
+                "--live-ok",
                 "--json",
                 env={
                     "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
@@ -778,6 +812,35 @@ console.log(JSON.stringify(result));
             self.assertEqual([issue["id"] for issue in manifest["paperclip"]["issues"]], ["new-root"])
             self.assertEqual([message["messageId"] for message in manifest["telegram"]["messages"]], [101, 102])
             self.assertEqual(manifest["tests"][0]["status"], "pass")
+
+    def test_run_without_live_ok_fails_before_telegram_side_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "help",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertIn("--live-ok is required for non-dry-run suite execution", payload["errors"])
+            self.assertFalse(calls_path.exists())
 
     def test_report_writes_summary_failures_cleanup_and_redacts_secrets(self):
         with tempfile.TemporaryDirectory() as temp_dir:

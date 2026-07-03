@@ -2,6 +2,7 @@
 
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
 import { cleanupPaperclipIssues, cleanupTelegramMessages } from "../src/cleanup-engine.mjs";
+import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
 import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
@@ -22,6 +23,7 @@ function parseArgs(argv) {
     appendDoc: "",
     area: "",
     dryRun: false,
+    liveOk: false,
     limit: 20,
   };
   for (let index = 0; index < tail.length; index += 1) {
@@ -36,6 +38,7 @@ function parseArgs(argv) {
     else if (arg === "--area") options.area = tail[++index] || "";
     else if (arg === "--limit") options.limit = Number(tail[++index] || "20");
     else if (arg === "--dry-run") options.dryRun = true;
+    else if (arg === "--live-ok") options.liveOk = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -45,8 +48,9 @@ function parseArgs(argv) {
 function usage() {
   return `Usage:
   node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config FILE [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs health --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
-  node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run|--live-ok]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs report --config FILE --run RUN_ID [--json]
@@ -98,6 +102,15 @@ async function main(argv) {
     printPayload(configSummary(config), options.json);
     return 0;
   }
+  if (options.command === "health") {
+    const result = await runHealthChecks({
+      config,
+      userbot: new TelegramUserbot({ config }),
+      paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
+  }
   if (options.command === "run-start") {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
     if (!config.suites[options.suite]) throw new ConfigValidationError([`suite not found: ${options.suite}`]);
@@ -107,6 +120,9 @@ async function main(argv) {
   }
   if (options.command === "run") {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
+    if (!options.dryRun && !options.liveOk) {
+      throw new ConfigValidationError(["--live-ok is required for non-dry-run suite execution"]);
+    }
     const result = options.dryRun
       ? runSuite({ config, suiteName: options.suite, dryRun: true, cleanupMode: options.cleanup })
       : await executeSuite({

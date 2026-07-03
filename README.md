@@ -247,6 +247,7 @@ Safe non-live checks:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 ```
@@ -271,6 +272,8 @@ Live Telegram runs require an explicit operator confirmation immediately before 
 ```text
 This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?
 ```
+
+After confirmation, pass `--live-ok` on the exact command being run.
 
 The Codex QA workflow plugin is in `codex-plugins/telegram-paperclip-qa/`. It separates tester, developer, retest, and release-review modes so live evidence gathering does not get mixed with patching.
 

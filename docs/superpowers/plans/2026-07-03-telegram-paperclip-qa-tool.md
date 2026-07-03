@@ -365,7 +365,7 @@ Live run lifecycle remains pending:
 run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run]
 ```
 
-Dry run prints planned tests and expected cleanup but sends nothing. Non-dry-run currently fails closed with `live run is not implemented yet; use --dry-run`.
+Dry run prints planned tests and expected cleanup but sends nothing. Non-dry-run requires `--live-ok` and then executes the suite lifecycle.
 
 - [x] **Step 4: Run tests**
 
@@ -597,7 +597,7 @@ Add concise commands:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
 ```
@@ -701,7 +701,7 @@ This will send Telegram messages and may create Paperclip issues. Cleanup will r
 Only after confirmation:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json
 ```
 
 Expected:
@@ -710,6 +710,33 @@ Expected:
 - no Paperclip roots;
 - Telegram messages cleaned up;
 - report written.
+
+## Task 13: Health And Live Acknowledgement Gate
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/health-check.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify docs and QA skill references.
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add health command**
+
+`health --config FILE [--json]` performs read-only checks:
+
+- config is loaded;
+- Telegram userbot env is valid through `check-env`;
+- Paperclip company lookup succeeds.
+
+- [x] **Step 2: Require live acknowledgement**
+
+`run` without `--dry-run` now requires `--live-ok`. The gate is checked before Telegram send or Paperclip lookup.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_health_checks_config_telegram_env_and_paperclip_company tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_without_live_ok_fails_before_telegram_side_effects tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_executes_suite_with_fake_telegram_and_paperclip -v` -> `Ran 3 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/health-check.mjs` -> OK
 
 - [ ] **Step 5: Commit docs and live evidence**
 
