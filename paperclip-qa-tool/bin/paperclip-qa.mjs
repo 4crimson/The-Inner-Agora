@@ -4,12 +4,13 @@ import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.m
 import { cleanupPaperclipIssues } from "../src/cleanup-engine.mjs";
 import { createRun, manifestPathForRun, readManifest, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
+import { runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
   if (argv[0] === "--help" || argv[0] === "-h") return { command: "", help: true, json: false, config: "" };
   const [command, ...tail] = argv;
-  const options = { command, json: false, config: "", suite: "", run: "", mode: "", dryRun: false, limit: 20 };
+  const options = { command, json: false, config: "", suite: "", run: "", mode: "", cleanup: "", dryRun: false, limit: 20 };
   for (let index = 0; index < tail.length; index += 1) {
     const arg = tail[index];
     if (arg === "--json") options.json = true;
@@ -17,6 +18,7 @@ function parseArgs(argv) {
     else if (arg === "--suite") options.suite = tail[++index] || "";
     else if (arg === "--run") options.run = tail[++index] || "";
     else if (arg === "--mode") options.mode = tail[++index] || "";
+    else if (arg === "--cleanup") options.cleanup = tail[++index] || "";
     else if (arg === "--limit") options.limit = Number(tail[++index] || "20");
     else if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -29,6 +31,7 @@ function usage() {
   return `Usage:
   node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config FILE [--json]
@@ -81,6 +84,12 @@ async function main(argv) {
     if (!config.suites[options.suite]) throw new ConfigValidationError([`suite not found: ${options.suite}`]);
     const run = createRun({ config, suite: options.suite });
     printPayload({ ok: true, runId: run.runId, manifestPath: run.manifestPath }, options.json);
+    return 0;
+  }
+  if (options.command === "run") {
+    if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
+    const result = runSuite({ config, suiteName: options.suite, dryRun: options.dryRun, cleanupMode: options.cleanup });
+    printPayload(result, options.json);
     return 0;
   }
   if (options.command === "manifest-show") {

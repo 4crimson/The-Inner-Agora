@@ -379,6 +379,98 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["history"]["target"], "@crimson_philosophs_bot")
         self.assertEqual(payload["history"]["limit"], 5)
 
+    def run_node_eval(self, expression):
+        script = f"""
+import {{ evaluateTest }} from './paperclip-qa-tool/src/evaluator.mjs';
+const result = evaluateTest({expression});
+console.log(JSON.stringify(result));
+"""
+        return subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+    def test_evaluator_checks_generic_expectations(self):
+        expression = json.dumps(
+            {
+                "test": {
+                    "id": "eval.generic",
+                    "expect": {
+                        "replyContains": ["Готово", "локальная модель"],
+                        "replyNotContains": "<|channel>",
+                        "paperclipRootsCreated": 1,
+                        "paperclipRootsCreatedAtLeast": 1,
+                        "noRawTokens": True,
+                        "localRouteContains": "local",
+                        "buttonsPresent": True,
+                    },
+                },
+                "observed": {
+                    "replyText": "Готово через локальная модель",
+                    "paperclipRootsCreated": 1,
+                    "localRoute": "provider=local",
+                    "buttons": [{"text": "Синтез"}],
+                },
+            },
+            ensure_ascii=False,
+        )
+
+        result = self.run_node_eval(expression)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "pass")
+        self.assertEqual(len(payload["checks"]), 7)
+
+    def test_evaluator_reports_failed_expectations(self):
+        expression = json.dumps(
+            {
+                "test": {
+                    "id": "eval.fail",
+                    "expect": {
+                        "replyContains": "Синтез готов",
+                        "replyNotContains": "Project action exited",
+                        "noRawTokens": True,
+                        "buttonsPresent": True,
+                    },
+                },
+                "observed": {
+                    "replyText": "Project action exited with 1. <|channel>",
+                    "buttons": [],
+                },
+            },
+            ensure_ascii=False,
+        )
+
+        result = self.run_node_eval(expression)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "fail")
+        failed = [check["name"] for check in payload["checks"] if not check["ok"]]
+        self.assertEqual(failed, ["replyContains", "replyNotContains", "noRawTokens", "buttonsPresent"])
+
+    def test_run_dry_run_creates_manifest_without_live_side_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+
+            result = self.run_cli("run", "--config", config_path, "--suite", "help", "--dry-run", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["dryRun"])
+            self.assertEqual(payload["plannedTests"], ["help.basic"])
+            manifest_path = Path(payload["manifestPath"])
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["suite"], "help")
+            self.assertEqual(manifest["tests"][0]["status"], "planned")
+            self.assertTrue(manifest["tests"][0]["dryRun"])
+            self.assertEqual(manifest["cleanup"]["mode"], "hard")
+
 
 if __name__ == "__main__":
     unittest.main()
