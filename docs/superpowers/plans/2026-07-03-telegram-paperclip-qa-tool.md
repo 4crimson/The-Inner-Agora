@@ -1134,7 +1134,7 @@ Evidence:
 
 - [x] **Step 1: Add non-live release-plan command**
 
-`release-plan --config FILE` reads the current config and emits preflight commands, the acknowledgement, live commands, and post-run commands for the configured live suites. It excludes the `health` suite and does not create artifacts.
+`release-plan --config FILE` reads the current config and emits preflight commands, the acknowledgement, live commands, and post-run commands for configured Telegram suites. It excludes service suites such as `health` and `cleanup`, and does not create artifacts.
 
 - [x] **Step 2: Use release-plan as the release-review command source**
 
@@ -1143,7 +1143,7 @@ Release review docs and checklist now point to `release-plan` instead of duplica
 Evidence:
 
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_release_plan_uses_configured_live_suites_without_artifacts -v` -> OK
-- `node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json` -> suites: `help`, `natural-dialogue`, `council-create`, `cleanup`
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json` -> suites: `help`, `natural-dialogue`, `council-create`
 
 - [ ] **Step 5: Commit docs and live evidence**
 

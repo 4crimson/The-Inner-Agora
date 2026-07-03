@@ -148,7 +148,7 @@ function releasePlan({ configPath, config, cleanupMode }) {
   const quotedConfig = shellQuote(configPath);
   const quotedCleanup = shellQuote(cleanup);
   const suites = Object.entries(config.suites)
-    .filter(([name, suite]) => name !== "health" && (suite.tests || []).some((test) => (test.kind || "telegram") !== "health"))
+    .filter(([, suite]) => (suite.tests || []).some((test) => (test.kind || "telegram") === "telegram"))
     .map(([name]) => name);
   return {
     ok: true,

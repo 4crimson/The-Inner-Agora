@@ -294,6 +294,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                 "health": {"tests": [{"id": "health.basic", "kind": "health"}]},
                 "help": {"tests": [{"id": "help.basic", "message": "help"}]},
                 "dialogue": {"tests": [{"id": "dialogue.basic", "message": "hello"}]},
+                "cleanup": {"tests": [{"id": "cleanup.basic", "kind": "cleanup"}]},
             }
             config_path = self.write_config(temp_dir, config)
 
@@ -304,6 +305,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["suites"], ["help", "dialogue"])
             self.assertNotIn("health", payload["suites"])
+            self.assertNotIn("cleanup", payload["suites"])
             self.assertEqual(len(payload["liveCommands"]), 2)
             self.assertTrue(all("--live-ok" in command for command in payload["liveCommands"]))
             self.assertFalse(artifacts_dir.exists())
