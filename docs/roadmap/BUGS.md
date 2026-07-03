@@ -229,6 +229,8 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Ensure help/menu intent does not create Paperclip issues, select voices, or start council work.
 - Add a regression test proving help works even when Paperclip hierarchy health is failing.
 
+Status 2026-07-03: implemented. `help` now returns a local `message` plan instead of `/agora help`; the Paperclip cockpit delegate sends that message to Telegram and returns `skip`, so the gateway does not create Paperclip issues for help. Verified with unit tests and a live Telegram smoke to chat `1446198327`.
+
 **Batch D — Quick Preset Dispatch**
 
 - Add/verify natural routing for “сделай быстрый совет: ...” to `quick`.

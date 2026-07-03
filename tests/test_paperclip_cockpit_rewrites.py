@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -220,6 +221,57 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 PAPERCLIP_COCKPIT_COMMAND=None,
             ):
                 self.assertEqual(self.plugin._rewrite_text("дай выжимку по последней таске"), "/agora latest")
+
+    def test_natural_delegate_message_is_sent_and_skips_gateway(self):
+        config = {
+            "command": {"name": "agora"},
+            "telegram": {"enabled": True},
+            "natural_language": {
+                "delegate": {
+                    "exec": [
+                        "node",
+                        "scripts/agora.mjs",
+                        "natural",
+                        "--routing-mode",
+                        "regex",
+                        "--dry-run",
+                        "--json",
+                        "{text}",
+                    ]
+                }
+            },
+        }
+        calls = []
+
+        def fake_telegram_api(method, payload, *, timeout=20):
+            calls.append((method, payload, timeout))
+            return {"ok": True}
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-help"
+
+        class Event:
+            source = Source()
+            text = "агора помощь"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_CWD=str(ROOT),
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ), mock.patch.object(self.plugin, "_telegram_api", fake_telegram_api):
+                result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual([call[0] for call in calls], ["sendMessage"])
+        self.assertEqual(calls[0][1]["chat_id"], "chat-help")
+        self.assertIn("быстрый совет", calls[0][1]["text"])
+        self.assertNotIn("Project action", calls[0][1]["text"])
 
     def test_run_action_can_take_cwd_from_environment(self):
         config = {"actions": {"where": {"exec": ["pwd"], "append_args": False}}}

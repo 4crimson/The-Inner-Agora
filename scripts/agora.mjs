@@ -2894,7 +2894,7 @@ async function natural(args = []) {
     const payload =
       plan.action === "command"
         ? { action: "rewrite", text: plan.text, source: extracted.source, slots: extracted.slots, plan }
-        : { action: "message", text: plan.question, source: extracted.source, slots: extracted.slots, plan };
+        : { action: "message", text: plan.text || plan.question, source: extracted.source, slots: extracted.slots, plan };
     if (options.json) process.stdout.write(stableJson(payload));
     else console.log(payload.text);
     return payload;

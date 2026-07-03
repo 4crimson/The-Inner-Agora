@@ -210,6 +210,24 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(plan["action"], "clarify")
         self.assertIn("какой вопрос", plan["question"].lower())
 
+    def test_plan_help_returns_local_message_not_command(self):
+        slots = {
+            "intent": "help",
+            "chamber": "philosophy",
+            "mode": None,
+            "topic": None,
+            "roles": [],
+            "taskRef": None,
+            "missingSlots": [],
+            "confidence": 0.9,
+        }
+        result = self.run_node(INTENT_SCRIPT, "plan", "--json", input_text=json.dumps(slots, ensure_ascii=False))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["action"], "message")
+        self.assertIn("быстрый совет", plan["text"])
+        self.assertNotIn("command", plan)
+
     def test_plan_role_detail_routes_to_voice(self):
         slots = {
             "intent": "role_detail",

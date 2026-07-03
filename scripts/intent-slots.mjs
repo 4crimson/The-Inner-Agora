@@ -591,8 +591,20 @@ export function decideNextStep(slots, context = {}) {
   }
 
   if (normalized.intent === "help") {
-    const command = ["/agora", "help"];
-    return { action: "command", command, text: commandText(command), ack: "Покажу помощь." };
+    return {
+      action: "message",
+      text: [
+        "Агора на связи. Можно писать обычным языком:",
+        "",
+        "- быстрый совет: <вопрос>",
+        "- глубокое исследование: <вопрос>",
+        "- что там по последней сессии?",
+        "- покажи синтез",
+        "- что сказал Платон?",
+        "",
+        "Я уточню недостающее, запущу совет и пришлю результат с кнопками.",
+      ].join("\n"),
+    };
   }
 
   return {

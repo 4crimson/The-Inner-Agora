@@ -2078,7 +2078,7 @@ def _rewrite_intent(raw: str, lowered: str) -> str | None:
     return None
 
 
-def _rewrite_delegate(raw: str, *, chat_id: Any = None) -> str | None:
+def _rewrite_delegate(raw: str, *, chat_id: Any = None) -> str | dict[str, Any] | None:
     delegate = _natural_language_config().get("delegate")
     if not isinstance(delegate, dict) or _as_bool(delegate.get("disabled"), False):
         return None
@@ -2127,7 +2127,18 @@ def _rewrite_delegate(raw: str, *, chat_id: Any = None) -> str | None:
     except Exception as exc:
         logger.info("Paperclip natural delegate returned non-JSON output: %s", exc)
         return None
-    if not isinstance(payload, dict) or payload.get("action") != "rewrite":
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("action") in {"message", "handled"}:
+        text = str(payload.get("text") or payload.get("message") or "").strip()
+        if not text:
+            return None
+        return {
+            "action": "message",
+            "text": text,
+            "reply_markup": payload.get("reply_markup") if isinstance(payload.get("reply_markup"), dict) else None,
+        }
+    if payload.get("action") != "rewrite":
         return None
     rewritten = str(payload.get("text") or "").strip()
     if not rewritten:
@@ -2147,7 +2158,7 @@ def _rewrite_start_command(raw: str) -> str | None:
     return _slash(str(start.get("action") or "start"))
 
 
-def _rewrite_text(text: str, *, chat_id: Any = None) -> str | None:
+def _rewrite_text(text: str, *, chat_id: Any = None) -> str | dict[str, Any] | None:
     if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
         return None
     raw = re.sub(r"\s+", " ", (text or "").strip())
@@ -2386,6 +2397,18 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
     chat_id = getattr(source, "chat_id", "") if source is not None else ""
     rewritten = _rewrite_text(getattr(event, "text", "") or "", chat_id=chat_id)
     if not rewritten:
+        return None
+    if isinstance(rewritten, dict):
+        if rewritten.get("action") == "message":
+            try:
+                _telegram_send_message(
+                    chat_id,
+                    str(rewritten.get("text") or ""),
+                    rewritten.get("reply_markup") if isinstance(rewritten.get("reply_markup"), dict) else None,
+                )
+            except Exception as exc:
+                logger.info("Paperclip Cockpit Telegram delegate message failed: %s", exc)
+            return {"action": "skip"}
         return None
     logger.info("Paperclip Cockpit rewrote inbound text to %s", rewritten.split()[0])
     return {"action": "rewrite", "text": rewritten}
