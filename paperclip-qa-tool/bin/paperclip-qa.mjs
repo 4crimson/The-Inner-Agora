@@ -56,7 +56,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs report --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config FILE --run OLD_RUN [--cleanup hard|soft|none] [--dry-run] [--json]
-  node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config FILE --run RUN_ID --area AREA [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config FILE --run RUN_ID [--area AREA] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-history --config FILE [--limit N] [--dry-run] [--json]
 `;
@@ -240,7 +240,6 @@ async function main(argv) {
   }
   if (options.command === "bug-batch") {
     if (!options.run) throw new ConfigValidationError(["--run is required"]);
-    if (!options.area) throw new ConfigValidationError(["--area is required"]);
     const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
     const manifest = readManifest(manifestPath);
     printPayload({ ok: true, runId: options.run, manifestPath, ...bugBatch({ manifest, area: options.area }) }, options.json);

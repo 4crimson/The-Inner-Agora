@@ -9,8 +9,9 @@ Workflow:
 3. If live testing is needed, ask for explicit confirmation before sending Telegram messages.
 4. Run the selected suite.
 5. Preserve the run id, manifest path, report path, and bugs path.
-6. Group failures by area: router, telegram-ui, paperclip-recovery, cleanup, local-model, state, docs.
-7. Stop after evidence and bug candidates. Hand accepted bugs to developer mode.
+6. Run `bug-batch --run RUN_ID` to group failures by area and severity.
+7. Use `bug-batch --run RUN_ID --area AREA` for one-area developer handoff.
+8. Stop after evidence and bug candidates. Hand accepted bugs to developer mode.
 
 Acceptance:
 

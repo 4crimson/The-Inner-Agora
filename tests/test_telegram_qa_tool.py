@@ -1004,6 +1004,10 @@ console.log(JSON.stringify(result));
             rows = [json.loads(line) for line in bugs_path.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["testId"], "help.raw-token")
+            self.assertEqual(rows[0]["severity"], "P1")
+            self.assertEqual(rows[0]["area"], "telegram-ui")
+            self.assertIn("<|channel>", rows[0]["evidence"]["transcript"])
+            self.assertIn("help.raw-token passes on retest", rows[0]["acceptanceCriteria"])
             self.assertIn("preview", payload["appendDoc"])
             self.assertIn("help.raw-token", payload["appendDoc"]["preview"])
             self.assertFalse(append_doc.exists())
@@ -1056,6 +1060,7 @@ console.log(JSON.stringify(result));
             "bugs": [
                 {
                     "id": "TQA-001",
+                    "severity": "P1",
                     "area": "telegram-ui",
                     "testId": "help.raw-token",
                     "title": "Raw provider token leaks into Telegram",
@@ -1064,6 +1069,7 @@ console.log(JSON.stringify(result));
                 },
                 {
                     "id": "TQA-002",
+                    "severity": "P2",
                     "area": "cleanup",
                     "testId": "cleanup.paperclip",
                     "title": "Paperclip hard delete leaves residual",
@@ -1231,8 +1237,28 @@ console.log(JSON.stringify(result));
             payload = json.loads(result.stdout)
             self.assertTrue(payload["ok"])
             self.assertEqual(payload["area"], "telegram-ui")
+            self.assertEqual(payload["summary"], {"total": 1, "byArea": {"telegram-ui": 1}, "bySeverity": {"P1": 1}})
             self.assertEqual([bug["id"] for bug in payload["bugs"]], ["TQA-001"])
+            self.assertEqual(payload["bugs"][0]["severity"], "P1")
             self.assertIn("help.raw-token passes", payload["bugs"][0]["acceptanceCriteria"])
+
+    def test_bug_batch_without_area_groups_by_area_and_severity(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-batch-all-a1b2c3"
+            self.write_retest_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli("bug-batch", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["area"], "all")
+            self.assertEqual(payload["summary"]["total"], 2)
+            self.assertEqual(payload["summary"]["byArea"], {"telegram-ui": 1, "cleanup": 1})
+            self.assertEqual(payload["summary"]["bySeverity"], {"P1": 1, "P2": 1})
+            self.assertEqual([bug["severity"] for bug in payload["bugs"]], ["P1", "P2"])
 
 
 if __name__ == "__main__":

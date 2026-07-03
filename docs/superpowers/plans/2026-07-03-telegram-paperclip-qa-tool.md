@@ -875,6 +875,32 @@ Evidence:
 - `node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json` -> prints `guards.allowWarnings`
 - `node -e "JSON.parse(...)"` for QA schema and Inner Agora config -> OK
 
+## Task 19: Developer-Ready Bug Batch Triage
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/report-writer.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/tester-mode.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/developer-mode.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Make generated bugs match handoff shape**
+
+Generated bugs now include `severity`, `area`, evidence, failed checks, and retest acceptance criteria. Severity uses `P0|P1|P2|P3` instead of the old `"bug"` placeholder.
+
+- [x] **Step 2: Add grouped bug batch output**
+
+`bug-batch --run RUN_ID` now returns `summary.byArea` and `summary.bySeverity`; `--area AREA` still returns a one-area developer batch.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_bugs_writes_jsonl_and_append_doc_dry_run_preview tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_bug_batch_filters_manifest_bugs_by_area tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_bug_batch_without_area_groups_by_area_and_severity -v` -> `Ran 3 tests ... OK`
+- `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

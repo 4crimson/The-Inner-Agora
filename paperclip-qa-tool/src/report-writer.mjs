@@ -91,8 +91,17 @@ export function bugsFromManifest(manifest) {
     suite: manifest.suite,
     testId: test.id,
     title: `QA failure: ${test.id}`,
-    severity: "bug",
-    evidence: redact(test.observed?.replyText || ""),
+    severity: inferSeverity(test),
+    area: inferArea(test),
+    symptom: test.message || "",
+    expected: failedCheckNames(test).join(", "),
+    actual: redact(test.observed?.replyText || ""),
+    evidence: {
+      telegramMessageIds: [test.observed?.sentId].filter(Boolean),
+      paperclipIssueRefs: [],
+      logSnippets: [],
+      transcript: redact(test.observed?.replyText || ""),
+    },
     failedChecks: (test.checks || []).filter((check) => !check.ok).map((check) => check.name),
     acceptanceCriteria: [`${test.id} passes on retest`],
   }));
@@ -125,19 +134,83 @@ export function appendBugsToDoc({ bugs, docPath, dryRun = false }) {
   return { docPath: path.resolve(docPath), dryRun, preview };
 }
 
+function failedCheckNames(test) {
+  return (test.checks || []).filter((check) => !check.ok).map((check) => check.name);
+}
+
+function inferArea(test) {
+  const checks = new Set(failedCheckNames(test));
+  if (String(test.id || "").includes("cleanup") || test.kind === "cleanup") return "cleanup";
+  if (checks.has("localRouteContains")) return "local-model";
+  if (checks.has("paperclipRootsCreated") || checks.has("paperclipRootsCreatedAtLeast")) return "paperclip-recovery";
+  if (checks.has("buttonsPresent") || checks.has("replyContains") || checks.has("replyNotContains") || checks.has("noRawTokens")) {
+    return "telegram-ui";
+  }
+  return "unknown";
+}
+
+function inferSeverity(test) {
+  const checks = new Set(failedCheckNames(test));
+  if (checks.has("noRawTokens") || checks.has("replyNotContains")) return "P1";
+  if (checks.has("paperclipRootsCreated") || checks.has("paperclipRootsCreatedAtLeast")) return "P1";
+  if (checks.has("buttonsPresent") || checks.has("replyContains") || checks.has("localRouteContains")) return "P2";
+  return "P3";
+}
+
+function normalizeSeverity(severity) {
+  return ["P0", "P1", "P2", "P3"].includes(severity) ? severity : "P2";
+}
+
+function evidenceText(evidence) {
+  if (typeof evidence === "string") return evidence;
+  if (evidence && typeof evidence === "object") {
+    return [
+      ...(Array.isArray(evidence.logSnippets) ? evidence.logSnippets : []),
+      evidence.transcript || "",
+    ].filter(Boolean).join("\n");
+  }
+  return "";
+}
+
+function normalizedBug(bug) {
+  return {
+    id: bug.id,
+    severity: normalizeSeverity(bug.severity),
+    area: bug.area || "unknown",
+    testId: bug.testId,
+    title: bug.title || `QA failure: ${bug.testId}`,
+    symptom: bug.symptom || bug.title || "",
+    expected: bug.expected || "",
+    actual: bug.actual || "",
+    evidence: redact(evidenceText(bug.evidence)),
+    failedChecks: Array.isArray(bug.failedChecks) ? bug.failedChecks : [],
+    rootCauseHypothesis: bug.rootCauseHypothesis || "",
+    acceptanceCriteria: Array.isArray(bug.acceptanceCriteria) ? bug.acceptanceCriteria : [],
+  };
+}
+
+function countBy(bugs, key) {
+  return bugs.reduce((counts, bug) => {
+    const value = bug[key] || "unknown";
+    counts[value] = (counts[value] || 0) + 1;
+    return counts;
+  }, {});
+}
+
 export function bugBatch({ manifest, area }) {
-  const generated = bugsFromManifest(manifest).map((bug) => ({ ...bug, area: bug.area || "unknown" }));
   const explicit = Array.isArray(manifest.bugs) ? manifest.bugs : [];
-  const bugs = [...explicit, ...generated].filter((bug) => !area || bug.area === area);
+  const explicitTestIds = new Set(explicit.map((bug) => bug.testId).filter(Boolean));
+  const generated = bugsFromManifest(manifest)
+    .filter((bug) => !explicitTestIds.has(bug.testId))
+    .map((bug) => ({ ...bug, area: bug.area || "unknown" }));
+  const bugs = [...explicit, ...generated].map(normalizedBug).filter((bug) => !area || bug.area === area);
   return {
     area: area || "all",
-    bugs: bugs.map((bug) => ({
-      id: bug.id,
-      area: bug.area || "unknown",
-      testId: bug.testId,
-      title: bug.title || `QA failure: ${bug.testId}`,
-      evidence: redact(bug.evidence || ""),
-      acceptanceCriteria: Array.isArray(bug.acceptanceCriteria) ? bug.acceptanceCriteria : [],
-    })),
+    summary: {
+      total: bugs.length,
+      byArea: countBy(bugs, "area"),
+      bySeverity: countBy(bugs, "severity"),
+    },
+    bugs,
   };
 }

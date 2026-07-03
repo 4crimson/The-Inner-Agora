@@ -421,7 +421,8 @@ The runner writes `bugs.jsonl`. Each bug has:
 Batching rules:
 
 - P0/P1 bugs block full acceptance.
-- Bugs are grouped by area before development.
+- `bug-batch --run QA-...` groups bugs by area and severity before development.
+- `bug-batch --run QA-... --area AREA` creates a one-area developer handoff.
 - One development batch fixes one area only.
 - Retest uses the original failing test ids.
 
@@ -436,6 +437,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-tes
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md --dry-run
+node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area telegram-ui --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok --json
