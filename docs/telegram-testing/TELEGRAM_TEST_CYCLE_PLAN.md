@@ -8,6 +8,8 @@ Build a repeatable live Telegram QA loop where Codex can act as a real Telegram 
 
 The target is not a minimal smoke script. The target is a full acceptance harness for the product idea: Telegram should feel like a human interface to Hermes and Paperclip, powered by local models, with visible progress, useful buttons, reliable synthesis, readable errors, and no hidden stale-state surprises.
 
+The human-facing suite expectations and Telegram result-message format live in [TELEGRAM_ACCEPTANCE_CHECKLIST.md](TELEGRAM_ACCEPTANCE_CHECKLIST.md). Use that checklist when deciding what to show the operator after each run.
+
 The implementation should be split into two layers:
 
 1. `paperclip-qa-tool`: a universal runtime tool that knows how to run Telegram/Paperclip QA cycles from config.
