@@ -430,7 +430,7 @@ def fake_api(method, payload, *, timeout=20):
     calls.append((method, payload))
     return {"ok": True}
 
-def fake_run_action(name, action, raw_args):
+def fake_run_action(name, action, raw_args, **_kwargs):
     return f"{name}:{raw_args}"
 
 class Adapter:

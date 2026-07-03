@@ -419,7 +419,7 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
             calls.append((method, payload, timeout))
             return {"ok": True}
 
-        def fake_run_action(name, action, raw_args):
+        def fake_run_action(name, action, raw_args, **_):
             runs.append((name, action, raw_args))
             return "should not happen"
 

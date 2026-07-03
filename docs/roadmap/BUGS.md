@@ -231,6 +231,8 @@ These are hypotheses only; do not fix before evidence is gathered.
 
 Status 2026-07-03: implemented. `help` now returns a local `message` plan instead of `/agora help`; the Paperclip cockpit delegate sends that message to Telegram and returns `skip`, so the gateway does not create Paperclip issues for help. Verified with unit tests and a live Telegram smoke to chat `1446198327`.
 
+Live follow-up 2026-07-03: a userbot smoke against `@crimson_philosophs_bot` initially reproduced the old bug because the installed Hermes profile plugin was stale while the repo plugin was fixed. After `scripts/setup-hermes-profile.mjs` synced the profile plugin and the gateway was restarted, userbot message `агора помощь` returned the local help/menu text and did not create another Paperclip issue. Acceptance evidence: transcript `transcripts/telegram-userbot/crimson-agora-help-after-sync-20260703.jsonl`.
+
 **Batch D — Quick Preset Dispatch**
 
 - Add/verify natural routing for “сделай быстрый совет: ...” to `quick`.
@@ -260,6 +262,8 @@ Status 2026-07-03: partially implemented. `quick`/`deep` actions now force the l
 - Add a regression or dry-run test for the HTTP 409 terminated-ancestor case.
 
 Status 2026-07-03: repair path implemented through `prepare local`. Existing agents now resync `reportsTo` to the active `Agora Assistant / Синтезатор`, switch to `hermes_local`, and clear `error` status after successful sync. Live verification: `node scripts/agora.mjs prepare local` passed; guard returned `ok=true`; `Хайдеггер` and `Аристотель` are `idle`, `hermes_local`, and report to the active синтезатор. A live max-depth create no longer hit the 409 and created `THE-82`; a follow-up forced-local create created `THE-91` and queued `Хайдеггер` successfully. Remaining: add explicit guard ancestry validation before ask creation.
+
+Live follow-up 2026-07-03: `node scripts/inner-agora-guard.mjs --json` now passes Telegram/router/callback checks after profile sync, but remains red because one Paperclip agent (`Фуко`) is in `error`. This is a separate Paperclip recovery task and should not be mixed with Telegram help/menu routing.
 
 **Batch H — Per-Chat State Propagation**
 
