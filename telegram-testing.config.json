@@ -60,6 +60,64 @@
         }
       ]
     },
+    "service-commands": {
+      "tests": [
+        {
+          "id": "service.help",
+          "message": "/help",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "service.agora.home",
+          "message": "/agora",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "service.agora.help",
+          "message": "/agora help",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "service.agents",
+          "message": "/agents",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["голоса и текущие сессии", "диагностику"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "service.agora.help.full",
+          "message": "/agora help full",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Обычный вход", "Обычные команды", "Работа с сессиями", "Админ/диагностика"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true
+          }
+        }
+      ]
+    },
     "natural-dialogue": {
       "tests": [
         {

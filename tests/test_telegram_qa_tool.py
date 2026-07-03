@@ -357,7 +357,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
         self.assertEqual(
             [suite["name"] for suite in payload["suites"]],
-            ["health", "help", "natural-dialogue", "council-create", "cleanup"],
+            ["health", "help", "service-commands", "natural-dialogue", "council-create", "cleanup"],
         )
 
     def test_missing_telegram_target_fails_validation(self):

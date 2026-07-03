@@ -158,6 +158,12 @@ DEFAULT_NOTIFICATIONS = {
 DEFAULT_HELP_TEXT = {
     "en": {
         "usage_heading": "Usage:",
+        "plain_entry_heading": "Plain language entry:",
+        "plain_entry_text": "write what you want to understand in normal language; I will ask for missing details when needed.",
+        "common_commands_heading": "Common commands:",
+        "session_commands_heading": "Session work:",
+        "agent_commands_heading": "{agents}/voices:",
+        "admin_commands_heading": "Admin/diagnostics:",
         "project_actions_heading": "Project actions:",
         "safety_heading": "Safety:",
         "slash_writes": "slash-command writes",
@@ -172,6 +178,12 @@ DEFAULT_HELP_TEXT = {
     },
     "ru": {
         "usage_heading": "Команды:",
+        "plain_entry_heading": "Обычный вход:",
+        "plain_entry_text": "пиши обычным языком, что хочешь понять; если нужно, я уточню тему и режим.",
+        "common_commands_heading": "Обычные команды:",
+        "session_commands_heading": "Работа с сессиями:",
+        "agent_commands_heading": "{agents}/голоса:",
+        "admin_commands_heading": "Админ/диагностика:",
         "project_actions_heading": "Команды проекта:",
         "safety_heading": "Безопасность:",
         "slash_writes": "записи через slash-команды",
@@ -594,6 +606,106 @@ def _telegram_help_keyboard() -> dict[str, Any] | None:
     return {"inline_keyboard": rows}
 
 
+def _telegram_menu_keyboard(menu: dict[str, Any]) -> dict[str, Any] | None:
+    raw_buttons = menu.get("buttons")
+    if not isinstance(raw_buttons, list):
+        return None
+    buttons: list[dict[str, str]] = []
+    for item in raw_buttons:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or item.get("text") or "").strip()
+        callback = str(item.get("callback") or item.get("name") or "").strip()
+        arg = str(item.get("arg") or "help").strip()
+        if not label or not callback:
+            continue
+        buttons.append({"text": label[:32], "callback_data": _telegram_callback_data(callback, arg)})
+    if not buttons:
+        return None
+    rows = []
+    for index in range(0, len(buttons), 2):
+        rows.append(buttons[index : index + 2])
+    return {"inline_keyboard": rows}
+
+
+def _telegram_command_boundary_config() -> dict[str, Any]:
+    telegram = _telegram_config()
+    raw = telegram.get("command_boundary")
+    if not isinstance(raw, dict):
+        return {}
+    if _as_bool(raw.get("enabled"), True) is False:
+        return {}
+    return raw
+
+
+def _normalize_telegram_command_text(text: str) -> str:
+    raw = re.sub(r"\s+", " ", str(text or "").strip())
+    if not raw.startswith("/"):
+        return ""
+    parts = raw.split(" ", 1)
+    head = re.sub(r"@\w+$", "", parts[0], flags=re.I)
+    tail = parts[1] if len(parts) > 1 else ""
+    normalized = f"{head} {tail}".strip().casefold()
+    return normalized
+
+
+def _telegram_command_boundary_menu(text: str) -> dict[str, Any] | None:
+    boundary = _telegram_command_boundary_config()
+    if not boundary:
+        return None
+
+    normalized = _normalize_telegram_command_text(text)
+    if not normalized:
+        return None
+
+    commands = boundary.get("commands", {})
+    if not isinstance(commands, dict):
+        commands = {}
+
+    allow_full = {_normalize_telegram_command_text(item) for item in _listify(commands.get("allow_full"))}
+    if normalized in allow_full:
+        return None
+
+    menu_name = ""
+    for name in ("home", "agents"):
+        command_set = {_normalize_telegram_command_text(item) for item in _listify(commands.get(name))}
+        if normalized in command_set:
+            menu_name = name
+            break
+    if not menu_name:
+        return None
+
+    menus = boundary.get("menus", {})
+    if not isinstance(menus, dict):
+        return None
+    menu = menus.get(menu_name)
+    return menu if isinstance(menu, dict) else None
+
+
+def _maybe_handle_telegram_command_boundary(event: Any) -> dict[str, str] | None:
+    source = getattr(event, "source", None)
+    platform_obj = getattr(source, "platform", None)
+    platform = getattr(platform_obj, "value", platform_obj)
+    if str(platform or "").casefold() != "telegram":
+        return None
+
+    menu = _telegram_command_boundary_menu(getattr(event, "text", "") or "")
+    if not menu:
+        return None
+
+    text = str(menu.get("text") or menu.get("message") or "").strip()
+    if not text:
+        return None
+    reply_markup = _telegram_menu_keyboard(menu)
+    chat_id = getattr(source, "chat_id", "") if source is not None else ""
+    try:
+        _telegram_send_message(chat_id, text, reply_markup)
+    except Exception as exc:
+        logger.info("Paperclip Cockpit Telegram command boundary failed: %s", exc)
+        return None
+    return {"action": "skip"}
+
+
 def _telegram_callback_actions() -> dict[str, dict[str, Any]]:
     defaults: dict[str, dict[str, Any]] = {
         "result": {"action": "result", "args": "{arg}"},
@@ -759,6 +871,19 @@ def _help_text(key: str) -> str:
         return str(configured)
     language = _presentation_language()
     return DEFAULT_HELP_TEXT.get(language, DEFAULT_HELP_TEXT["en"]).get(key, DEFAULT_HELP_TEXT["en"].get(key, key))
+
+
+def _help_heading(key: str, **values: Any) -> str:
+    headings = _help_config().get("full_headings", {})
+    template = ""
+    if isinstance(headings, dict):
+        template = str(headings.get(key) or "").strip()
+    if not template:
+        template = _help_text(key)
+    try:
+        return template.format_map(_SafeFormatDict({name: value for name, value in values.items()}))
+    except Exception:
+        return template
 
 
 def _command_description(key: str) -> str:
@@ -1162,26 +1287,39 @@ def _technical_help(_: str = "") -> str:
     writes = _help_text("enabled") if _writes_enabled() else _help_text("disabled")
     nl_writes = _help_text("enabled") if _nl_writes_enabled() else _help_text("disabled")
     command = _slash()
-    lines = [
-        _help_text("usage_heading"),
-        _help_line(f"{command} help", _command_description("help")),
-        _help_line(f"{command} {_term('companies')}", _command_description("companies")),
-        _help_line(f"{command} {_term('health')}", _command_description("health")),
-        _help_line(f"{command} {_term('status')} [full]", _command_description("status")),
-        _help_line(f"{command} {_term('agents')} [--company NAME] [--tags|--tag TAG]", _command_description("agents")),
-        _help_line(
-            f"{command} {_term('tasks')} [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]",
-            _command_description("tasks"),
-        ),
-        _help_line(f"{command} {_term('task')} ISSUE", _command_description("task")),
-        _help_line(f"{command} {_term('comments')} ISSUE", _command_description("comments")),
-        _help_line(
-            f"{command} {_term('move')} ISSUE <todo|in_progress|blocked|done|cancelled>",
-            _command_description("move"),
-        ),
-        _help_line(f"{command} {_term('capabilities')}", _command_description("capabilities")),
-        _help_line(f"{command} {_term('debug')}", _command_description("debug")),
-    ]
+    lines = [_help_text("usage_heading"), ""]
+    lines.extend(
+        [
+            _help_heading("plain_entry_heading"),
+            f"- {_help_text('plain_entry_text')}",
+            f"- {command} help full",
+            "",
+            _help_heading("common_commands_heading"),
+            _help_line(f"{command} help", _command_description("help")),
+            _help_line(f"{command} {_term('health')}", _command_description("health")),
+            _help_line(f"{command} {_term('status')} [full]", _command_description("status")),
+            _help_line(f"{command} {_term('companies')}", _command_description("companies")),
+            "",
+            _help_heading("session_commands_heading"),
+            _help_line(
+                f"{command} {_term('tasks')} [--company NAME] [open|all|todo|in_progress|blocked|done|cancelled] [limit]",
+                _command_description("tasks"),
+            ),
+            _help_line(f"{command} {_term('task')} ISSUE", _command_description("task")),
+            _help_line(f"{command} {_term('comments')} ISSUE", _command_description("comments")),
+            _help_line(
+                f"{command} {_term('move')} ISSUE <todo|in_progress|blocked|done|cancelled>",
+                _command_description("move"),
+            ),
+            "",
+            _help_heading("agent_commands_heading", agents=_label("agents").title()),
+            _help_line(f"{command} {_term('agents')} [--company NAME] [--tags|--tag TAG]", _command_description("agents")),
+            "",
+            _help_heading("admin_commands_heading"),
+            _help_line(f"{command} {_term('capabilities')}", _command_description("capabilities")),
+            _help_line(f"{command} {_term('debug')}", _command_description("debug")),
+        ]
+    )
     actions = _actions()
     if actions:
         lines.extend(["", _help_text("project_actions_heading")])
@@ -2493,6 +2631,9 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
         gateway=kwargs.get("gateway"),
         session_store=kwargs.get("session_store"),
     )
+    command_boundary = _maybe_handle_telegram_command_boundary(event)
+    if command_boundary:
+        return command_boundary
     source = getattr(event, "source", None)
     chat_id = getattr(source, "chat_id", "") if source is not None else ""
     rewritten = _rewrite_text(getattr(event, "text", "") or "", chat_id=chat_id)

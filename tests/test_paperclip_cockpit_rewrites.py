@@ -296,6 +296,198 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             ],
         )
 
+    def test_telegram_command_boundary_intercepts_service_commands_with_buttons(self):
+        config = {
+            "command": {"name": "agora"},
+            "presentation": {"mode": "human", "language": "ru", "show_technical_by_default": False},
+            "telegram": {
+                "enabled": True,
+                "callback_prefix": "pc",
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {
+                        "home": ["/help", "/agora", "/agora help"],
+                        "agents": ["/agents"],
+                        "allow_full": ["/agora help full"],
+                    },
+                    "menus": {
+                        "home": {
+                            "text": "Агора помогает обычным языком.",
+                            "buttons": [
+                                {"label": "Быстрый совет", "callback": "new_question"},
+                                {"label": "Глубокое исследование", "callback": "deepen"},
+                            ],
+                        },
+                        "agents": {
+                            "text": "В Агоре агенты - это голоса и текущие сессии.",
+                            "buttons": [
+                                {"label": "Философы", "callback": "noop"},
+                                {"label": "Прогресс", "callback": "latest"},
+                            ],
+                        },
+                    },
+                },
+            },
+        }
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-command"
+
+        class Event:
+            source = Source()
+            text = ""
+
+        def run_case(text):
+            calls = []
+
+            def fake_telegram_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            event = Event()
+            event.text = text
+            with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+                json.dump(config, handle)
+                handle.flush()
+                with EnvPatch(
+                    PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                    PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                    PAPERCLIP_COCKPIT_NL_WRITES="0",
+                    PAPERCLIP_COCKPIT_COMMAND=None,
+                    PAPERCLIP_COCKPIT_ALLOWED_PLATFORMS=None,
+                    PAPERCLIP_COCKPIT_ALLOWED_CHATS=None,
+                ), mock.patch.object(self.plugin, "_telegram_api", fake_telegram_api):
+                    result = self.plugin._pre_gateway_dispatch(event)
+            return result, calls
+
+        for command_text in ("/help", "/help@InnerAgoraBot", "/agora", "/agora help"):
+            with self.subTest(command=command_text):
+                result, calls = run_case(command_text)
+                self.assertEqual(result, {"action": "skip"})
+                self.assertEqual([call[0] for call in calls], ["sendMessage"])
+                payload = calls[0][1]
+                self.assertEqual(payload["chat_id"], "chat-command")
+                self.assertIn("Агора помогает", payload["text"])
+                self.assertNotIn("Active Agents & Tasks", payload["text"])
+                self.assertEqual(
+                    payload["reply_markup"]["inline_keyboard"][0],
+                    [
+                        {"text": "Быстрый совет", "callback_data": "pc:new_question:help"},
+                        {"text": "Глубокое исследование", "callback_data": "pc:deepen:help"},
+                    ],
+                )
+
+        for command_text in ("/agents", "/agents@InnerAgoraBot"):
+            with self.subTest(command=command_text):
+                result, calls = run_case(command_text)
+                self.assertEqual(result, {"action": "skip"})
+                payload = calls[0][1]
+                self.assertIn("голоса и текущие сессии", payload["text"])
+                self.assertNotIn("Active Agents & Tasks", payload["text"])
+                self.assertEqual(
+                    payload["reply_markup"]["inline_keyboard"][0],
+                    [
+                        {"text": "Философы", "callback_data": "pc:noop:help"},
+                        {"text": "Прогресс", "callback_data": "pc:latest:help"},
+                    ],
+                )
+
+    def test_telegram_command_boundary_allows_full_help_path(self):
+        config = {
+            "command": {"name": "agora"},
+            "telegram": {
+                "enabled": True,
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {
+                        "home": ["/help", "/agora", "/agora help"],
+                        "agents": ["/agents"],
+                        "allow_full": ["/agora help full"],
+                    },
+                    "menus": {
+                        "home": {"text": "Home", "buttons": [{"label": "Help", "callback": "noop"}]},
+                        "agents": {"text": "Agents", "buttons": [{"label": "Help", "callback": "noop"}]},
+                    },
+                },
+            },
+        }
+        calls = []
+
+        def fake_telegram_api(method, payload, *, timeout=20):
+            calls.append((method, payload, timeout))
+            return {"ok": True}
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-command"
+
+        class Event:
+            source = Source()
+            text = "/agora help full"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ), mock.patch.object(self.plugin, "_telegram_api", fake_telegram_api):
+                result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertIsNone(result)
+        self.assertEqual(calls, [])
+
+    def test_full_help_is_grouped_and_readable_in_human_mode(self):
+        config = {
+            "command": {"name": "agora"},
+            "presentation": {
+                "mode": "human",
+                "language": "ru",
+                "show_technical_by_default": False,
+                "help": {
+                    "full_headings": {
+                        "agent_commands_heading": "Философы/голоса:",
+                    },
+                },
+            },
+            "actions": {
+                "quick": {
+                    "usage": "quick TEXT",
+                    "presentation": {"description": "быстрый совет"},
+                    "exec": ["echo", "quick"],
+                },
+                "deep": {
+                    "usage": "deep TEXT",
+                    "presentation": {"description": "глубокое исследование"},
+                    "exec": ["echo", "deep"],
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ):
+                help_text = self.plugin._help("full")
+
+        self.assertIn("Обычный вход", help_text)
+        self.assertIn("пиши обычным языком", help_text)
+        self.assertIn("Обычные команды", help_text)
+        self.assertIn("Работа с сессиями", help_text)
+        self.assertIn("Философы/голоса", help_text)
+        self.assertIn("Админ/диагностика", help_text)
+        self.assertIn("Безопасность", help_text)
+        self.assertIn("/agora quick TEXT", help_text)
+        self.assertIn("/agora deep TEXT", help_text)
+        self.assertLess(help_text.index("Обычные команды"), help_text.index("Админ/диагностика"))
+
     def test_run_action_can_take_cwd_from_environment(self):
         config = {"actions": {"where": {"exec": ["pwd"], "append_args": False}}}
         with tempfile.TemporaryDirectory() as temp_dir:

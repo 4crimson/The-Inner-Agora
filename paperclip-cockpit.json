@@ -118,7 +118,101 @@
         "callback": "deepen"
       }
     ],
+    "command_boundary": {
+      "enabled": true,
+      "commands": {
+        "home": [
+          "/help",
+          "/agora",
+          "/agora help"
+        ],
+        "agents": [
+          "/agents"
+        ],
+        "allow_full": [
+          "/agora help full",
+          "/help full",
+          "/agents full"
+        ]
+      },
+      "menus": {
+        "home": {
+          "text": "Я могу помочь через Агору: быстрый совет, глубокое исследование, разбор голосов и итоговый синтез.\n\nНапиши обычным языком, что хочешь понять. Если тема широкая, я уточню.",
+          "buttons": [
+            {
+              "label": "Быстрый совет",
+              "callback": "quick_prompt"
+            },
+            {
+              "label": "Глубокое исследование",
+              "callback": "deep_prompt"
+            },
+            {
+              "label": "Философы",
+              "callback": "philosophers_prompt"
+            },
+            {
+              "label": "Помощь full",
+              "callback": "full_help_prompt"
+            }
+          ]
+        },
+        "agents": {
+          "text": "В Агоре \"агенты\" - это голоса и текущие сессии.\n\nМогу показать философов, последние сессии, прогресс или диагностику.",
+          "buttons": [
+            {
+              "label": "Философы",
+              "callback": "philosophers_prompt"
+            },
+            {
+              "label": "Последние сессии",
+              "callback": "latest_prompt"
+            },
+            {
+              "label": "Прогресс",
+              "callback": "progress_prompt"
+            },
+            {
+              "label": "Диагностика",
+              "callback": "diagnostics_prompt"
+            },
+            {
+              "label": "Помощь",
+              "callback": "full_help_prompt"
+            }
+          ]
+        }
+      }
+    },
     "callbacks": {
+      "quick_prompt": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: быстрый совет: <твой вопрос>."
+      },
+      "deep_prompt": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: глубокое исследование: <твой вопрос>."
+      },
+      "philosophers_prompt": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: покажи философов."
+      },
+      "latest_prompt": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: что там по последней сессии?"
+      },
+      "progress_prompt": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: какой прогресс по последней сессии?"
+      },
+      "diagnostics_prompt": {
+        "answer": "Ок",
+        "message": "Для диагностики используй /agora guard. Для полной справки: /agora help full."
+      },
+      "full_help_prompt": {
+        "answer": "Ок",
+        "message": "Полная справка: /agora help full."
+      },
       "result": {
         "action": "telegram_result",
         "args": "{arg}",
@@ -233,6 +327,13 @@
       "idle_agents": "Ожидают:"
     },
     "help": {
+      "full_headings": {
+        "plain_entry_heading": "Обычный вход:",
+        "common_commands_heading": "Обычные команды:",
+        "session_commands_heading": "Работа с сессиями:",
+        "agent_commands_heading": "Философы/голоса:",
+        "admin_commands_heading": "Админ/диагностика:"
+      },
       "command_descriptions": {
         "help": "показать справку по командам",
         "companies": "список агор / рабочих пространств",

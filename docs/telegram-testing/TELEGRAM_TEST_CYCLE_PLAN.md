@@ -21,6 +21,33 @@ Live tests are allowed, but every test run must be accountable and reversible.
 
 Every run gets a unique `runId`, every Telegram message and Paperclip issue created by the run is captured in a manifest, and cleanup only touches artifacts in that manifest. Time windows may help detect artifacts, but time alone is never enough to delete anything.
 
+## Service Command Boundary Suite
+
+The `service-commands` suite verifies that ordinary Telegram slash commands stay inside the Agora UX instead of leaking raw Hermes UI.
+
+Covered messages:
+
+- `/help`
+- `/agora`
+- `/agora help`
+- `/agents`
+- `/agora help full`
+
+Expected behavior:
+
+- `/help`, `/agora`, `/agora help`, and `/agents` return Agora-facing text with inline buttons.
+- `/agents` must not return generic Hermes "Active Agents & Tasks" output.
+- None of these commands should create Paperclip issues.
+- `/agora help full` remains technical, but it must be grouped into readable sections.
+
+Targeted live retest command:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --live-ok --cleanup hard --json
+```
+
+Run this suite after syncing the Hermes profile and restarting the gateway. If cleanup reports residuals, keep the run artifacts and file a cleanup bug before broader release review.
+
 ## Layer Boundaries
 
 ### Universal Runtime Tool

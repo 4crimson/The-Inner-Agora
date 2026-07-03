@@ -2,6 +2,42 @@
 
 This file tracks live Telegram acceptance failures separately from roadmap phases. A phase can be code-complete while live behavior still fails acceptance because runtime state, Hermes profile text, provider streaming, or Paperclip agents are out of sync.
 
+## BUG-2026-07-03-002 — Telegram service commands leak raw Hermes UI
+
+**Status:** fixed locally, pending live retest
+**Severity:** P1 for Telegram UX
+**Reported:** 2026-07-03
+**Surface:** Telegram → Hermes BoF / Paperclip Cockpit
+
+### Evidence
+
+Live Telegram history showed:
+
+- `/agents` returned generic Hermes "Active Agents & Tasks" output.
+- `/help` returned a large global Hermes command dump in English.
+- `/agora` and `/agora help` returned Agora help text without buttons.
+- `/agora help full` was technically useful but too flat and hard to read.
+
+### Root Cause
+
+Telegram slash commands bypassed the natural-language rewrite path and fell through to the generic Hermes command router. The command-handler stage does not have the same Telegram side-channel keyboard context as `pre_gateway_dispatch`.
+
+### Fix
+
+- Added a config-driven Telegram command boundary in Paperclip Cockpit `pre_gateway_dispatch`.
+- Hard-overrode `/help`, `/agora`, `/agora help`, and `/agents` into Agora menu messages with inline buttons.
+- Preserved explicit full/admin paths such as `/agora help full`.
+- Reworked full help into grouped readable sections: ordinary entry, ordinary commands, sessions, voices, admin/diagnostics, safety.
+- Added `service-commands` QA suite expectations.
+
+### Acceptance Criteria
+
+- `/help`, `/agora`, `/agora help`, and `/agents` return Agora-oriented Telegram messages with buttons.
+- These commands do not create Paperclip issues.
+- `/agents` does not expose "Active Agents & Tasks".
+- `/agora help full` remains technical but is grouped and readable.
+- Live retest suite `service-commands` passes and cleanup leaves no residual QA artifacts.
+
 ## BUG-2026-07-03-001 — Telegram leaks service tokens and answers as an internal roadmap assistant
 
 **Status:** open
