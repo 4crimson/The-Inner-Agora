@@ -1093,6 +1093,32 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_check_reports_live_blockers -v` -> OK
 - `node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json` -> `complete: false`, blockers: `controlled-live-help-run`, `full-suite-repeat-cleanup`
 
+## Task 28: Actionable Completion Blockers
+
+**Files:**
+
+- Modify: `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add next actions to live-only blockers**
+
+Completion checklist blockers now include preflight, acknowledgement, live command(s), and post-run commands. The full-suite blocker uses the configured suite set instead of a nonexistent `full` suite.
+
+- [x] **Step 2: Surface blocker actions from completion-check**
+
+`completion-check` now returns `blockingActions` so release review can see the next exact non-live preflight and live commands without opening the checklist.
+
+- [x] **Step 3: Guard documented suite commands**
+
+Add a regression test that documented `--suite` commands in the Telegram QA docs/checklist reference suites that exist in `telegram-testing.config.json`.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_check_reports_live_blockers tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_documented_suite_commands_exist_in_project_config -v` -> OK
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json` -> includes `blockingActions`
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

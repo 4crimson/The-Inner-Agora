@@ -260,6 +260,30 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(payload["overallStatus"], "pre-live-ready")
             self.assertEqual(payload["blockingRequirements"], ["controlled-live-help-run", "full-suite-repeat-cleanup"])
             self.assertEqual(payload["summary"]["missingLiveEvidence"], 2)
+            self.assertEqual([action["id"] for action in payload["blockingActions"]], payload["blockingRequirements"])
+            self.assertIn("readiness", payload["blockingActions"][0]["preflight"][0])
+            self.assertIn("--live-ok", payload["blockingActions"][0]["liveCommand"])
+            self.assertIn("council-create", " ".join(payload["blockingActions"][1]["liveCommands"]))
+
+    def test_documented_suite_commands_exist_in_project_config(self):
+        config = json.loads((ROOT / "telegram-testing.config.json").read_text(encoding="utf-8"))
+        suites = set(config["suites"].keys())
+        docs = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in [
+                ROOT / "docs" / "telegram-testing" / "TELEGRAM_TEST_CYCLE_PLAN.md",
+                ROOT / "docs" / "telegram-testing" / "TELEGRAM_QA_COMPLETION_CHECKLIST.json",
+            ]
+        )
+        documented = set()
+        for token in docs.split("--suite ")[1:]:
+            suite_name = token.split()[0]
+            if suite_name.isupper():
+                continue
+            documented.add(suite_name)
+
+        self.assertTrue(documented)
+        self.assertTrue(documented.issubset(suites), f"unknown documented suites: {sorted(documented - suites)}")
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:

@@ -110,6 +110,7 @@ function completionSummary() {
     byStatus[item.status] = (byStatus[item.status] || 0) + 1;
   }
   const blockingRequirements = Array.isArray(checklist.blocksCompletion) ? checklist.blocksCompletion : [];
+  const requirementById = new Map(requirements.map((item) => [item.id, item]));
   return {
     ok: true,
     complete: blockingRequirements.length === 0 && requirements.every((item) => item.status === "proven"),
@@ -117,6 +118,14 @@ function completionSummary() {
     overallStatus: checklist.overallStatus,
     checklistPath: path.relative(ROOT, COMPLETION_CHECKLIST_PATH),
     blockingRequirements,
+    blockingActions: blockingRequirements.map((id) => {
+      const item = requirementById.get(id) || {};
+      return {
+        id,
+        remainingEvidence: item.remainingEvidence || "",
+        ...(item.nextAction || {}),
+      };
+    }),
     summary: {
       total: requirements.length,
       proven: byStatus.proven || 0,

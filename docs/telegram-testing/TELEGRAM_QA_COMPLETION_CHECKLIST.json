@@ -89,7 +89,21 @@
       "evidence": [
         "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
       ],
-      "remainingEvidence": "Requires explicit operator approval and a live run with --live-ok."
+      "remainingEvidence": "Requires explicit operator approval and a live run with --live-ok.",
+      "nextAction": {
+        "mode": "tester",
+        "preflight": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json"
+        ],
+        "acknowledgement": "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
+        "liveCommand": "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json",
+        "postRun": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json"
+        ]
+      }
     },
     {
       "id": "full-suite-repeat-cleanup",
@@ -98,7 +112,29 @@
       "evidence": [
         "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
       ],
-      "remainingEvidence": "Requires explicit operator approval, live full-suite execution, and post-cleanup Paperclip inspection."
+      "remainingEvidence": "Requires explicit operator approval, live full-suite execution, and post-cleanup Paperclip inspection.",
+      "nextAction": {
+        "mode": "release-review",
+        "preflight": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite natural-dialogue --cleanup hard --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite council-create --cleanup hard --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite cleanup --cleanup hard --json"
+        ],
+        "acknowledgement": "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
+        "liveCommands": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite natural-dialogue --cleanup hard --live-ok --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite council-create --cleanup hard --live-ok --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite cleanup --cleanup hard --live-ok --json"
+        ],
+        "postRun": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json"
+        ]
+      }
     }
   ],
   "blocksCompletion": [
