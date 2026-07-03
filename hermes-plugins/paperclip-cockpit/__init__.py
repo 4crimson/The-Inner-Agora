@@ -638,6 +638,59 @@ def _telegram_command_boundary_config() -> dict[str, Any]:
     return raw
 
 
+def _telegram_command_boundary_errors() -> list[str]:
+    boundary = _telegram_command_boundary_config()
+    if not boundary:
+        return []
+    errors: list[str] = []
+    commands = boundary.get("commands", {})
+    if not isinstance(commands, dict):
+        return ["telegram.command_boundary.commands must be an object"]
+    menus = boundary.get("menus", {})
+    if not isinstance(menus, dict):
+        return ["telegram.command_boundary.menus must be an object"]
+    callbacks = _telegram_callback_actions()
+
+    for menu_name, command_values in commands.items():
+        name = str(menu_name or "").strip()
+        if not name or name == "allow_full":
+            continue
+        if not _listify(command_values):
+            errors.append(f"telegram.command_boundary.commands.{name} must list at least one command")
+        if name not in menus:
+            errors.append(f"telegram.command_boundary.commands.{name} references missing menu {name}")
+
+    for menu_name, raw_menu in menus.items():
+        name = str(menu_name or "").strip()
+        if not isinstance(raw_menu, dict):
+            errors.append(f"telegram.command_boundary.menus.{name} must be an object")
+            continue
+        text = str(raw_menu.get("text") or raw_menu.get("message") or "").strip()
+        if not text:
+            errors.append(f"telegram.command_boundary.menus.{name}.text is required")
+        raw_buttons = raw_menu.get("buttons", [])
+        if raw_buttons is None:
+            raw_buttons = []
+        if not isinstance(raw_buttons, list):
+            errors.append(f"telegram.command_boundary.menus.{name}.buttons must be an array")
+            continue
+        for index, item in enumerate(raw_buttons):
+            if not isinstance(item, dict):
+                errors.append(f"telegram.command_boundary.menus.{name}.buttons[{index}] must be an object")
+                continue
+            label = str(item.get("label") or item.get("text") or "").strip()
+            callback = str(item.get("callback") or item.get("name") or "").strip()
+            if not label:
+                errors.append(f"telegram.command_boundary.menus.{name}.buttons[{index}].label is required")
+            if not callback:
+                errors.append(f"telegram.command_boundary.menus.{name}.buttons[{index}].callback is required")
+            elif callback not in callbacks:
+                errors.append(
+                    f"telegram.command_boundary.menus.{name}.buttons[{index}].callback references missing callback {callback}"
+                )
+    return errors
+
+
 def _normalize_telegram_command_text(text: str) -> str:
     raw = re.sub(r"\s+", " ", str(text or "").strip())
     if not raw.startswith("/"):
@@ -667,8 +720,11 @@ def _telegram_command_boundary_menu(text: str) -> dict[str, Any] | None:
         return None
 
     menu_name = ""
-    for name in ("home", "agents"):
-        command_set = {_normalize_telegram_command_text(item) for item in _listify(commands.get(name))}
+    for name, command_values in commands.items():
+        name = str(name or "").strip()
+        if not name or name == "allow_full":
+            continue
+        command_set = {_normalize_telegram_command_text(item) for item in _listify(command_values)}
         if normalized in command_set:
             menu_name = name
             break
@@ -702,7 +758,7 @@ def _maybe_handle_telegram_command_boundary(event: Any) -> dict[str, str] | None
         _telegram_send_message(chat_id, text, reply_markup)
     except Exception as exc:
         logger.info("Paperclip Cockpit Telegram command boundary failed: %s", exc)
-        return None
+        return {"action": "skip"}
     return {"action": "skip"}
 
 

@@ -14,7 +14,7 @@ const PROFILE_DIR =
 const CONFIG_PATH = path.join(PROFILE_DIR, "config.yaml");
 const SOUL_PATH = path.join(PROFILE_DIR, "SOUL.md");
 const MEMORY_PATH = path.join(PROFILE_DIR, "MEMORY.md");
-const COCKPIT_CONFIG_PATH = path.join(ROOT, "paperclip-cockpit.json");
+const COCKPIT_CONFIG_PATH = process.env.INNER_AGORA_COCKPIT_CONFIG_PATH || path.join(ROOT, "paperclip-cockpit.json");
 const PLUGIN_NAMES = ["paperclip-cockpit"];
 const PAPERCLIP_HEALTH_URL = process.env.INNER_AGORA_PAPERCLIP_HEALTH_URL || "http://127.0.0.1:3100/api/health";
 const EXPECTED_HERMES_MODEL = hermesProfileConfig().model;
@@ -24,6 +24,7 @@ const TELEGRAM_ADAPTER_PATH = path.join(HERMES_AGENT_DIR, "plugins", "platforms"
 const JSON_OUTPUT = process.argv.includes("--json");
 const FIX = process.argv.includes("--fix");
 const CHAMBERS_ONLY = process.argv.includes("--chambers-only");
+const COCKPIT_ONLY = process.argv.includes("--cockpit-only");
 
 function readText(file) {
   try {
@@ -413,6 +414,63 @@ print(json.dumps({
   }
 }
 
+function checkCockpitConfig(summary) {
+  const installedPluginPath = path.join(PROFILE_DIR, "plugins", "paperclip-cockpit", "__init__.py");
+  const localPluginPath = path.join(ROOT, "hermes-plugins", "paperclip-cockpit", "__init__.py");
+  const source = `
+import importlib.util
+import json
+import os
+
+plugin_paths = ${JSON.stringify([installedPluginPath, localPluginPath])}
+module = None
+plugin_path = ""
+missing_helper_paths = []
+for candidate in plugin_paths:
+    if not candidate or not os.path.exists(candidate):
+        continue
+    spec = importlib.util.spec_from_file_location("paperclip_cockpit_config_guard", candidate)
+    candidate_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(candidate_module)
+    if hasattr(candidate_module, "_telegram_command_boundary_errors"):
+        module = candidate_module
+        plugin_path = candidate
+        break
+    missing_helper_paths.append(candidate)
+
+if module is None:
+    print(json.dumps({
+        "ok": False,
+        "errors": ["paperclip-cockpit plugin does not expose _telegram_command_boundary_errors"],
+        "pluginPath": "",
+        "missingHelperPaths": missing_helper_paths,
+    }, ensure_ascii=False))
+    raise SystemExit(0)
+
+errors = module._telegram_command_boundary_errors()
+print(json.dumps({"ok": not errors, "errors": errors, "pluginPath": plugin_path}, ensure_ascii=False))
+`;
+  const check = runPythonCheck(source, {
+    PAPERCLIP_COCKPIT_CONFIG: COCKPIT_CONFIG_PATH,
+    PAPERCLIP_COCKPIT_COMMAND: "",
+  });
+  const errors = Array.isArray(check.data?.errors) ? check.data.errors : [];
+  summary.cockpit = {
+    ok: check.status === 0 && check.data?.ok === true,
+    configPath: COCKPIT_CONFIG_PATH,
+    pluginPath: check.data?.pluginPath || "",
+    errors,
+    status: check.status,
+  };
+  if (!summary.cockpit.ok) {
+    record(summary, "error", "Paperclip cockpit Telegram command boundary config is invalid", {
+      status: check.status,
+      errors,
+      stderr: check.stderr,
+    });
+  }
+}
+
 function checkTelegramCallbackContract(summary) {
   const pluginPath = path.join(PROFILE_DIR, "plugins", "paperclip-cockpit", "__init__.py");
   const source = `
@@ -715,6 +773,9 @@ function printSummary(summary) {
   if (summary.chambers) {
     console.log(`- Chambers: ${summary.chambers.ok ? `ok (${summary.chambers.ids.join(", ")})` : "failed"}`);
   }
+  if (summary.cockpit) {
+    console.log(`- Paperclip cockpit config: ${summary.cockpit.ok ? "ok" : "failed"}`);
+  }
   if (summary.telegram?.enabled) {
     console.log(`- Telegram Bot API: ${summary.telegram.ok ? `ok (${summary.telegram.botUsername || "bot"})` : "failed"}`);
   }
@@ -742,11 +803,14 @@ const summary = {
 
 if (CHAMBERS_ONLY) {
   checkChambers(summary);
+} else if (COCKPIT_ONLY) {
+  checkCockpitConfig(summary);
 } else {
   if (FIX) runSetup(summary);
   checkFiles(summary);
   checkRuntimeState(summary);
   checkChambers(summary);
+  checkCockpitConfig(summary);
   await checkPaperclip(summary);
   await checkPaperclipAgents(summary);
   await checkGateway(summary);

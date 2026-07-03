@@ -440,6 +440,141 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(calls, [])
 
+    def test_telegram_command_boundary_supports_arbitrary_menu_names(self):
+        config = {
+            "telegram": {
+                "enabled": True,
+                "callback_prefix": "wk",
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {
+                        "support": ["/support", "/helpdesk"],
+                        "billing": ["/billing"],
+                    },
+                    "menus": {
+                        "support": {
+                            "text": "Support menu",
+                            "buttons": [{"label": "Open ticket", "callback": "open_ticket"}],
+                        },
+                        "billing": {
+                            "text": "Billing menu",
+                            "buttons": [{"label": "Invoice", "callback": "invoice"}],
+                        },
+                    },
+                },
+                "callbacks": {
+                    "open_ticket": {"message": "Write your support question."},
+                    "invoice": {"message": "Write invoice number."},
+                },
+            },
+        }
+        calls = []
+
+        def fake_telegram_api(method, payload, *, timeout=20):
+            calls.append((method, payload, timeout))
+            return {"ok": True}
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-generic"
+
+        class Event:
+            source = Source()
+            text = "/support"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=handle.name), mock.patch.object(
+                self.plugin, "_telegram_api", fake_telegram_api
+            ):
+                result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(calls[0][1]["text"], "Support menu")
+        self.assertEqual(
+            calls[0][1]["reply_markup"]["inline_keyboard"][0][0],
+            {"text": "Open ticket", "callback_data": "wk:open_ticket:help"},
+        )
+
+    def test_telegram_command_boundary_validation_reports_bad_config(self):
+        config = {
+            "telegram": {
+                "enabled": True,
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {
+                        "support": ["/support"],
+                        "missing": ["/missing"],
+                    },
+                    "menus": {
+                        "support": {
+                            "text": "Support menu",
+                            "buttons": [
+                                {"label": "Open ticket", "callback": "open_ticket"},
+                                {"label": "Broken", "callback": "not_configured"},
+                            ],
+                        },
+                        "empty": {"buttons": [{"label": "Help", "callback": "open_ticket"}]},
+                    },
+                },
+                "callbacks": {
+                    "open_ticket": {"message": "Write your support question."},
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=handle.name):
+                errors = self.plugin._telegram_command_boundary_errors()
+
+        self.assertIn("telegram.command_boundary.commands.missing references missing menu missing", errors)
+        self.assertIn("telegram.command_boundary.menus.empty.text is required", errors)
+        self.assertIn(
+            "telegram.command_boundary.menus.support.buttons[1].callback references missing callback not_configured",
+            errors,
+        )
+
+    def test_telegram_command_boundary_skips_raw_route_when_bot_api_fails(self):
+        config = {
+            "telegram": {
+                "enabled": True,
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {"help": ["/help"]},
+                    "menus": {
+                        "help": {
+                            "text": "Help menu",
+                            "buttons": [{"label": "Help", "callback": "noop"}],
+                        },
+                    },
+                },
+                "callbacks": {"noop": {"answer": "OK"}},
+            },
+        }
+
+        def fake_telegram_api(method, payload, *, timeout=20):
+            raise self.plugin.PaperclipError("Telegram sendMessage failed")
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-fallback"
+
+        class Event:
+            source = Source()
+            text = "/help"
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=handle.name), mock.patch.object(
+                self.plugin, "_telegram_api", fake_telegram_api
+            ):
+                result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertEqual(result, {"action": "skip"})
+
     def test_full_help_is_grouped_and_readable_in_human_mode(self):
         config = {
             "command": {"name": "agora"},

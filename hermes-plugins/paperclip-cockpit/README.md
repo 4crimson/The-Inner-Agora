@@ -169,6 +169,55 @@ Project Telegram buttons are config-driven. The Hermes Telegram adapter exposes 
 
 Buttons and callbacks use the Telegram Bot API directly; they do not ask the LLM to interpret a button click.
 
+### Telegram Command Boundary
+
+`telegram.command_boundary` lets a project override ordinary Telegram slash commands before they leak into the generic Hermes command router. It is useful for commands such as `/help`, `/status`, `/support`, or `/agents` where the chat should show a product-facing menu instead of raw platform help.
+
+The boundary is generic: every key under `commands` maps to the same key under `menus`. The only reserved command group is `allow_full`, which explicitly passes through to the normal command path.
+
+Example:
+
+```json
+{
+  "telegram": {
+    "enabled": true,
+    "callback_prefix": "wk",
+    "command_boundary": {
+      "enabled": true,
+      "commands": {
+        "help": ["/help", "/work"],
+        "status": ["/status"],
+        "allow_full": ["/work help full"]
+      },
+      "menus": {
+        "help": {
+          "text": "I can help with tasks, status, and handoffs. Write normally or choose an action.",
+          "buttons": [
+            { "label": "New task", "callback": "new_task_prompt" },
+            { "label": "Status", "callback": "status_prompt" }
+          ]
+        },
+        "status": {
+          "text": "Status options:",
+          "buttons": [
+            { "label": "Open tasks", "callback": "open_tasks_prompt" },
+            { "label": "Diagnostics", "callback": "diagnostics_prompt" }
+          ]
+        }
+      }
+    },
+    "callbacks": {
+      "new_task_prompt": { "message": "Write: new task: <what needs to happen>." },
+      "status_prompt": { "message": "Write: status." },
+      "open_tasks_prompt": { "message": "Write: show open tasks." },
+      "diagnostics_prompt": { "message": "Use the full help or project guard command." }
+    }
+  }
+}
+```
+
+Validation is available through the project guard. It fails when a command group has no matching menu, a menu has no text, or a button references a missing callback. If the Telegram Bot API side-channel fails while handling a boundary command, the plugin returns `skip` so raw Hermes help is not sent to the user.
+
 If you prefer the old technical output by default, set:
 
 ```json
