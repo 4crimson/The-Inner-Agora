@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
 import { cleanupRun } from "../src/cleanup-runner.mjs";
 import { runHealthChecks } from "../src/health-check.mjs";
@@ -8,6 +11,9 @@ import { PaperclipClient } from "../src/paperclip-client.mjs";
 import { appendBugsToDoc, bugBatch, writeAcceptance, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
 import { createRetestRun, executeRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const COMPLETION_CHECKLIST_PATH = path.join(ROOT, "docs", "telegram-testing", "TELEGRAM_QA_COMPLETION_CHECKLIST.json");
 
 function parseArgs(argv) {
   if (argv[0] === "--help" || argv[0] === "-h") return { command: "", help: true, json: false, config: "" };
@@ -51,6 +57,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs health --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run|--live-ok]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
@@ -92,6 +99,35 @@ function configSummary(config) {
       },
     },
     suites: suiteSummary(config),
+  };
+}
+
+function completionSummary() {
+  const checklist = JSON.parse(fs.readFileSync(COMPLETION_CHECKLIST_PATH, "utf8"));
+  const requirements = Array.isArray(checklist.requirements) ? checklist.requirements : [];
+  const byStatus = {};
+  for (const item of requirements) {
+    byStatus[item.status] = (byStatus[item.status] || 0) + 1;
+  }
+  const blockingRequirements = Array.isArray(checklist.blocksCompletion) ? checklist.blocksCompletion : [];
+  return {
+    ok: true,
+    complete: blockingRequirements.length === 0 && requirements.every((item) => item.status === "proven"),
+    goal: checklist.goal,
+    overallStatus: checklist.overallStatus,
+    checklistPath: path.relative(ROOT, COMPLETION_CHECKLIST_PATH),
+    blockingRequirements,
+    summary: {
+      total: requirements.length,
+      proven: byStatus.proven || 0,
+      partial: byStatus.partial || 0,
+      missingLiveEvidence: byStatus["missing-live-evidence"] || 0,
+    },
+    requirements: requirements.map((item) => ({
+      id: item.id,
+      status: item.status,
+      remainingEvidence: item.remainingEvidence || "",
+    })),
   };
 }
 
@@ -209,6 +245,10 @@ async function main(argv) {
   const config = loadConfig(options.config);
   if (options.command === "config-check") {
     printPayload(configSummary(config), options.json);
+    return 0;
+  }
+  if (options.command === "completion-check") {
+    printPayload(completionSummary(), options.json);
     return 0;
   }
   if (options.command === "health") {

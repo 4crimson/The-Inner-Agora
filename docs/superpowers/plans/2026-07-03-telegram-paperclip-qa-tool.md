@@ -1067,6 +1067,32 @@ Evidence:
 
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_checklist_tracks_live_evidence_gap -v` -> OK
 
+## Task 27: Completion Check CLI Gate
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `tests/test_telegram_qa_tool.py`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/README.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+
+- [x] **Step 1: Add non-live completion-check command**
+
+`completion-check --config FILE` reads the completion checklist and returns `complete`, `overallStatus`, blocker ids, and status counts. It does not touch Telegram or Paperclip.
+
+- [x] **Step 2: Wire release review and safe commands to completion-check**
+
+Release review now runs `completion-check` as the goal-level gate before claiming the two-layer QA system complete.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_check_reports_live_blockers -v` -> OK
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json` -> `complete: false`, blockers: `controlled-live-help-run`, `full-suite-repeat-cleanup`
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

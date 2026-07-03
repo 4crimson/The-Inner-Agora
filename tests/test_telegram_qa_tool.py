@@ -222,6 +222,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
 
         for command in [
             "config-check",
+            "completion-check",
             "readiness",
             "health",
             "telegram-check",
@@ -245,6 +246,20 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(statuses["controlled-live-help-run"], "missing-live-evidence")
         self.assertEqual(statuses["full-suite-repeat-cleanup"], "missing-live-evidence")
         self.assertIn("controlled-live-help-run", checklist["blocksCompletion"])
+
+    def test_completion_check_reports_live_blockers(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            result = self.run_cli("completion-check", "--config", config_path, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertFalse(payload["complete"])
+            self.assertEqual(payload["overallStatus"], "pre-live-ready")
+            self.assertEqual(payload["blockingRequirements"], ["controlled-live-help-run", "full-suite-repeat-cleanup"])
+            self.assertEqual(payload["summary"]["missingLiveEvidence"], 2)
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:

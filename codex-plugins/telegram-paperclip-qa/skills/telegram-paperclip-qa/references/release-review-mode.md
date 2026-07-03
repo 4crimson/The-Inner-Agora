@@ -11,7 +11,7 @@ Workflow:
 5. Run cleanup.
 6. Generate report, bug output, and acceptance output.
 7. Use `acceptance --run RUN_ID --json` and `ACCEPTANCE.md` as the decision source.
-8. Compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
+8. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
 9. Decide accept, accept-with-known-issues, or reject.
 
 Acceptance gates:
