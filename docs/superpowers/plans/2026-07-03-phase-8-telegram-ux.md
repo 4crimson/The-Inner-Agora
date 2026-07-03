@@ -301,7 +301,7 @@ python3 -m unittest discover -s tests -v
 
 ```bash
 node scripts/regression.mjs check
-INNER_AGORA_ACTIVE_CHAMBER=board-directors node scripts/regression.mjs check
+CHAMBER_MODE=chambers node scripts/regression.mjs check
 ```
 
 - [ ] **Step 4: Update roadmap evidence**

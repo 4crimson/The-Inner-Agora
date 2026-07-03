@@ -151,6 +151,8 @@
 | T8.5 | Пресеты одной командой: «быстрый совет», «глубокое исследование», «go/no-go» | P2 | S | T2.6 | Каждый пресет — рабочий алиас на комбинацию mode+chamber |
 | T8.6 | `[QW → сделано ранее как QW-2]` Проактивный self-heal gateway — при выполнении фазы только ревизия после появления палат (health-check покрывает и chamber-loader) | P2 | S | QW-2 | Health-check валидирует загрузку активной палаты, не только gateway |
 
+**Статус на 2026-07-03:** Фаза 8 закрыта по roadmap scope. Evidence: `docs/superpowers/specs/2026-07-03-phase-8-telegram-ux-design.md`, `docs/superpowers/plans/2026-07-03-phase-8-telegram-ux.md`, `scripts/paperclip-cockpit-telegram.mjs`, `scripts/paperclip-cockpit-monitor.mjs`, `scripts/inner-agora-guard.mjs`, `hermes-plugins/paperclip-cockpit/__init__.py`, `paperclip-cockpit.json`, `cockpit.core.json`, `tests/test_paperclip_cockpit_telegram_helper.py`, `tests/test_paperclip_cockpit_monitor.py`, `tests/test_inner_agora_guard.py`. T8.1 result: `pre_gateway_dispatch` is text-only, so ambiguity uses deterministic wizard/numbered menus while inline buttons use the Telegram Bot API side-channel. T8.3/T8.4/T8.5/T8.6 are implemented with quick-action buttons, progress payloads, presets, action env overrides, and chamber-loader health. Verification: 131 unit tests passed; focused Telegram/monitor/guard/conversation suite passed; `node scripts/regression.mjs check` and `CHAMBER_MODE=chambers node scripts/regression.mjs check` passed; local model smoke printed `adapter=hermes_local`, `model=google/gemma-4-26b-a4b-qat`.
+
 ---
 
 ## Фаза 9 — Наблюдаемость и стоимость
