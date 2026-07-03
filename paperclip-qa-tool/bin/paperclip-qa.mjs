@@ -4,8 +4,8 @@ import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.m
 import { cleanupPaperclipIssues } from "../src/cleanup-engine.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
-import { appendBugsToDoc, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
-import { runSuite } from "../src/suite-runner.mjs";
+import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
+import { createRetestRun, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
@@ -20,6 +20,7 @@ function parseArgs(argv) {
     mode: "",
     cleanup: "",
     appendDoc: "",
+    area: "",
     dryRun: false,
     limit: 20,
   };
@@ -32,6 +33,7 @@ function parseArgs(argv) {
     else if (arg === "--mode") options.mode = tail[++index] || "";
     else if (arg === "--cleanup") options.cleanup = tail[++index] || "";
     else if (arg === "--append-doc") options.appendDoc = tail[++index] || "";
+    else if (arg === "--area") options.area = tail[++index] || "";
     else if (arg === "--limit") options.limit = Number(tail[++index] || "20");
     else if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -49,6 +51,8 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs report --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config FILE --run OLD_RUN [--cleanup hard|soft|none] [--dry-run] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config FILE --run RUN_ID --area AREA [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-history --config FILE [--limit N] [--dry-run] [--json]
 `;
@@ -150,6 +154,22 @@ async function main(argv) {
     const result = writeBugsJsonl({ manifest, outputDir });
     const appendDoc = appendBugsToDoc({ bugs: result.bugs, docPath: options.appendDoc, dryRun: options.dryRun });
     printPayload({ ok: true, runId: options.run, manifestPath, bugsPath: result.bugsPath, bugs: result.bugs.length, appendDoc }, options.json);
+    return 0;
+  }
+  if (options.command === "retest") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const previousManifest = readManifest(manifestPath);
+    const result = createRetestRun({ config, previousManifest, dryRun: options.dryRun, cleanupMode: options.cleanup });
+    printPayload(result, options.json);
+    return 0;
+  }
+  if (options.command === "bug-batch") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    if (!options.area) throw new ConfigValidationError(["--area is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const manifest = readManifest(manifestPath);
+    printPayload({ ok: true, runId: options.run, manifestPath, ...bugBatch({ manifest, area: options.area }) }, options.json);
     return 0;
   }
   if (options.command === "telegram-check") {

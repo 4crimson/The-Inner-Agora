@@ -549,7 +549,7 @@ git commit -m "Add Telegram Paperclip QA Codex skill"
 - Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
 - Test: `tests/test_telegram_qa_tool.py`
 
-- [ ] **Step 1: Write tests for previous-run retest**
+- [x] **Step 1: Write tests for previous-run retest**
 
 Given a previous manifest with failing `testId`s, assert:
 
@@ -557,13 +557,13 @@ Given a previous manifest with failing `testId`s, assert:
 - retest report links old and new runs;
 - fixed/still-failing/changed statuses are recorded.
 
-- [ ] **Step 2: Implement retest command**
+- [x] **Step 2: Implement retest command**
 
 ```text
 retest --config FILE --run OLD_RUN [--cleanup hard|soft|none] [--json]
 ```
 
-- [ ] **Step 3: Implement bug-batch output**
+- [x] **Step 3: Implement bug-batch output**
 
 ```text
 bug-batch --config FILE --run RUN_ID --area telegram-ui [--json]
@@ -571,13 +571,18 @@ bug-batch --config FILE --run RUN_ID --area telegram-ui [--json]
 
 Output should list bug ids, evidence, and acceptance criteria for one development area.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests**
 
 ```bash
 python3 -m unittest tests.test_telegram_qa_tool -v
-git add paperclip-qa-tool tests/test_telegram_qa_tool.py
-git commit -m "Add Telegram QA retest and bug batches"
 ```
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool -v` -> `Ran 19 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/suite-runner.mjs` -> OK
+- `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 
 ## Task 10: Documentation And Controlled Live Acceptance
 

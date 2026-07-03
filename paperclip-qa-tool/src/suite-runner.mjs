@@ -45,3 +45,40 @@ export function runSuite({ config, suiteName, dryRun = false, cleanupMode = "" }
     plannedTests: manifest.tests.map((test) => test.id),
   };
 }
+
+export function createRetestRun({ config, previousManifest, dryRun = false, cleanupMode = "" }) {
+  const mode = cleanupMode || previousManifest.cleanup?.mode || config.paperclip.cleanup;
+  if (!["hard", "soft", "none"].includes(mode)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
+  if (!dryRun) {
+    throw new ConfigValidationError(["live retest is not implemented yet; use --dry-run"]);
+  }
+
+  const failed = (Array.isArray(previousManifest.tests) ? previousManifest.tests : []).filter((test) => test.status === "fail");
+  const run = createRun({ config, suite: `${previousManifest.suite || "suite"}-retest` });
+  const manifest = {
+    ...run.manifest,
+    suite: previousManifest.suite,
+    previousRunId: previousManifest.runId,
+    finishedAt: new Date().toISOString(),
+    cleanup: {
+      ...run.manifest.cleanup,
+      mode,
+    },
+    tests: failed.map((test) => ({
+      id: test.id,
+      message: test.message || "",
+      status: "planned",
+      dryRun: true,
+      previousStatus: test.status,
+    })),
+  };
+  writeManifest(run.manifestPath, manifest);
+  return {
+    ok: true,
+    dryRun: true,
+    previousRunId: previousManifest.runId,
+    runId: run.runId,
+    manifestPath: run.manifestPath,
+    selectedTests: manifest.tests.map((test) => test.id),
+  };
+}

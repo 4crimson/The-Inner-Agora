@@ -120,3 +120,20 @@ export function appendBugsToDoc({ bugs, docPath, dryRun = false }) {
   }
   return { docPath: path.resolve(docPath), dryRun, preview };
 }
+
+export function bugBatch({ manifest, area }) {
+  const generated = bugsFromManifest(manifest).map((bug) => ({ ...bug, area: bug.area || "unknown" }));
+  const explicit = Array.isArray(manifest.bugs) ? manifest.bugs : [];
+  const bugs = [...explicit, ...generated].filter((bug) => !area || bug.area === area);
+  return {
+    area: area || "all",
+    bugs: bugs.map((bug) => ({
+      id: bug.id,
+      area: bug.area || "unknown",
+      testId: bug.testId,
+      title: bug.title || `QA failure: ${bug.testId}`,
+      evidence: redact(bug.evidence || ""),
+      acceptanceCriteria: Array.isArray(bug.acceptanceCriteria) ? bug.acceptanceCriteria : [],
+    })),
+  };
+}

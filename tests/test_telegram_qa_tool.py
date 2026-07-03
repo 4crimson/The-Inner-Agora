@@ -589,6 +589,79 @@ console.log(JSON.stringify(result));
             self.assertIn("help.raw-token", payload["appendDoc"]["preview"])
             self.assertFalse(append_doc.exists())
 
+    def write_retest_manifest(self, artifacts_dir, run_id):
+        run_dir = Path(artifacts_dir) / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_dir / "manifest.json"
+        manifest = {
+            "runId": run_id,
+            "suite": "help",
+            "startedAt": "2026-07-03T00:00:00.000Z",
+            "finishedAt": "2026-07-03T00:01:00.000Z",
+            "telegram": {"target": "@example_bot", "userId": None, "chatId": None, "messages": []},
+            "paperclip": {"apiBase": "http://127.0.0.1:3100/api", "company": "Example", "companyId": "company-1", "roots": [], "issues": []},
+            "tests": [
+                {"id": "help.ok", "message": "агора помощь", "status": "pass"},
+                {"id": "help.raw-token", "message": "агора помощь", "status": "fail"},
+            ],
+            "bugs": [
+                {
+                    "id": "TQA-001",
+                    "area": "telegram-ui",
+                    "testId": "help.raw-token",
+                    "title": "Raw provider token leaks into Telegram",
+                    "evidence": "reply contained <|channel>",
+                    "acceptanceCriteria": ["help.raw-token passes"],
+                },
+                {
+                    "id": "TQA-002",
+                    "area": "cleanup",
+                    "testId": "cleanup.paperclip",
+                    "title": "Paperclip hard delete leaves residual",
+                    "evidence": "delete returned 500",
+                    "acceptanceCriteria": ["cleanup reports no residuals"],
+                },
+            ],
+            "cleanup": {"mode": "hard", "attemptedAt": None, "telegram": [], "paperclip": [], "residuals": []},
+        }
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest_path
+
+    def test_retest_dry_run_selects_previous_failed_tests_only(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            old_run_id = "QA-20260703-old-a1b2c3"
+            self.write_retest_manifest(artifacts_dir, old_run_id)
+
+            result = self.run_cli("retest", "--config", config_path, "--run", old_run_id, "--dry-run", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["previousRunId"], old_run_id)
+            self.assertEqual(payload["selectedTests"], ["help.raw-token"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["previousRunId"], old_run_id)
+            self.assertEqual([test["id"] for test in manifest["tests"]], ["help.raw-token"])
+            self.assertEqual(manifest["tests"][0]["status"], "planned")
+
+    def test_bug_batch_filters_manifest_bugs_by_area(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-batch-d4e5f6"
+            self.write_retest_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli("bug-batch", "--config", config_path, "--run", run_id, "--area", "telegram-ui", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["area"], "telegram-ui")
+            self.assertEqual([bug["id"] for bug in payload["bugs"]], ["TQA-001"])
+            self.assertIn("help.raw-token passes", payload["bugs"][0]["acceptanceCriteria"])
+
 
 if __name__ == "__main__":
     unittest.main()
