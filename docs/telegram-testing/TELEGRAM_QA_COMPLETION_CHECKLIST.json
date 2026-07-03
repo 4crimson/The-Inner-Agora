@@ -1,0 +1,108 @@
+{
+  "goal": "telegram-paperclip-qa-two-layer-system",
+  "updated": "2026-07-03",
+  "overallStatus": "pre-live-ready",
+  "statusLegend": {
+    "proven": "Current local evidence proves the requirement.",
+    "partial": "Local evidence proves the contract, but live behavior or a real handoff is still unproven.",
+    "missing-live-evidence": "The requirement cannot be closed without an explicit live Telegram/Paperclip run."
+  },
+  "requirements": [
+    {
+      "id": "universal-runtime-tool",
+      "requirement": "Provide a project-neutral paperclip-qa-tool runtime that accepts config, suite, Telegram/Paperclip credentials and outputs manifests, reports, bugs, and cleanup results.",
+      "status": "proven",
+      "evidence": [
+        "paperclip-qa-tool/bin/paperclip-qa.mjs",
+        "paperclip-qa-tool/src/*.mjs",
+        "tests.test_telegram_qa_tool"
+      ]
+    },
+    {
+      "id": "inner-agora-config-binding",
+      "requirement": "Keep Inner Agora-specific target bot, Paperclip company, suites, phrases, expectations, cleanup policy, and guard warnings in telegram-testing.config.json.",
+      "status": "proven",
+      "evidence": [
+        "telegram-testing.config.json",
+        "test_real_project_config_is_valid",
+        "test_universal_tool_metadata_is_project_neutral"
+      ]
+    },
+    {
+      "id": "codex-qa-skill-plugin",
+      "requirement": "Provide a Codex plugin/skill that separates tester, developer, retest, and release-review modes.",
+      "status": "proven",
+      "evidence": [
+        "codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json",
+        "codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md",
+        "test_codex_plugin_packaging_references_current_workflow"
+      ]
+    },
+    {
+      "id": "live-side-effect-gate",
+      "requirement": "Require health/readiness and explicit acknowledgement before live Telegram/Paperclip side effects.",
+      "status": "proven",
+      "evidence": [
+        "readiness --config FILE --suite NAME --json",
+        "live-plan --config FILE --suite NAME --json",
+        "test_readiness_runs_preflight_without_creating_run_artifacts",
+        "test_live_plan_outputs_acknowledgement_and_commands_without_side_effects"
+      ]
+    },
+    {
+      "id": "manifest-scoped-cleanup",
+      "requirement": "Cleanup must delete or hide only Telegram/Paperclip artifacts listed in the manifest or carrying the exact run marker.",
+      "status": "proven",
+      "evidence": [
+        "test_cleanup_deletes_manifest_telegram_messages_with_fake_userbot",
+        "test_cleanup_hard_deletes_manifest_issues_children_before_parent",
+        "test_cleanup_hard_delete_failure_falls_back_to_hidden_cancelled_patch"
+      ]
+    },
+    {
+      "id": "bug-batch-developer-handoff",
+      "requirement": "Tester mode can produce grouped bug batches that developer mode can consume one area at a time.",
+      "status": "partial",
+      "evidence": [
+        "bug-batch --config FILE --run RUN_ID --json",
+        "codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/developer-mode.md",
+        "test_bug_batch_without_area_groups_by_area_and_severity",
+        "test_bug_batch_filters_manifest_bugs_by_area"
+      ],
+      "remainingEvidence": "A real failing live manifest and developer handoff have not yet been exercised."
+    },
+    {
+      "id": "retest-failed-test-ids",
+      "requirement": "Retest mode reruns failed test ids and proves whether bugs are fixed, still failing, or changed.",
+      "status": "partial",
+      "evidence": [
+        "retest --config FILE --run OLD_RUN --dry-run --json",
+        "test_retest_dry_run_selects_previous_failed_tests_only",
+        "test_retest_live_executes_only_failed_tests_and_writes_artifacts"
+      ],
+      "remainingEvidence": "A real live failed-then-fixed cycle has not yet been exercised."
+    },
+    {
+      "id": "controlled-live-help-run",
+      "requirement": "A controlled live help suite run passes or produces accepted bug output and cleans itself.",
+      "status": "missing-live-evidence",
+      "evidence": [
+        "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
+      ],
+      "remainingEvidence": "Requires explicit operator approval and a live run with --live-ok."
+    },
+    {
+      "id": "full-suite-repeat-cleanup",
+      "requirement": "The full suite can run twice without leaving extra visible Paperclip roots.",
+      "status": "missing-live-evidence",
+      "evidence": [
+        "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
+      ],
+      "remainingEvidence": "Requires explicit operator approval, live full-suite execution, and post-cleanup Paperclip inspection."
+    }
+  ],
+  "blocksCompletion": [
+    "controlled-live-help-run",
+    "full-suite-repeat-cleanup"
+  ]
+}

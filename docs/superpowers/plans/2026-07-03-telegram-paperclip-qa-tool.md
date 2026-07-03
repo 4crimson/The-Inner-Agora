@@ -1046,6 +1046,27 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_readiness_runs_preflight_without_creating_run_artifacts -v` -> OK
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 
+## Task 26: Completion Checklist Artifact
+
+**Files:**
+
+- Create: `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`
+- Modify: `docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add machine-readable completion checklist**
+
+Create a JSON checklist that maps the two-layer QA goal to current evidence and explicitly marks live-only requirements as `missing-live-evidence`.
+
+- [x] **Step 2: Make release review compare against the checklist**
+
+Release review mode now uses the checklist as the requirement-level completion map in addition to per-run `ACCEPTANCE.md`.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_checklist_tracks_live_evidence_gap -v` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

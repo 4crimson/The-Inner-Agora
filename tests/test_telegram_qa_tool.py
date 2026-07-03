@@ -14,6 +14,7 @@ CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
 QA_SCHEMA = ROOT / "paperclip-qa-tool" / "qa-tool.config.schema.json"
 QA_PLUGIN_ROOT = ROOT / "codex-plugins" / "telegram-paperclip-qa"
 QA_PLUGIN_MANIFEST = ROOT / "codex-plugins" / "telegram-paperclip-qa" / ".codex-plugin" / "plugin.json"
+QA_COMPLETION_CHECKLIST = ROOT / "docs" / "telegram-testing" / "TELEGRAM_QA_COMPLETION_CHECKLIST.json"
 
 
 class FakePaperclipHandler(BaseHTTPRequestHandler):
@@ -232,6 +233,18 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertIn(command, skill)
         self.assertIn("--live-ok", readme)
         self.assertIn("telegram-testing.config.json", readme)
+
+    def test_completion_checklist_tracks_live_evidence_gap(self):
+        checklist = json.loads(QA_COMPLETION_CHECKLIST.read_text(encoding="utf-8"))
+
+        self.assertEqual(checklist["goal"], "telegram-paperclip-qa-two-layer-system")
+        self.assertEqual(checklist["overallStatus"], "pre-live-ready")
+        statuses = {item["id"]: item["status"] for item in checklist["requirements"]}
+        self.assertEqual(statuses["universal-runtime-tool"], "proven")
+        self.assertEqual(statuses["codex-qa-skill-plugin"], "proven")
+        self.assertEqual(statuses["controlled-live-help-run"], "missing-live-evidence")
+        self.assertEqual(statuses["full-suite-repeat-cleanup"], "missing-live-evidence")
+        self.assertIn("controlled-live-help-run", checklist["blocksCompletion"])
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:

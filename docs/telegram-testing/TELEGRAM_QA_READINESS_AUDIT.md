@@ -11,6 +11,8 @@ This audit checks the current Telegram/Paperclip QA harness against the product 
 
 This file is intentionally not a live acceptance report. It is the pre-live readiness checkpoint that says what is already proven locally and what still needs a controlled Telegram/Paperclip run.
 
+Machine-readable release status lives in [TELEGRAM_QA_COMPLETION_CHECKLIST.json](TELEGRAM_QA_COMPLETION_CHECKLIST.json).
+
 ## Current Decision
 
 Status: **ready for explicit live acceptance**, not fully accepted yet.
