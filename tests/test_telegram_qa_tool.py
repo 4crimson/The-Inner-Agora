@@ -3,6 +3,7 @@ import os
 import threading
 import subprocess
 import tempfile
+import textwrap
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -291,6 +292,58 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         return manifest_path
 
+    def write_cleanup_manifest(self, artifacts_dir, run_id, *, telegram_messages=None, issues=None):
+        run_dir = Path(artifacts_dir) / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_dir / "manifest.json"
+        manifest = {
+            "runId": run_id,
+            "suite": "cleanup",
+            "startedAt": "2026-07-03T00:00:00.000Z",
+            "finishedAt": None,
+            "telegram": {
+                "target": "@example_bot",
+                "userId": None,
+                "chatId": None,
+                "messages": telegram_messages or [],
+            },
+            "paperclip": {
+                "apiBase": "http://127.0.0.1:3100/api",
+                "company": "Example",
+                "companyId": "company-1",
+                "roots": [],
+                "issues": issues or [],
+            },
+            "tests": [],
+            "bugs": [],
+            "cleanup": {"mode": "hard", "attemptedAt": None, "telegram": [], "paperclip": [], "residuals": []},
+        }
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest_path
+
+    def write_fake_telegram_driver(self, temp_dir, *, ok=True):
+        script = Path(temp_dir) / "fake-telegram-driver.py"
+        script.write_text(
+            textwrap.dedent(
+                f"""
+                import json
+                import os
+                import pathlib
+                import sys
+
+                calls_path = pathlib.Path(os.environ["FAKE_TELEGRAM_CALLS"])
+                calls_path.parent.mkdir(parents=True, exist_ok=True)
+                with calls_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(sys.argv[1:]))
+                    handle.write("\\n")
+                print(json.dumps({{"ok": {str(ok)}, "args": sys.argv[1:]}}))
+                raise SystemExit(0 if {str(ok)} else 1)
+                """
+            ),
+            encoding="utf-8",
+        )
+        return script
+
     def write_report_manifest(self, artifacts_dir, run_id):
         run_dir = Path(artifacts_dir) / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -400,6 +453,82 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
             actions = [item["method"] for item in manifest["cleanup"]["paperclip"]]
             self.assertEqual(actions, ["DELETE", "PATCH"])
+
+    def test_cleanup_deletes_manifest_telegram_messages_with_fake_userbot(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260703-cleanup-telegram-a1b2c3"
+            self.write_cleanup_manifest(
+                artifacts_dir,
+                run_id,
+                telegram_messages=[
+                    {"messageId": 10, "direction": "out"},
+                    {"id": 11, "direction": "in"},
+                    {"messageId": 10, "direction": "duplicate"},
+                ],
+            )
+
+            result = self.run_cli(
+                "cleanup",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--mode",
+                "hard",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls, [["delete", "--ids", "10,11"]])
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [10, 11])
+            self.assertTrue(manifest["cleanup"]["telegram"][0]["ok"])
+
+    def test_cleanup_dry_run_records_telegram_delete_without_calling_userbot(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260703-cleanup-telegram-dry-d4e5f6"
+            self.write_cleanup_manifest(artifacts_dir, run_id, telegram_messages=[{"messageId": 20}, {"messageId": 21}])
+
+            result = self.run_cli(
+                "cleanup",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--mode",
+                "hard",
+                "--dry-run",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(calls_path.exists())
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [20, 21])
+            self.assertTrue(manifest["cleanup"]["telegram"][0]["dryRun"])
 
     def test_telegram_check_uses_configured_target_and_session(self):
         with tempfile.TemporaryDirectory() as temp_dir:

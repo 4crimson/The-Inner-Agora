@@ -28,7 +28,7 @@ export class TelegramUserbot {
   constructor({ config, python = "python3", driverPath = DEFAULT_DRIVER, env = process.env } = {}) {
     this.config = config;
     this.python = python;
-    this.driverPath = driverPath;
+    this.driverPath = env.PAPERCLIP_QA_TELEGRAM_DRIVER || driverPath;
     this.env = env;
   }
 
@@ -64,6 +64,13 @@ export class TelegramUserbot {
 
   history({ limit = 20, dryRun = false } = {}) {
     const args = ["history", "--limit", String(limit)];
+    if (dryRun) args.push("--dry-run");
+    return this.run(args);
+  }
+
+  deleteMessages({ ids, dryRun = false } = {}) {
+    const messageIds = [...new Set((ids || []).map((id) => Number(id)).filter(Number.isInteger))];
+    const args = ["delete", "--ids", messageIds.join(",")];
     if (dryRun) args.push("--dry-run");
     return this.run(args);
   }

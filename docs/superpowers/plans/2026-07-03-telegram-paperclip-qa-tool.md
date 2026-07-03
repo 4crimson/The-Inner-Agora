@@ -294,7 +294,7 @@ export class TelegramUserbot {
 }
 ```
 
-`send` and `deleteMessages` remain runner/cleanup integration work and must be added with tests before any live suite execution.
+`send` remains runner integration work and must be added with tests before any live suite execution. `deleteMessages` is integrated into manifest-backed cleanup.
 
 - [x] **Step 4: Add CLI smoke commands**
 
@@ -617,6 +617,38 @@ Evidence:
 - `node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json` -> planned 4 help tests
 
 Live steps remain pending until explicit operator confirmation.
+
+## Task 11: Telegram Manifest Cleanup Hardening
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/telegram-userbot.mjs`
+- Modify: `paperclip-qa-tool/src/cleanup-engine.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add cleanup tests for Telegram manifest messages**
+
+Assert:
+
+- cleanup deduplicates `manifest.telegram.messages[].messageId` / `id`;
+- cleanup calls the userbot driver with `delete --ids ...`;
+- dry-run records the planned Telegram delete but does not call userbot.
+
+- [x] **Step 2: Implement userbot delete wrapper**
+
+`TelegramUserbot.deleteMessages({ ids, dryRun })` calls the Python driver `delete --ids CSV`.
+
+- [x] **Step 3: Integrate Telegram cleanup into CLI cleanup**
+
+`cleanup --config FILE --run RUN_ID` now writes both `cleanup.telegram` and `cleanup.paperclip` actions, and residuals from either side affect command success.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_cleanup_deletes_manifest_telegram_messages_with_fake_userbot tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_cleanup_dry_run_records_telegram_delete_without_calling_userbot -v` -> `Ran 2 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/cleanup-engine.mjs` -> OK
+- `node --check paperclip-qa-tool/src/telegram-userbot.mjs` -> OK
 
 - [ ] **Step 3: Request explicit live confirmation**
 

@@ -1,4 +1,5 @@
 import { PaperclipApiError } from "./paperclip-client.mjs";
+import { TelegramUserbotError } from "./telegram-userbot.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "cancelled"]);
 
@@ -59,6 +60,43 @@ export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", 
         residuals.push({ type: "paperclip", issueId: issue.id, ref: issue.identifier || issue.id, error: patchAction.error });
       }
     }
+  }
+  return { actions, residuals };
+}
+
+export function telegramMessageIds(manifest) {
+  const ids = [];
+  for (const message of manifest.telegram?.messages || []) {
+    const raw = message?.messageId ?? message?.id;
+    const id = Number(raw);
+    if (Number.isInteger(id)) ids.push(id);
+  }
+  return [...new Set(ids)];
+}
+
+export function cleanupTelegramMessages({ userbot, manifest, mode = "hard", dryRun = false }) {
+  const actions = [];
+  const residuals = [];
+  if (mode === "none") return { actions, residuals };
+
+  const messageIds = telegramMessageIds(manifest);
+  if (!messageIds.length) return { actions, residuals };
+
+  const action = { type: "telegram", method: "delete", messageIds };
+  actions.push(action);
+  if (dryRun) {
+    action.ok = true;
+    action.dryRun = true;
+    return { actions, residuals };
+  }
+
+  try {
+    userbot.deleteMessages({ ids: messageIds });
+    action.ok = true;
+  } catch (error) {
+    action.ok = false;
+    action.error = error instanceof TelegramUserbotError ? error.message : String(error?.message || error);
+    residuals.push({ type: "telegram", messageIds, error: action.error });
   }
   return { actions, residuals };
 }

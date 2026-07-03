@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
-import { cleanupPaperclipIssues } from "../src/cleanup-engine.mjs";
+import { cleanupPaperclipIssues, cleanupTelegramMessages } from "../src/cleanup-engine.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
 import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
@@ -125,17 +125,21 @@ async function main(argv) {
     const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
     const manifest = readManifest(manifestPath);
     const client = new PaperclipClient({ apiBase: config.paperclip.apiBase });
-    const result = await cleanupPaperclipIssues({ client, manifest, mode, dryRun: options.dryRun });
+    const userbot = new TelegramUserbot({ config });
+    const telegramResult = cleanupTelegramMessages({ userbot, manifest, mode, dryRun: options.dryRun });
+    const paperclipResult = await cleanupPaperclipIssues({ client, manifest, mode, dryRun: options.dryRun });
+    const residuals = [...telegramResult.residuals, ...paperclipResult.residuals];
     manifest.cleanup = {
       ...(manifest.cleanup || {}),
       mode,
       attemptedAt: new Date().toISOString(),
-      paperclip: [...(manifest.cleanup?.paperclip || []), ...result.actions],
-      residuals: [...(manifest.cleanup?.residuals || []), ...result.residuals],
+      telegram: [...(manifest.cleanup?.telegram || []), ...telegramResult.actions],
+      paperclip: [...(manifest.cleanup?.paperclip || []), ...paperclipResult.actions],
+      residuals: [...(manifest.cleanup?.residuals || []), ...residuals],
     };
     writeManifest(manifestPath, manifest);
-    printPayload({ ok: result.residuals.length === 0, runId: options.run, manifestPath, cleanup: manifest.cleanup }, options.json);
-    return result.residuals.length === 0 ? 0 : 1;
+    printPayload({ ok: residuals.length === 0, runId: options.run, manifestPath, cleanup: manifest.cleanup }, options.json);
+    return residuals.length === 0 ? 0 : 1;
   }
   if (options.command === "report") {
     if (!options.run) throw new ConfigValidationError(["--run is required"]);
