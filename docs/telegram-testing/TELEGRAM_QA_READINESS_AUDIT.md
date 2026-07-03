@@ -22,6 +22,7 @@ Reason: the local runtime, config, cleanup logic, reports, bug batching, retest 
 Use these commands before asking to touch the live system:
 
 ```bash
+[ -f .env ] && set -a && source .env && set +a
 python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v
 node --check paperclip-qa-tool/bin/paperclip-qa.mjs
 node --check paperclip-qa-tool/src/report-writer.mjs
@@ -41,6 +42,7 @@ Expected result:
 - JSON parses;
 - `config-check` returns `ok: true`;
 - `readiness` returns `readyForLive: true` when config, health, suite preview, and acknowledgement gates pass;
+- if `readiness` reports missing `TELEGRAM_API_ID` or `TELEGRAM_API_HASH`, load local `.env` into the shell before retrying;
 - `live-plan` prints the exact acknowledgement and does not create run artifacts;
 - dry-run creates only local ignored artifacts;
 - secret scan returns no matches.
@@ -68,6 +70,7 @@ Only run this after explicit operator approval for live side effects.
 1. Run preflight:
 
 ```bash
+[ -f .env ] && set -a && source .env && set +a
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json

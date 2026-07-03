@@ -246,6 +246,7 @@ Run artifacts are written to `artifacts/telegram-test-runs/` and are ignored by 
 Safe non-live checks:
 
 ```bash
+[ -f .env ] && set -a && source .env && set +a
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
@@ -253,6 +254,8 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.con
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 ```
+
+`readiness` returns `readyForLive: false` when Telegram userbot env is missing. That is expected; load local `.env` first. The CLI intentionally does not read `.env` by itself, so secrets stay under the operator's shell control.
 
 `config-check` also prints `guards.allowWarnings`. These are predeclared warnings with reasons; they are visible before live confirmation and do not automatically approve a red guard.
 
