@@ -795,6 +795,38 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["userbot"]["config"]["target"], "@crimson_philosophs_bot")
         self.assertEqual(payload["userbot"]["config"]["session"], ".telegram-userbot")
 
+    def test_telegram_check_can_use_configured_userbot_python(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = self.write_config(temp_dir, self.base_config())
+            fake_python = Path(temp_dir) / "fake-python"
+            fake_python.write_text(
+                textwrap.dedent(
+                    """\
+#!/bin/sh
+printf '%s\n' '{"ok":true,"config":{"api_id":"12345","api_hash":"abcd****","phone":"","target":"@custom","session":"custom-python-session"}}'
+"""
+                ),
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o755)
+
+            result = self.run_cli(
+                "telegram-check",
+                "--config",
+                config_path,
+                "--json",
+                env={
+                    "TELEGRAM_USERBOT_PYTHON": str(fake_python),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["userbot"]["config"]["session"], "custom-python-session")
+
     def test_telegram_history_dry_run_uses_userbot_driver_without_connecting(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = self.write_config(temp_dir, self.base_config())

@@ -27,7 +27,7 @@ function parseJsonOutput(stdout) {
 export class TelegramUserbot {
   constructor({ config, python = "python3", driverPath = DEFAULT_DRIVER, env = process.env } = {}) {
     this.config = config;
-    this.python = python;
+    this.python = env.TELEGRAM_USERBOT_PYTHON || python;
     this.driverPath = env.PAPERCLIP_QA_TELEGRAM_DRIVER || driverPath;
     this.env = env;
   }

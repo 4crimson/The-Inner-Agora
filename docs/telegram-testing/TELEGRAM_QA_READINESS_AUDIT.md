@@ -47,6 +47,7 @@ Expected result:
 - `completion-check` returns `complete: false` until live-only blockers are satisfied;
 - `readiness` returns `readyForLive: true` when config, health, suite preview, and acknowledgement gates pass;
 - if `readiness` reports missing `TELEGRAM_API_ID` or `TELEGRAM_API_HASH`, load local `.env` into the shell before retrying;
+- if the userbot virtualenv is used, set `TELEGRAM_USERBOT_PYTHON=.venv-telegram-userbot/bin/python` so the QA runner uses the Python where Telethon is installed;
 - `live-plan` prints the exact acknowledgement and does not create run artifacts;
 - dry-run creates only local ignored artifacts;
 - secret scan returns no matches.
