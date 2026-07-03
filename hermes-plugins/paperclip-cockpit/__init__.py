@@ -465,6 +465,110 @@ def _telegram_config() -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+def _telegram_mode_selector_config() -> dict[str, Any]:
+    raw = _telegram_config().get("mode_selector", {})
+    if not isinstance(raw, dict):
+        return {}
+    if not _as_bool(raw.get("enabled"), False):
+        return {}
+    return raw
+
+
+def _telegram_mode_selector_modes() -> list[dict[str, Any]]:
+    raw_modes = _telegram_mode_selector_config().get("modes", [])
+    if not isinstance(raw_modes, list):
+        return []
+    return [item for item in raw_modes if isinstance(item, dict) and str(item.get("id") or "").strip()]
+
+
+def _telegram_mode_by_id(mode_id: str) -> dict[str, Any] | None:
+    wanted = str(mode_id or "").strip()
+    if not wanted:
+        return None
+    for mode in _telegram_mode_selector_modes():
+        if str(mode.get("id") or "").strip() == wanted:
+            return mode
+    return None
+
+
+def _telegram_default_mode_id() -> str:
+    selector = _telegram_mode_selector_config()
+    configured = str(selector.get("default_mode") or selector.get("default") or "").strip()
+    if configured and _telegram_mode_by_id(configured):
+        return configured
+    modes = _telegram_mode_selector_modes()
+    return str(modes[0].get("id") or "").strip() if modes else ""
+
+
+def _telegram_mode_state_path() -> Path:
+    selector = _telegram_mode_selector_config()
+    explicit = str(selector.get("state_path") or selector.get("state_file") or "").strip()
+    if explicit:
+        path = Path(os.path.expanduser(explicit))
+        if path.is_absolute():
+            return path
+        cwd = str(_config().get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _terminal_cwd() or os.getcwd())
+        return Path(cwd) / path
+    cwd = str(_config().get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _terminal_cwd() or os.getcwd())
+    return Path(cwd) / ".paperclip-cockpit-telegram-state.json"
+
+
+def _telegram_mode_state_key(chat_id: Any, platform: str = "telegram") -> str:
+    return f"{str(platform or 'telegram').strip().casefold()}:{str(chat_id or '').strip()}"
+
+
+def _telegram_read_mode_state() -> dict[str, Any]:
+    path = _telegram_mode_state_path()
+    try:
+        if not path.exists():
+            return {"chats": {}}
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            chats = data.get("chats")
+            if not isinstance(chats, dict):
+                data["chats"] = {}
+            return data
+    except Exception as exc:
+        logger.info("Paperclip Cockpit could not read Telegram mode state %s: %s", path, exc)
+    return {"chats": {}}
+
+
+def _telegram_write_mode_state(state: dict[str, Any]) -> None:
+    path = _telegram_mode_state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _telegram_selected_mode_id(chat_id: Any, platform: str = "telegram") -> str:
+    default_mode = _telegram_default_mode_id()
+    if not str(chat_id or "").strip():
+        return default_mode
+    state = _telegram_read_mode_state()
+    entry = state.get("chats", {}).get(_telegram_mode_state_key(chat_id, platform), {})
+    selected = str(entry.get("selectedMode") or entry.get("mode") or "").strip() if isinstance(entry, dict) else ""
+    return selected if selected and _telegram_mode_by_id(selected) else default_mode
+
+
+def _telegram_set_selected_mode(chat_id: Any, mode_id: str, platform: str = "telegram") -> dict[str, Any] | None:
+    mode = _telegram_mode_by_id(mode_id)
+    if not mode or not str(chat_id or "").strip():
+        return None
+    state = _telegram_read_mode_state()
+    chats = state.setdefault("chats", {})
+    if not isinstance(chats, dict):
+        chats = {}
+        state["chats"] = chats
+    chats[_telegram_mode_state_key(chat_id, platform)] = {
+        "selectedMode": str(mode.get("id") or "").strip(),
+        "selectedParticipants": [],
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    _telegram_write_mode_state(state)
+    return mode
+
+
 def _telegram_enabled() -> bool:
     telegram = _telegram_config()
     if "enabled" in telegram:
@@ -606,10 +710,47 @@ def _telegram_help_keyboard() -> dict[str, Any] | None:
     return {"inline_keyboard": rows}
 
 
-def _telegram_menu_keyboard(menu: dict[str, Any]) -> dict[str, Any] | None:
+def _telegram_mode_label(mode: dict[str, Any]) -> str:
+    return str(mode.get("label") or mode.get("title") or mode.get("id") or "").strip()
+
+
+def _telegram_mode_keyboard_rows(chat_id: Any = None) -> list[list[dict[str, str]]]:
+    selector = _telegram_mode_selector_config()
+    if not selector:
+        return []
+    selected = _telegram_selected_mode_id(chat_id)
+    buttons: list[dict[str, str]] = []
+    for mode in _telegram_mode_selector_modes():
+        mode_id = str(mode.get("id") or "").strip()
+        label = _telegram_mode_label(mode)
+        if not mode_id or not label:
+            continue
+        prefix = "✓ " if selected and mode_id == selected else ""
+        buttons.append({"text": f"{prefix}{label}"[:32], "callback_data": _telegram_callback_data("set_mode", mode_id)})
+    rows: list[list[dict[str, str]]] = []
+    for index in range(0, len(buttons), 2):
+        rows.append(buttons[index : index + 2])
+    return rows
+
+
+def _telegram_mode_keyboard(chat_id: Any = None) -> dict[str, Any] | None:
+    rows = _telegram_mode_keyboard_rows(chat_id)
+    return {"inline_keyboard": rows} if rows else None
+
+
+def _telegram_mode_status_line(chat_id: Any = None) -> str:
+    mode = _telegram_mode_by_id(_telegram_selected_mode_id(chat_id))
+    if not mode:
+        return ""
+    label = _telegram_mode_label(mode)
+    description = str(mode.get("description") or "").strip()
+    return f"Текущий режим: {label}{f' — {description}' if description else ''}"
+
+
+def _telegram_menu_keyboard(menu: dict[str, Any], *, chat_id: Any = None, menu_name: str = "") -> dict[str, Any] | None:
     raw_buttons = menu.get("buttons")
     if not isinstance(raw_buttons, list):
-        return None
+        raw_buttons = []
     buttons: list[dict[str, str]] = []
     for item in raw_buttons:
         if not isinstance(item, dict):
@@ -620,12 +761,16 @@ def _telegram_menu_keyboard(menu: dict[str, Any]) -> dict[str, Any] | None:
         if not label or not callback:
             continue
         buttons.append({"text": label[:32], "callback_data": _telegram_callback_data(callback, arg)})
-    if not buttons:
-        return None
     rows = []
     for index in range(0, len(buttons), 2):
         rows.append(buttons[index : index + 2])
-    return {"inline_keyboard": rows}
+
+    selector = _telegram_mode_selector_config()
+    mode_menus = {str(item).strip() for item in _listify(selector.get("menus"))} if selector else set()
+    if menu_name and menu_name in mode_menus:
+        rows.extend(_telegram_mode_keyboard_rows(chat_id))
+
+    return {"inline_keyboard": rows} if rows else None
 
 
 def _telegram_command_boundary_config() -> dict[str, Any]:
@@ -735,7 +880,11 @@ def _telegram_command_boundary_menu(text: str) -> dict[str, Any] | None:
     if not isinstance(menus, dict):
         return None
     menu = menus.get(menu_name)
-    return menu if isinstance(menu, dict) else None
+    if not isinstance(menu, dict):
+        return None
+    result = dict(menu)
+    result["_name"] = menu_name
+    return result
 
 
 def _maybe_handle_telegram_command_boundary(event: Any) -> dict[str, str] | None:
@@ -752,8 +901,15 @@ def _maybe_handle_telegram_command_boundary(event: Any) -> dict[str, str] | None
     text = str(menu.get("text") or menu.get("message") or "").strip()
     if not text:
         return None
-    reply_markup = _telegram_menu_keyboard(menu)
     chat_id = getattr(source, "chat_id", "") if source is not None else ""
+    menu_name = str(menu.get("_name") or "").strip()
+    selector = _telegram_mode_selector_config()
+    mode_menus = {str(item).strip() for item in _listify(selector.get("menus"))} if selector else set()
+    if menu_name and menu_name in mode_menus and _as_bool(selector.get("show_current_mode"), True):
+        status_line = _telegram_mode_status_line(chat_id)
+        if status_line:
+            text = f"{text}\n\n{status_line}"
+    reply_markup = _telegram_menu_keyboard(menu, chat_id=chat_id, menu_name=menu_name)
     try:
         _telegram_send_message(chat_id, text, reply_markup)
     except Exception as exc:
@@ -2518,6 +2674,92 @@ def _rewrite_text(text: str, *, chat_id: Any = None) -> str | dict[str, Any] | N
     return None
 
 
+def _command_action_from_rewrite(rewritten: str) -> tuple[str, str]:
+    command = _slash()
+    text = str(rewritten or "").strip()
+    if not text.casefold().startswith(command.casefold()):
+        return "", ""
+    tail = text[len(command) :].strip()
+    words = _parse_words(tail)
+    if not words:
+        return "", ""
+    return words[0].casefold(), " ".join(words[1:]).strip()
+
+
+def _resolve_configured_action_name(head: str) -> str:
+    wanted = str(head or "").strip().casefold()
+    if not wanted:
+        return ""
+    for name, action in _actions().items():
+        if wanted in _action_aliases(name, action):
+            return name
+    return ""
+
+
+def _mode_action_with_overrides(action: dict[str, Any], mode: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(action)
+    action_env = action.get("env", {})
+    mode_env = mode.get("env", {})
+    env: dict[str, Any] = {}
+    if isinstance(action_env, dict):
+        env.update(action_env)
+    if isinstance(mode_env, dict):
+        env.update(mode_env)
+    if env:
+        merged["env"] = env
+    return merged
+
+
+def _mode_raw_args(mode: dict[str, Any], raw_args: str) -> str:
+    prefix = str(mode.get("args") or mode.get("prepend_args") or "").strip()
+    if prefix and raw_args:
+        return f"{prefix} {raw_args}".strip()
+    return prefix or raw_args
+
+
+def _maybe_execute_selected_mode_rewrite(original_text: str, rewritten: str, chat_id: Any) -> dict[str, str] | None:
+    if not _telegram_mode_selector_config() or not str(chat_id or "").strip():
+        return None
+    if not _telegram_bot_token():
+        return None
+    if str(original_text or "").strip().startswith("/"):
+        return None
+
+    head, raw_args = _command_action_from_rewrite(rewritten)
+    source_action_name = _resolve_configured_action_name(head)
+    if not source_action_name:
+        return None
+
+    selector = _telegram_mode_selector_config()
+    apply_to = {item.strip().casefold() for item in _listify(selector.get("apply_to_actions") or ["ask"]) if item.strip()}
+    if apply_to and source_action_name.casefold() not in apply_to and head not in apply_to:
+        return None
+
+    mode = _telegram_mode_by_id(_telegram_selected_mode_id(chat_id))
+    if not mode:
+        return None
+
+    target_action_name = str(mode.get("action") or mode.get("route_action") or source_action_name).strip()
+    target_action = _actions().get(target_action_name)
+    if not target_action:
+        _telegram_send_message(str(chat_id or ""), f"Mode action is not configured: {target_action_name}")
+        return {"action": "skip"}
+
+    output = _run_action(
+        target_action_name,
+        _mode_action_with_overrides(target_action, mode),
+        _mode_raw_args(mode, raw_args),
+        chat_id=chat_id,
+    )
+    payload_flag = mode.get("telegram_payload") if "telegram_payload" in mode else mode.get("payload", True)
+    if _as_bool(payload_flag, True):
+        message_text, reply_markup = _telegram_payload_from_output(output)
+        _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
+    else:
+        _telegram_send_message(str(chat_id or ""), output)
+    return {"action": "skip"}
+
+
 def _event_allowed(event: Any) -> bool:
     allowed_platforms = _env_csv("PAPERCLIP_COCKPIT_ALLOWED_PLATFORMS")
     allowed_chats = _env_csv("PAPERCLIP_COCKPIT_ALLOWED_CHATS")
@@ -2708,6 +2950,9 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
                 logger.info("Paperclip Cockpit Telegram delegate message failed: %s", exc)
             return {"action": "skip"}
         return None
+    mode_result = _maybe_execute_selected_mode_rewrite(getattr(event, "text", "") or "", rewritten, chat_id)
+    if mode_result:
+        return mode_result
     logger.info("Paperclip Cockpit rewrote inbound text to %s", rewritten.split()[0])
     return {"action": "rewrite", "text": rewritten}
 
@@ -2737,7 +2982,8 @@ def _telegram_callback_query(
     callback_arg = parts[2] if len(parts) > 2 else ""
     actions = _telegram_callback_actions()
     spec = actions.get(callback_name)
-    if not spec:
+    mode_callback = callback_name in {"set_mode", "show_modes", "reset_mode"}
+    if not spec and not mode_callback:
         _telegram_answer_callback(callback_id, "Неизвестное действие.")
         return {"action": "handled"}
 
@@ -2757,6 +3003,32 @@ def _telegram_callback_query(
         if not allowed:
             _telegram_answer_callback(callback_id, "Нет доступа.")
             return {"action": "handled"}
+
+    if callback_name == "set_mode":
+        mode = _telegram_set_selected_mode(chat_id, callback_arg)
+        if not mode:
+            _telegram_answer_callback(callback_id, "Режим не найден.")
+            return {"action": "handled"}
+        _telegram_answer_callback(callback_id, "Режим выбран.")
+        lines = [_telegram_mode_status_line(chat_id)]
+        description = str(mode.get("description") or "").strip()
+        if description and description not in lines[0]:
+            lines.append(description)
+        _telegram_send_message(str(chat_id or ""), "\n".join(line for line in lines if line), _telegram_mode_keyboard(chat_id))
+        return {"action": "handled"}
+
+    if callback_name == "show_modes":
+        _telegram_answer_callback(callback_id, "Режимы.")
+        text = _telegram_mode_status_line(chat_id) or "Выбери режим."
+        _telegram_send_message(str(chat_id or ""), text, _telegram_mode_keyboard(chat_id))
+        return {"action": "handled"}
+
+    if callback_name == "reset_mode":
+        default_mode = _telegram_default_mode_id()
+        mode = _telegram_set_selected_mode(chat_id, default_mode)
+        _telegram_answer_callback(callback_id, "Сброшено.")
+        _telegram_send_message(str(chat_id or ""), _telegram_mode_status_line(chat_id) or "Режим сброшен.", _telegram_mode_keyboard(chat_id))
+        return {"action": "handled"}
 
     answer = str(spec.get("answer") or "Открываю...")
     _telegram_answer_callback(callback_id, answer)

@@ -4,6 +4,10 @@
 
 **Goal:** Add Telegram mode buttons whose selected persistent chat mode controls the next natural Agora question's route, action args/env, and participants.
 
+**Implementation Status:** Done locally on 2026-07-03, pending explicit live Telegram retest. Implemented generic `telegram.mode_selector`, Inner Agora local route modes, short role alias handling, pair-voice parsing, QA docs/config, and regression harness state isolation.
+
+**Verification:** `python3 -m unittest discover -s tests -p 'test*.py' -v` (209 tests), `node scripts/regression.mjs check`, and `CHAMBER_MODE=chambers node scripts/regression.mjs check`.
+
 **Architecture:** The generic Paperclip Cockpit plugin stores small per-chat UI state, renders configured mode buttons, handles built-in `set_mode` callbacks, and applies the selected mode to natural Agora question actions before the Hermes slash router can drop mode env. Inner Agora supplies mode definitions, labels, action mappings, and participant policy in config/scripts. The first implementation is session-level routing only; mixed per-agent adapters remain future-compatible through metadata but are not implemented now.
 
 **Tech Stack:** Python Hermes plugin (`hermes-plugins/paperclip-cockpit/__init__.py`), Node Inner Agora CLI (`scripts/agora.mjs`, `scripts/model-routing.mjs`), JSON project config (`paperclip-cockpit.json`, `cockpit.core.json`), Python unittest suite, Node regression harness.

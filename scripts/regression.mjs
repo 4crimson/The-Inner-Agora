@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -119,6 +120,7 @@ function snapshotPath(fixturesDir, command) {
 
 function normalize(text) {
   return String(text || "")
+    .replace(/\/[^\s"]*inner-agora-regression-[^/\s"]+\/state\.json/g, path.join(ROOT, ".inner-agora-state.json"))
     .replace(/\b[A-Z][A-Z0-9]{1,12}-\d+\b/g, "<ISSUE>")
     .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<UUID>")
     .replace(/\d{4}-\d{2}-\d{2}T[\d:.]+Z?/g, "<TIMESTAMP>")
@@ -139,12 +141,30 @@ function commandForSpawn(args) {
 function runCommand(command) {
   validateCommand(command);
   const args = commandForSpawn(command.args);
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "inner-agora-regression-"));
+  const statePath = path.join(tempDir, "state.json");
+  fs.writeFileSync(
+    statePath,
+    stableJson({
+      schemaVersion: 1,
+      chatId: "regression",
+      mode: "local",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }),
+  );
+
   const result = spawnSync(args[0], args.slice(1), {
     cwd: command.cwd ? path.resolve(ROOT, command.cwd) : ROOT,
     encoding: "utf8",
     timeout: Number(command.timeout_ms || DEFAULT_TIMEOUT_MS),
-    env: { ...process.env, ...(command.env || {}) },
+    env: {
+      ...process.env,
+      INNER_AGORA_STATE_PATH: statePath,
+      INNER_AGORA_LEGACY_STATE_PATH: path.join(tempDir, "missing-legacy-state.json"),
+      ...(command.env || {}),
+    },
   });
+  fs.rmSync(tempDir, { recursive: true, force: true });
 
   return {
     name: command.name,

@@ -391,7 +391,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertTrue(payload["config"]["reporting"]["telegram"]["sendResult"])
         self.assertEqual(
             [suite["name"] for suite in payload["suites"]],
-            ["health", "help", "service-commands", "natural-dialogue", "council-create", "cleanup"],
+            ["health", "help", "service-commands", "mode-routing", "natural-dialogue", "council-create", "cleanup"],
         )
 
     def test_missing_telegram_target_fails_validation(self):

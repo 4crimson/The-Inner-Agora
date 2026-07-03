@@ -492,13 +492,19 @@ function clip(text, limit = 7000) {
 
 function roleByToken(token) {
   const normalized = String(token || "").trim().toLowerCase();
+  const normalizedLoose = looseText(normalized);
+  const normalizedStem = looseStem(normalized);
   return roles.find((item) => {
-    return (
-      item.key === normalized ||
-      item.name.toLowerCase() === normalized ||
-      item.englishName.toLowerCase() === normalized ||
-      (item.aliases || []).some((alias) => alias.toLowerCase() === normalized)
-    );
+    return roleAliases(item).some((alias) => {
+      const aliasText = String(alias || "").trim().toLowerCase();
+      const aliasLoose = looseText(aliasText);
+      return (
+        aliasText === normalized ||
+        aliasLoose === normalizedLoose ||
+        (normalizedLoose.length >= 4 && aliasLoose.includes(normalizedLoose)) ||
+        (normalizedStem.length >= 4 && looseStem(aliasText) === normalizedStem)
+      );
+    });
   });
 }
 /** @deprecated Use roleByToken. */
@@ -648,6 +654,9 @@ function requestedVoiceLimit(request) {
   const text = request.toLowerCase();
   const countContext = /философ|голос|участ|подход|сильн|выбор|voices|thinkers|participants/.test(text);
   if (!countContext) return null;
+
+  if (/(?:пар[уыа]?|двух|двум|два)\s*(?:философ|голос|участ|подход|voices|thinkers|participants)/.test(text)) return 2;
+  if (/(?:одному|один|1)\s*[-–—]?\s*(?:двум|два|2)\s*(?:философ|голос|участ|подход|voices|thinkers|participants)/.test(text)) return 2;
 
   const range = text.match(/\b([2-9]|1[0-9])\s*[-–—]\s*([2-9]|1[0-9])\b/);
   if (range) return Math.max(Number(range[1]), Number(range[2]));

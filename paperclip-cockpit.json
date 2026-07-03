@@ -184,6 +184,76 @@
         }
       }
     },
+    "mode_selector": {
+      "enabled": true,
+      "state_path": ".paperclip-cockpit-telegram-mode-state.json",
+      "default_mode": "balanced_local",
+      "menus": [
+        "home",
+        "agents"
+      ],
+      "apply_to_actions": [
+        "ask"
+      ],
+      "show_current_mode": true,
+      "modes": [
+        {
+          "id": "quick_local",
+          "label": "Быстро 2",
+          "description": "короткий локальный совет",
+          "action": "ask",
+          "args": "--min",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "balanced_local",
+          "label": "Сбаланс. 5",
+          "description": "локальный совет по умолчанию",
+          "action": "ask",
+          "args": "--balanced",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "deep_local",
+          "label": "Глубоко 10",
+          "description": "расширенный локальный совет",
+          "action": "ask",
+          "args": "--max",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "all_local",
+          "label": "Все голоса",
+          "description": "локальный проход по всему roster",
+          "action": "ask",
+          "args": "--all",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "go_no_go_local",
+          "label": "Go/No-Go",
+          "description": "локальная управленческая палата",
+          "action": "go-no-go",
+          "env": {
+            "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        }
+      ]
+    },
     "callbacks": {
       "quick_prompt": {
         "answer": "Ок",

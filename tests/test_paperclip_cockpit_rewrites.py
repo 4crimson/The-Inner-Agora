@@ -199,6 +199,28 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 self.assertEqual(config["actions"][name]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
                 self.assertEqual(config["actions"][name]["env"]["INNER_AGORA_MODE"], "local")
 
+    def test_real_mode_selector_defines_local_route_modes(self):
+        config = json.loads(AGORA_CONFIG.read_text(encoding="utf-8"))
+        selector = config["telegram"]["mode_selector"]
+        self.assertTrue(selector["enabled"])
+        self.assertEqual(selector["default_mode"], "balanced_local")
+        self.assertEqual(selector["apply_to_actions"], ["ask"])
+        self.assertIn("home", selector["menus"])
+        modes = {mode["id"]: mode for mode in selector["modes"]}
+        for mode_id, args in {
+            "quick_local": "--min",
+            "balanced_local": "--balanced",
+            "deep_local": "--max",
+            "all_local": "--all",
+        }.items():
+            with self.subTest(mode=mode_id):
+                self.assertEqual(modes[mode_id]["action"], "ask")
+                self.assertEqual(modes[mode_id]["args"], args)
+                self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
+                self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_MODE"], "local")
+        self.assertEqual(modes["go_no_go_local"]["action"], "go-no-go")
+        self.assertEqual(modes["go_no_go_local"]["env"]["INNER_AGORA_ACTIVE_CHAMBER"], "board-directors")
+
     def test_natural_rewrite_can_delegate_to_configured_understander(self):
         config = {
             "command": {"name": "agora"},
@@ -392,6 +414,144 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                         {"text": "Прогресс", "callback_data": "pc:latest:help"},
                     ],
                 )
+
+    def test_command_boundary_home_menu_includes_configured_mode_buttons(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "command": {"name": "agora"},
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "command_boundary": {
+                        "enabled": True,
+                        "commands": {"home": ["/help"]},
+                        "menus": {
+                            "home": {
+                                "text": "Меню Agora.",
+                                "buttons": [{"label": "Итог", "callback": "latest"}],
+                            }
+                        },
+                    },
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": str(Path(tmp) / "telegram-state.json"),
+                        "default_mode": "quick_local",
+                        "menus": ["home"],
+                        "show_current_mode": True,
+                        "modes": [
+                            {"id": "quick_local", "label": "Быстро", "description": "короткий локальный ответ", "action": "quick"},
+                            {"id": "deep_local", "label": "Глубоко", "description": "полный локальный совет", "action": "deep"},
+                        ],
+                    },
+                },
+                "callbacks": {"noop": {"answer": "OK"}},
+            }
+            calls = []
+
+            def fake_telegram_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            class Source:
+                platform = "telegram"
+                chat_id = "chat-mode-menu"
+
+            class Event:
+                source = Source()
+                text = "/help"
+
+            with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+                json.dump(config, handle)
+                handle.flush()
+                with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=handle.name), mock.patch.object(
+                    self.plugin, "_telegram_api", fake_telegram_api
+                ):
+                    result = self.plugin._pre_gateway_dispatch(Event())
+
+            self.assertEqual(result, {"action": "skip"})
+            payload = calls[0][1]
+            self.assertIn("Текущий режим: Быстро", payload["text"])
+            flat_buttons = [button for row in payload["reply_markup"]["inline_keyboard"] for button in row]
+            self.assertIn({"text": "✓ Быстро", "callback_data": "pc:set_mode:quick_local"}, flat_buttons)
+            self.assertIn({"text": "Глубоко", "callback_data": "pc:set_mode:deep_local"}, flat_buttons)
+
+    def test_selected_mode_executes_natural_question_with_mode_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = str(Path(tmp) / "telegram-state.json")
+            config = {
+                "command": {"name": "agora"},
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": state_path,
+                        "default_mode": "quick_local",
+                        "apply_to_actions": ["ask"],
+                        "modes": [
+                            {
+                                "id": "quick_local",
+                                "label": "Быстро",
+                                "action": "quick",
+                                "args": "--min",
+                                "env": {"INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"},
+                            },
+                            {
+                                "id": "deep_local",
+                                "label": "Глубоко",
+                                "action": "deep",
+                                "args": "--max",
+                                "env": {"INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"},
+                            },
+                        ],
+                    },
+                },
+                "actions": {
+                    "ask": {"natural_aliases": ["собери совет"], "exec": ["echo", "ask"]},
+                    "quick": {"exec": ["echo", "quick"]},
+                    "deep": {"exec": ["echo", "deep"]},
+                },
+            }
+            calls = []
+            runs = []
+
+            def fake_send(chat_id, text, reply_markup=None):
+                calls.append((chat_id, text, reply_markup))
+
+            def fake_run_action(name, action, raw_args, **kwargs):
+                runs.append((name, action, raw_args, kwargs))
+                return json.dumps({"text": f"ran {name}: {raw_args}", "reply_markup": {"inline_keyboard": []}})
+
+            class Source:
+                platform = "telegram"
+                chat_id = "chat-route"
+
+            class Event:
+                source = Source()
+                text = "собери совет про свободу ребенка"
+
+            with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+                json.dump(config, handle)
+                handle.flush()
+                with EnvPatch(
+                    PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                    PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                    PAPERCLIP_COCKPIT_NL_WRITES="0",
+                    PAPERCLIP_COCKPIT_COMMAND=None,
+                    TELEGRAM_BOT_TOKEN="test-token",
+                ), mock.patch.object(self.plugin, "_telegram_send_message", fake_send), mock.patch.object(
+                    self.plugin, "_run_action", fake_run_action
+                ):
+                    self.plugin._telegram_set_selected_mode("chat-route", "deep_local")
+                    result = self.plugin._pre_gateway_dispatch(Event())
+
+            self.assertEqual(result, {"action": "skip"})
+            self.assertEqual(runs[0][0], "deep")
+            self.assertEqual(runs[0][2], "--max про свободу ребенка")
+            self.assertEqual(runs[0][1]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
+            self.assertEqual(runs[0][3]["chat_id"], "chat-route")
+            self.assertEqual(calls[0][0], "chat-route")
+            self.assertIn("ran deep", calls[0][1])
 
     def test_telegram_command_boundary_allows_full_help_path(self):
         config = {

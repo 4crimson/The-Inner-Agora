@@ -190,6 +190,21 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def run_dry_ask(self, *args):
+        env = {
+            **os.environ,
+            "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+        }
+        env.pop("INNER_AGORA_MODE", None)
+        return subprocess.run(
+            ["node", str(AGORA_SCRIPT), "ask", "--dry-run", *args],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
     def run_follow_up(self, root_ref, question):
         AskFlowHandler.reset()
         AskFlowHandler.created_issues.append(
@@ -529,6 +544,18 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertEqual(child["assigneeAgentId"], "plato-1")
         self.assertIn("уточни у Платона понятие долга", child["description"])
         self.assertEqual(result["wakeups"][0]["agentId"], "plato-1")
+
+    def test_dry_ask_resolves_short_sartre_token(self):
+        result = self.run_dry_ask("--philosophers", "Сартр", "что такое свобода")
+
+        self.assertIn("voices=Жан-Поль Сартр", result.stdout)
+
+    def test_dry_ask_honors_pair_voice_limit(self):
+        result = self.run_dry_ask("--max", "разбери у пары философов как заботу не превратить в контроль")
+        voices_line = next(line for line in result.stdout.splitlines() if line.startswith("voices="))
+        voices = [item.strip() for item in voices_line.removeprefix("voices=").split(",") if item.strip()]
+
+        self.assertEqual(len(voices), 2)
 
     def test_wizard_confirmation_creates_same_session_as_direct_ask(self):
         result = self.run_wizard_sequence()

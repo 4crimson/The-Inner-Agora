@@ -89,6 +89,7 @@ Expected:
 
 - `/help`, `/agora`, `/agora help` show a compact Agora home menu.
 - `/agents` explains voices/sessions/progress/diagnostics, not generic Hermes agents.
+- The menu shows the current routing mode and mode buttons.
 - `/agora help full` is technical but readable and grouped.
 - Buttons are present where expected.
 - No command creates a Paperclip issue.
@@ -102,7 +103,28 @@ QA service-commands: PASS
 Сырой Hermes UI не протек, кнопки есть, Paperclip-задачи не создавались.
 ```
 
-### 2. Help / Capabilities
+### 2. Mode Routing
+
+Suite: `mode-routing`
+
+Purpose: Telegram buttons should make routing visible and controllable before the next normal human question.
+
+Expected:
+
+- `/help` shows `Текущий режим` and mode buttons.
+- Default mode is local and visible to the user.
+- A normal council request creates a Paperclip session through the selected local route.
+- A request asking for a pair of philosophers stays local and should be limited by the route/wording.
+- No mode/help command creates Paperclip issues by itself.
+
+Manual checkpoint until the QA runner grows callback-click support:
+
+- Press a mode button, for example `Глубоко 10`.
+- Confirm Telegram replies with the new current mode.
+- Send a normal question without slash commands.
+- Confirm the created session uses the selected route.
+
+### 3. Help / Capabilities
 
 Suite: `help`
 
@@ -116,7 +138,7 @@ Expected:
 - No Paperclip roots are created.
 - No raw tokens or project action errors are visible.
 
-### 3. Natural Dialogue
+### 4. Natural Dialogue
 
 Suite: `natural-dialogue`
 
@@ -129,7 +151,7 @@ Expected:
 - A latest-session phrase should use Paperclip state/result UX and show buttons.
 - No raw provider/channel tokens are visible.
 
-### 4. Council Creation
+### 5. Council Creation
 
 Suite: `council-create`
 
@@ -149,7 +171,7 @@ Cleanup requirement:
 - Created roots and children are deleted or hidden/cancelled by manifest-scoped cleanup.
 - Any residual becomes a cleanup bug.
 
-### 5. Cleanup
+### 6. Cleanup
 
 Suite: `cleanup`
 

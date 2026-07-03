@@ -2,6 +2,38 @@
 
 This file tracks live Telegram acceptance failures separately from roadmap phases. A phase can be code-complete while live behavior still fails acceptance because runtime state, Hermes profile text, provider streaming, or Paperclip agents are out of sync.
 
+## BUG-2026-07-03-003 — Telegram has no visible mode routing control
+
+**Status:** fixed locally, pending live retest
+**Severity:** P1 for Telegram UX / route control
+**Reported:** 2026-07-03
+**Surface:** Telegram → Paperclip Cockpit → Inner Agora ask route
+
+### Evidence
+
+During design review, Telegram help/actions exposed quick/deep prompts but did not let the user visibly select the route for the next normal question. This made "куда пойдет запрос" implicit and hard to verify.
+
+### Root Cause
+
+Telegram buttons were action callbacks only. There was no generic per-chat mode selector that could persist the selected route and apply it to later natural-language asks.
+
+### Fix
+
+- Added generic `telegram.mode_selector` support to Paperclip Cockpit.
+- Mode buttons are rendered from config in selected command-boundary menus.
+- `set_mode` stores selected mode per Telegram chat.
+- Natural `ask` rewrites can execute through the selected mode action/env/args and skip the raw Hermes command path.
+- Inner Agora config defines local modes: `quick_local`, `balanced_local`, `deep_local`, `all_local`, and `go_no_go_local`.
+- Added `mode-routing` QA suite and checklist entries.
+
+### Acceptance Criteria
+
+- `/help` and `/agents` show current mode plus mode buttons.
+- Selecting a mode changes the current mode for that Telegram chat.
+- The next normal human question routes through the selected action/env/args.
+- Local modes include `INNER_AGORA_FORCE_LOCAL_ADAPTER=1`.
+- Live retest suite `mode-routing` passes and cleanup leaves no residual QA artifacts.
+
 ## BUG-2026-07-03-002 — Telegram service commands leak raw Hermes UI
 
 **Status:** fixed locally, pending live retest

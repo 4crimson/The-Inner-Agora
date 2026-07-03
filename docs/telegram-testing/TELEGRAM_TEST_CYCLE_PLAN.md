@@ -52,6 +52,31 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config
 
 Run this suite after syncing the Hermes profile and restarting the gateway. If cleanup reports residuals, keep the run artifacts and file a cleanup bug before broader release review.
 
+## Mode Routing Suite
+
+The `mode-routing` suite verifies that Telegram exposes routing as a first-class user control.
+
+Covered behavior:
+
+- `/help` shows the current mode and inline mode buttons.
+- The default mode is `balanced_local`, so ordinary questions stay on the local route unless the user changes mode.
+- Creating requests through normal language should use the selected mode's configured action/env/args instead of falling through to a raw Hermes command.
+- Phrases such as "пара философов" should be treated as a small council request.
+
+Automated live retest:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite mode-routing --cleanup hard --notify telegram --live-ok --json
+```
+
+Manual callback checkpoint:
+
+1. Send `/help`.
+2. Press `Глубоко 10` or another mode button.
+3. Confirm Telegram reports the new current mode.
+4. Send a normal question without slash commands.
+5. Confirm the route and Paperclip session match that selected mode.
+
 ## Layer Boundaries
 
 ### Universal Runtime Tool

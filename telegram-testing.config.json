@@ -76,7 +76,7 @@
           "message": "/help",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
             "buttonsPresent": true
@@ -87,7 +87,7 @@
           "message": "/agora",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
             "buttonsPresent": true
@@ -98,7 +98,7 @@
           "message": "/agora help",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком"],
+            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
             "buttonsPresent": true
@@ -109,7 +109,7 @@
           "message": "/agents",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["голоса и текущие сессии", "диагностику"],
+            "replyContains": ["голоса и текущие сессии", "диагностику", "Текущий режим"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
             "buttonsPresent": true
@@ -123,6 +123,43 @@
             "replyContains": ["Обычный вход", "Обычные команды", "Работа с сессиями", "Админ/диагностика"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true
+          }
+        }
+      ]
+    },
+    "mode-routing": {
+      "tests": [
+        {
+          "id": "mode.menu.current",
+          "message": "/help",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Текущий режим", "Сбаланс"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "mode.default-local-route",
+          "message": "собери совет: как заботу не превратить в контроль [qa:<runId>]",
+          "expect": {
+            "paperclipRootsCreatedAtLeast": 1,
+            "localRouteContains": "local",
+            "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "mode.pair-voices-local-route",
+          "message": "собери совет у пары философов: как поддерживать взрослого ребенка [qa:<runId>]",
+          "expect": {
+            "paperclipRootsCreatedAtLeast": 1,
+            "localRouteContains": "local",
+            "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
           }
         }
       ]

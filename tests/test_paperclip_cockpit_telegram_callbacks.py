@@ -378,6 +378,92 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
 
         self.with_config(config, assertions)
 
+    def test_mode_selector_state_is_per_chat_and_project_neutral(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = str(Path(tmp) / "telegram-state.json")
+            config = {
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": state_path,
+                        "default_mode": "fast",
+                        "modes": [
+                            {"id": "fast", "label": "Fast", "action": "quick"},
+                            {"id": "deep", "label": "Deep", "action": "deep"},
+                        ],
+                    },
+                },
+            }
+
+            def assertions():
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-a"), "fast")
+                mode = self.plugin._telegram_set_selected_mode("chat-a", "deep")
+                self.assertEqual(mode["id"], "deep")
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-a"), "deep")
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-b"), "fast")
+                data = json.loads(Path(state_path).read_text(encoding="utf-8"))
+                self.assertEqual(data["chats"]["telegram:chat-a"]["selectedMode"], "deep")
+                self.assertEqual(data["chats"]["telegram:chat-a"]["selectedParticipants"], [])
+
+            self.with_config(config, assertions)
+
+    def test_set_mode_callback_stores_mode_and_sends_confirmation_without_action(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": str(Path(tmp) / "telegram-state.json"),
+                        "default_mode": "quick_local",
+                        "modes": [
+                            {"id": "quick_local", "label": "Быстро локально", "action": "quick"},
+                            {"id": "deep_local", "label": "Глубоко локально", "action": "deep"},
+                        ],
+                    },
+                },
+                "actions": {
+                    "quick": {"exec": ["echo", "quick"]},
+                    "deep": {"exec": ["echo", "deep"]},
+                },
+            }
+            calls = []
+            runs = []
+
+            def fake_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            def fake_run_action(name, action, raw_args, **_):
+                runs.append((name, raw_args))
+                return "should not run"
+
+            def assertions():
+                with MonkeyPatch(self.plugin, _telegram_api=fake_api, _run_action=fake_run_action):
+                    result = self.plugin._telegram_callback_query(
+                        adapter=FakeAdapter(),
+                        query=FakeQuery(),
+                        data="pc:set_mode:deep_local",
+                        chat_id="chat-mode",
+                        user_id="user-mode",
+                    )
+
+                self.assertEqual(result, {"action": "handled"})
+                self.assertEqual(runs, [])
+                self.assertEqual([call[0] for call in calls], ["answerCallbackQuery", "sendMessage"])
+                self.assertEqual(calls[0][1]["text"], "Режим выбран.")
+                payload = calls[1][1]
+                self.assertIn("Глубоко локально", payload["text"])
+                keyboard = payload["reply_markup"]["inline_keyboard"]
+                flat_buttons = [button for row in keyboard for button in row]
+                self.assertIn({"text": "✓ Глубоко локально", "callback_data": "pc:set_mode:deep_local"}, flat_buttons)
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-mode"), "deep_local")
+
+            self.with_config(config, assertions)
+
     def test_ignores_other_callback_prefixes(self):
         config = {"telegram": {"enabled": True, "callback_prefix": "pc"}}
         calls = []
