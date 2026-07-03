@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inner-agora.local/paperclip-qa-tool.config.schema.json",
+  "title": "Paperclip QA Tool Config",
+  "type": "object",
+  "required": ["name", "telegram", "paperclip", "suites"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "telegram": {
+      "type": "object",
+      "required": ["target"],
+      "properties": {
+        "target": { "type": "string", "minLength": 1 },
+        "userbot": {
+          "type": "object",
+          "properties": {
+            "session": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "paperclip": {
+      "type": "object",
+      "required": ["company"],
+      "properties": {
+        "apiBase": { "type": "string", "minLength": 1 },
+        "company": { "type": "string", "minLength": 1 },
+        "cleanup": { "enum": ["hard", "soft", "none"] }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "dir": { "type": "string", "minLength": 1 }
+      }
+    },
+    "suites": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "extends": { "type": "string", "minLength": 1 },
+          "tests": { "type": "array" }
+        }
+      }
+    }
+  }
+}

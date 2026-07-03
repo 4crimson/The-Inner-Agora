@@ -1,0 +1,11 @@
+{
+  "tests": [
+    {
+      "id": "health.config",
+      "kind": "health",
+      "expect": {
+        "ok": true
+      }
+    }
+  ]
+}

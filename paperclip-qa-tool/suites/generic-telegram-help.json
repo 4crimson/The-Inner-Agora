@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "id": "help.generic.basic",
+      "message": "help",
+      "expect": {
+        "paperclipRootsCreated": 0
+      }
+    },
+    {
+      "id": "help.generic.start",
+      "message": "/start",
+      "expect": {
+        "paperclipRootsCreated": 0
+      }
+    }
+  ]
+}
