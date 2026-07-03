@@ -148,6 +148,16 @@
               "callback": "deep_prompt"
             },
             {
+              "label": "Codex",
+              "callback": "ask_with_mode",
+              "arg": "codex_deep"
+            },
+            {
+              "label": "Выбрать философов",
+              "callback": "choose_participants",
+              "arg": "custom_voices"
+            },
+            {
               "label": "Философы",
               "callback": "philosophers_prompt"
             },
@@ -196,6 +206,11 @@
         "ask"
       ],
       "show_current_mode": true,
+      "prompt_after_select": "Режим выбран. Теперь напиши вопрос обычным языком.",
+      "choose_participants": {
+        "mode": "custom_voices",
+        "prompt": "Напиши имена философов и вопрос одним сообщением. Например: с Платоном и Сартром: что такое свобода."
+      },
       "modes": [
         {
           "id": "quick_local",
@@ -231,6 +246,17 @@
           }
         },
         {
+          "id": "codex_deep",
+          "label": "Codex",
+          "description": "сильный разбор через codex_local",
+          "action": "ask",
+          "args": "--max",
+          "env": {
+            "INNER_AGORA_MODE": "max",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "0"
+          }
+        },
+        {
           "id": "all_local",
           "label": "Все голоса",
           "description": "локальный проход по всему roster",
@@ -240,6 +266,18 @@
             "INNER_AGORA_MODE": "local",
             "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
           }
+        },
+        {
+          "id": "custom_voices",
+          "label": "Свои голоса",
+          "description": "укажи философов в тексте вопроса",
+          "action": "ask",
+          "args": "--balanced",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          },
+          "prompt": "Напиши имена философов и вопрос одним сообщением. Например: с Платоном и Сартром: что такое свобода."
         },
         {
           "id": "go_no_go_local",

@@ -952,6 +952,7 @@ console.log(JSON.stringify(result));
                         "noRawTokens": True,
                         "localRouteContains": "local",
                         "buttonsPresent": True,
+                        "buttonsContain": ["Синтез"],
                     },
                 },
                 "observed": {
@@ -969,7 +970,41 @@ console.log(JSON.stringify(result));
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["status"], "pass")
-        self.assertEqual(len(payload["checks"]), 7)
+        self.assertIn("buttonsContain", [check["name"] for check in payload["checks"]])
+        self.assertEqual(len(payload["checks"]), 8)
+
+    def test_evaluator_checks_button_labels(self):
+        expression = json.dumps(
+            {
+                "test": {"id": "eval.buttons", "expect": {"buttonsContain": ["Codex", "Свои голоса"]}},
+                "observed": {"buttons": [[{"text": "Codex"}], [{"label": "Свои голоса"}]]},
+            },
+            ensure_ascii=False,
+        )
+
+        result = self.run_node_eval(expression)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "pass")
+        self.assertIn("buttonsContain", [check["name"] for check in payload["checks"]])
+
+    def test_evaluator_can_read_local_route_from_reply_text(self):
+        expression = json.dumps(
+            {
+                "test": {"id": "eval.route.text", "expect": {"localRouteContains": "local"}},
+                "observed": {
+                    "replyText": "Маршрут: hermes_local model=google/gemma reason=forcedLocalAdapter",
+                },
+            },
+            ensure_ascii=False,
+        )
+
+        result = self.run_node_eval(expression)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "pass")
 
     def test_evaluator_reports_failed_expectations(self):
         expression = json.dumps(
@@ -1154,6 +1189,55 @@ console.log(JSON.stringify(result));
             self.assertEqual([issue["id"] for issue in manifest["paperclip"]["issues"]], ["new-root"])
             self.assertEqual([message["messageId"] for message in manifest["telegram"]["messages"]], [101, 102])
             self.assertEqual(manifest["tests"][0]["status"], "pass")
+
+    def test_run_updates_paperclip_issue_baseline_between_tests(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_first = [
+            *before_issues,
+            {"id": "new-root-1", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(
+            issues_responses=[before_issues, after_first, after_first]
+        ) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {"id": "first", "message": "one", "expect": {"paperclipRootsCreated": 1}},
+                        {"id": "second", "message": "two", "expect": {"paperclipRootsCreated": 0}},
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertEqual([test["observed"]["paperclipRootsCreated"] for test in manifest["tests"]], [1, 0])
 
     def test_run_with_cleanup_returns_cleanup_result_and_updates_manifest(self):
         before_issues = [

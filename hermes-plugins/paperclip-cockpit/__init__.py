@@ -28,6 +28,7 @@ TERMINAL_STATUSES = {"done", "blocked", "cancelled"}
 ISSUE_RE = re.compile(r"\b([A-Z][A-Z0-9]{1,12}-\d+)\b", re.IGNORECASE)
 BARE_ISSUE_NUMBER_RE = re.compile(r"\b(\d{1,7})\b")
 COMMAND_RE = re.compile(r"[^0-9a-z_]+")
+BUILTIN_TELEGRAM_MODE_CALLBACKS = {"set_mode", "ask_with_mode", "choose_participants", "show_modes", "reset_mode"}
 
 DEFAULT_LABELS = {
     "company": "company",
@@ -673,6 +674,13 @@ def _telegram_payload_from_output(output: str) -> tuple[str, dict[str, Any] | No
     return text or "OK", reply_markup
 
 
+def _telegram_reply_markup_has_buttons(reply_markup: dict[str, Any] | None) -> bool:
+    if not isinstance(reply_markup, dict):
+        return False
+    rows = reply_markup.get("inline_keyboard")
+    return isinstance(rows, list) and any(isinstance(row, list) and row for row in rows)
+
+
 def _telegram_callback_data(name: str, arg: str = "help") -> str:
     callback = re.sub(r"[^0-9a-z_]+", "_", str(name or "").strip().casefold()).strip("_")
     if not callback:
@@ -747,6 +755,16 @@ def _telegram_mode_status_line(chat_id: Any = None) -> str:
     return f"Текущий режим: {label}{f' — {description}' if description else ''}"
 
 
+def _telegram_mode_prompt_text(mode: dict[str, Any], selector: dict[str, Any]) -> str:
+    return str(
+        mode.get("prompt")
+        or mode.get("after_select_prompt")
+        or selector.get("prompt_after_select")
+        or selector.get("ask_prompt")
+        or "Теперь напиши вопрос обычным языком."
+    ).strip()
+
+
 def _telegram_menu_keyboard(menu: dict[str, Any], *, chat_id: Any = None, menu_name: str = "") -> dict[str, Any] | None:
     raw_buttons = menu.get("buttons")
     if not isinstance(raw_buttons, list):
@@ -794,7 +812,8 @@ def _telegram_command_boundary_errors() -> list[str]:
     menus = boundary.get("menus", {})
     if not isinstance(menus, dict):
         return ["telegram.command_boundary.menus must be an object"]
-    callbacks = _telegram_callback_actions()
+    callbacks = set(_telegram_callback_actions())
+    callbacks.update(BUILTIN_TELEGRAM_MODE_CALLBACKS)
 
     for menu_name, command_values in commands.items():
         name = str(menu_name or "").strip()
@@ -2754,9 +2773,10 @@ def _maybe_execute_selected_mode_rewrite(original_text: str, rewritten: str, cha
     payload_flag = mode.get("telegram_payload") if "telegram_payload" in mode else mode.get("payload", True)
     if _as_bool(payload_flag, True):
         message_text, reply_markup = _telegram_payload_from_output(output)
-        _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
+        keyboard = reply_markup if _telegram_reply_markup_has_buttons(reply_markup) else _telegram_mode_keyboard(chat_id)
+        _telegram_send_message(str(chat_id or ""), message_text, keyboard)
     else:
-        _telegram_send_message(str(chat_id or ""), output)
+        _telegram_send_message(str(chat_id or ""), output, _telegram_mode_keyboard(chat_id))
     return {"action": "skip"}
 
 
@@ -2982,7 +3002,7 @@ def _telegram_callback_query(
     callback_arg = parts[2] if len(parts) > 2 else ""
     actions = _telegram_callback_actions()
     spec = actions.get(callback_name)
-    mode_callback = callback_name in {"set_mode", "show_modes", "reset_mode"}
+    mode_callback = callback_name in BUILTIN_TELEGRAM_MODE_CALLBACKS
     if not spec and not mode_callback:
         _telegram_answer_callback(callback_id, "Неизвестное действие.")
         return {"action": "handled"}
@@ -3014,6 +3034,40 @@ def _telegram_callback_query(
         description = str(mode.get("description") or "").strip()
         if description and description not in lines[0]:
             lines.append(description)
+        _telegram_send_message(str(chat_id or ""), "\n".join(line for line in lines if line), _telegram_mode_keyboard(chat_id))
+        return {"action": "handled"}
+
+    if callback_name == "ask_with_mode":
+        selector = _telegram_mode_selector_config()
+        mode = _telegram_set_selected_mode(chat_id, callback_arg)
+        if not mode:
+            _telegram_answer_callback(callback_id, "Режим не найден.")
+            return {"action": "handled"}
+        _telegram_answer_callback(callback_id, "Режим выбран.")
+        lines = [_telegram_mode_status_line(chat_id)]
+        prompt = _telegram_mode_prompt_text(mode, selector)
+        if prompt:
+            lines.append(prompt)
+        _telegram_send_message(str(chat_id or ""), "\n".join(line for line in lines if line), _telegram_mode_keyboard(chat_id))
+        return {"action": "handled"}
+
+    if callback_name == "choose_participants":
+        selector = _telegram_mode_selector_config()
+        choice = selector.get("choose_participants", {}) if isinstance(selector, dict) else {}
+        if not isinstance(choice, dict):
+            choice = {}
+        requested_mode = callback_arg if _telegram_mode_by_id(callback_arg) else str(
+            choice.get("mode") or choice.get("mode_id") or ""
+        ).strip()
+        if requested_mode and _telegram_mode_by_id(requested_mode):
+            _telegram_set_selected_mode(chat_id, requested_mode)
+        prompt = str(
+            choice.get("prompt")
+            or selector.get("choose_participants_prompt")
+            or "Write participant names and the question as a normal message."
+        ).strip()
+        _telegram_answer_callback(callback_id, str(choice.get("answer") or "Ок"))
+        lines = [_telegram_mode_status_line(chat_id), prompt]
         _telegram_send_message(str(chat_id or ""), "\n".join(line for line in lines if line), _telegram_mode_keyboard(chat_id))
         return {"action": "handled"}
 

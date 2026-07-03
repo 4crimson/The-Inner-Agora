@@ -107,7 +107,7 @@ async function executeTestList({
   if (!company) throw new ConfigValidationError([`paperclip company not found: ${config.paperclip.company}`]);
   manifest.paperclip.companyId = company.id;
   const before = await paperclipClient.listIssues(company.id);
-  const beforeIds = issueIds(before);
+  const knownIssueIds = issueIds(before);
 
   for (const test of tests) {
     const sent = userbot.send({
@@ -119,7 +119,10 @@ async function executeTestList({
     manifest.telegram.messages.push(...telegramMessages);
 
     const after = await paperclipClient.listIssues(company.id);
-    const newIssues = after.filter((issue) => issue.id && !beforeIds.has(issue.id));
+    const newIssues = after.filter((issue) => issue.id && !knownIssueIds.has(issue.id));
+    for (const issue of after) {
+      if (issue.id) knownIssueIds.add(issue.id);
+    }
     const newRootIds = new Set(rootIssues(newIssues).map((issue) => issue.id));
     for (const issue of newIssues) {
       if (!manifest.paperclip.issues.some((existing) => existing.id === issue.id)) {

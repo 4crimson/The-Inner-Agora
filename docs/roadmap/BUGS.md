@@ -4,7 +4,7 @@ This file tracks live Telegram acceptance failures separately from roadmap phase
 
 ## BUG-2026-07-03-003 — Telegram has no visible mode routing control
 
-**Status:** fixed locally, pending live retest
+**Status:** fixed locally after first live failure, pending live retest
 **Severity:** P1 for Telegram UX / route control
 **Reported:** 2026-07-03
 **Surface:** Telegram → Paperclip Cockpit → Inner Agora ask route
@@ -23,7 +23,10 @@ Telegram buttons were action callbacks only. There was no generic per-chat mode 
 - Mode buttons are rendered from config in selected command-boundary menus.
 - `set_mode` stores selected mode per Telegram chat.
 - Natural `ask` rewrites can execute through the selected mode action/env/args and skip the raw Hermes command path.
-- Inner Agora config defines local modes: `quick_local`, `balanced_local`, `deep_local`, `all_local`, and `go_no_go_local`.
+- Inner Agora config defines route modes: `quick_local`, `balanced_local`, `deep_local`, `codex_deep`, `all_local`, `custom_voices`, and `go_no_go_local`.
+- `codex_deep` routes through `--max` with `INNER_AGORA_FORCE_LOCAL_ADAPTER=0`, letting `model-routing.mjs` choose `codex_local`.
+- `custom_voices` is a local route that prompts the user to name participants in ordinary language; role resolution stays in Inner Agora scripts/config.
+- Live failure root causes found on first `mode-routing` run: action replies with empty keyboards lost mode buttons; QA evaluator did not read local route from reply text; regex participant parsing kept only the first named philosopher.
 - Added `mode-routing` QA suite and checklist entries.
 
 ### Acceptance Criteria
@@ -32,6 +35,8 @@ Telegram buttons were action callbacks only. There was no generic per-chat mode 
 - Selecting a mode changes the current mode for that Telegram chat.
 - The next normal human question routes through the selected action/env/args.
 - Local modes include `INNER_AGORA_FORCE_LOCAL_ADAPTER=1`.
+- `Codex` mode routes to `codex_local`.
+- "Свои голоса" / named-philosopher phrasing can create a session with the named voices.
 - Live retest suite `mode-routing` passes and cleanup leaves no residual QA artifacts.
 
 ## BUG-2026-07-03-002 — Telegram service commands leak raw Hermes UI

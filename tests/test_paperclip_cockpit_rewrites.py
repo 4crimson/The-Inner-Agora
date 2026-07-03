@@ -212,14 +212,20 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             "balanced_local": "--balanced",
             "deep_local": "--max",
             "all_local": "--all",
+            "custom_voices": "--balanced",
         }.items():
             with self.subTest(mode=mode_id):
                 self.assertEqual(modes[mode_id]["action"], "ask")
                 self.assertEqual(modes[mode_id]["args"], args)
                 self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
                 self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_MODE"], "local")
+        self.assertEqual(modes["codex_deep"]["action"], "ask")
+        self.assertEqual(modes["codex_deep"]["args"], "--max")
+        self.assertEqual(modes["codex_deep"]["env"]["INNER_AGORA_MODE"], "max")
+        self.assertEqual(modes["codex_deep"]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "0")
         self.assertEqual(modes["go_no_go_local"]["action"], "go-no-go")
         self.assertEqual(modes["go_no_go_local"]["env"]["INNER_AGORA_ACTIVE_CHAMBER"], "board-directors")
+        self.assertIn("choose_participants", config["telegram"]["mode_selector"])
 
     def test_natural_rewrite_can_delegate_to_configured_understander(self):
         config = {
@@ -552,6 +558,8 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             self.assertEqual(runs[0][3]["chat_id"], "chat-route")
             self.assertEqual(calls[0][0], "chat-route")
             self.assertIn("ran deep", calls[0][1])
+            flat_buttons = [button for row in calls[0][2]["inline_keyboard"] for button in row]
+            self.assertIn({"text": "✓ Глубоко", "callback_data": "pc:set_mode:deep_local"}, flat_buttons)
 
     def test_telegram_command_boundary_allows_full_help_path(self):
         config = {
@@ -695,6 +703,40 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             "telegram.command_boundary.menus.support.buttons[1].callback references missing callback not_configured",
             errors,
         )
+
+    def test_telegram_command_boundary_validation_accepts_builtin_mode_callbacks(self):
+        config = {
+            "telegram": {
+                "enabled": True,
+                "command_boundary": {
+                    "enabled": True,
+                    "commands": {"home": ["/help"]},
+                    "menus": {
+                        "home": {
+                            "text": "Home",
+                            "buttons": [
+                                {"label": "Codex", "callback": "ask_with_mode", "arg": "codex_deep"},
+                                {"label": "Choose", "callback": "choose_participants", "arg": "custom_voices"},
+                            ],
+                        }
+                    },
+                },
+                "mode_selector": {
+                    "enabled": True,
+                    "modes": [
+                        {"id": "codex_deep", "label": "Codex", "action": "ask"},
+                        {"id": "custom_voices", "label": "Choose", "action": "ask"},
+                    ],
+                },
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=handle.name):
+                errors = self.plugin._telegram_command_boundary_errors()
+
+        self.assertEqual(errors, [])
 
     def test_telegram_command_boundary_skips_raw_route_when_bot_api_fails(self):
         config = {

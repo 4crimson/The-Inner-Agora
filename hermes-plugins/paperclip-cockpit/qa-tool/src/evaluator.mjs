@@ -27,9 +27,12 @@ function rootsCreated(observed) {
 }
 
 function buttons(observed) {
-  if (Array.isArray(observed.buttons)) return observed.buttons;
-  if (Array.isArray(observed.telegram?.buttons)) return observed.telegram.buttons;
-  return [];
+  const raw = Array.isArray(observed.buttons)
+    ? observed.buttons
+    : Array.isArray(observed.telegram?.buttons)
+      ? observed.telegram.buttons
+      : [];
+  return raw.flatMap((item) => Array.isArray(item) ? item : [item]);
 }
 
 function addCheck(checks, name, ok, details = {}) {
@@ -87,7 +90,7 @@ export function evaluateTest({ test, observed = {} }) {
   }
 
   if (Object.hasOwn(expect, "localRouteContains")) {
-    const route = String(observed.localRoute || observed.route || "");
+    const route = String(observed.localRoute || observed.route || replyText || "");
     addCheck(checks, "localRouteContains", route.includes(String(expect.localRouteContains)), {
       expected: String(expect.localRouteContains),
       actual: route,
@@ -99,6 +102,17 @@ export function evaluateTest({ test, observed = {} }) {
     addCheck(checks, "buttonsPresent", actual === Boolean(expect.buttonsPresent), {
       expected: Boolean(expect.buttonsPresent),
       actual,
+    });
+  }
+
+  if (Object.hasOwn(expect, "buttonsContain")) {
+    const expected = asList(expect.buttonsContain).map(String);
+    const labels = buttons(observed)
+      .map((button) => String(button?.text || button?.label || button?.title || ""))
+      .filter(Boolean);
+    addCheck(checks, "buttonsContain", expected.every((needle) => labels.some((label) => label.includes(needle))), {
+      expected,
+      actual: labels,
     });
   }
 

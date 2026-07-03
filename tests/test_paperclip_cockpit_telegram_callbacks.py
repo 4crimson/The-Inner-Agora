@@ -464,6 +464,96 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
 
             self.with_config(config, assertions)
 
+    def test_ask_with_mode_callback_stores_mode_and_prompts_for_plain_question(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": str(Path(tmp) / "telegram-state.json"),
+                        "default_mode": "quick_local",
+                        "prompt_after_select": "Теперь напиши вопрос обычным языком.",
+                        "modes": [
+                            {"id": "quick_local", "label": "Быстро", "action": "ask"},
+                            {"id": "codex_deep", "label": "Codex", "description": "сильный разбор", "action": "ask"},
+                        ],
+                    },
+                },
+            }
+            calls = []
+
+            def fake_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            def assertions():
+                with MonkeyPatch(self.plugin, _telegram_api=fake_api):
+                    result = self.plugin._telegram_callback_query(
+                        adapter=FakeAdapter(),
+                        query=FakeQuery(),
+                        data="pc:ask_with_mode:codex_deep",
+                        chat_id="chat-mode",
+                        user_id="user-mode",
+                    )
+
+                self.assertEqual(result, {"action": "handled"})
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-mode"), "codex_deep")
+                payload = calls[1][1]
+                self.assertIn("Текущий режим: Codex", payload["text"])
+                self.assertIn("Теперь напиши вопрос обычным языком.", payload["text"])
+                flat_buttons = [button for row in payload["reply_markup"]["inline_keyboard"] for button in row]
+                self.assertIn({"text": "✓ Codex", "callback_data": "pc:set_mode:codex_deep"}, flat_buttons)
+
+            self.with_config(config, assertions)
+
+    def test_choose_participants_callback_can_select_custom_mode_and_prompt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": str(Path(tmp) / "telegram-state.json"),
+                        "default_mode": "balanced",
+                        "choose_participants": {
+                            "mode": "custom_voices",
+                            "prompt": "Напиши имена участников и вопрос одним сообщением.",
+                        },
+                        "modes": [
+                            {"id": "balanced", "label": "Balanced", "action": "ask"},
+                            {"id": "custom_voices", "label": "Choose", "action": "ask"},
+                        ],
+                    },
+                },
+            }
+            calls = []
+
+            def fake_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            def assertions():
+                with MonkeyPatch(self.plugin, _telegram_api=fake_api):
+                    result = self.plugin._telegram_callback_query(
+                        adapter=FakeAdapter(),
+                        query=FakeQuery(),
+                        data="pc:choose_participants:help",
+                        chat_id="chat-custom",
+                        user_id="user-custom",
+                    )
+
+                self.assertEqual(result, {"action": "handled"})
+                self.assertEqual(self.plugin._telegram_selected_mode_id("chat-custom"), "custom_voices")
+                payload = calls[1][1]
+                self.assertIn("Напиши имена участников", payload["text"])
+                flat_buttons = [button for row in payload["reply_markup"]["inline_keyboard"] for button in row]
+                self.assertIn({"text": "✓ Choose", "callback_data": "pc:set_mode:custom_voices"}, flat_buttons)
+
+            self.with_config(config, assertions)
+
     def test_ignores_other_callback_prefixes(self):
         config = {"telegram": {"enabled": True, "callback_prefix": "pc"}}
         calls = []

@@ -111,18 +111,21 @@ Purpose: Telegram buttons should make routing visible and controllable before th
 
 Expected:
 
-- `/help` shows `Текущий режим` and mode buttons.
+- `/help` shows `Текущий режим` and mode buttons, including `Codex`, `Свои голоса`, and `Все голоса`.
 - Default mode is local and visible to the user.
 - A normal council request creates a Paperclip session through the selected local route.
-- A request asking for a pair of philosophers stays local and should be limited by the route/wording.
+- A request asking for a pair of philosophers stays local and selects two voices; the exact two voices are chosen by Inner Agora unless the user names them.
+- A request naming philosophers in ordinary language, for example "с Платоном и Сартром", keeps those named voices in the generated session.
 - No mode/help command creates Paperclip issues by itself.
 
 Manual checkpoint until the QA runner grows callback-click support:
 
-- Press a mode button, for example `Глубоко 10`.
+- Press a mode button, for example `Глубоко 10`, `Codex`, or `Свои голоса`.
 - Confirm Telegram replies with the new current mode.
 - Send a normal question without slash commands.
 - Confirm the created session uses the selected route.
+- For `Codex`, the route should be `codex_local`.
+- For `Свои голоса`, the next question should include the chosen names in ordinary language; Inner Agora owns role resolution.
 
 ### 3. Help / Capabilities
 

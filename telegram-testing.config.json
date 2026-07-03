@@ -137,12 +137,14 @@
             "replyContains": ["Текущий режим", "Сбаланс"],
             "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
-            "buttonsPresent": true
+            "buttonsPresent": true,
+            "buttonsContain": ["Codex", "Свои голоса", "Все голоса"]
           }
         },
         {
           "id": "mode.default-local-route",
           "message": "собери совет: как заботу не превратить в контроль [qa:<runId>]",
+          "waitSeconds": 40,
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "localRouteContains": "local",
@@ -154,9 +156,24 @@
         {
           "id": "mode.pair-voices-local-route",
           "message": "собери совет у пары философов: как поддерживать взрослого ребенка [qa:<runId>]",
+          "waitSeconds": 40,
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "localRouteContains": "local",
+            "replyContains": ["Выбрал 2"],
+            "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "mode.custom-voices-local-route",
+          "message": "собери совет с Платоном и Сартром: что такое свобода [qa:<runId>]",
+          "waitSeconds": 40,
+          "expect": {
+            "paperclipRootsCreatedAtLeast": 1,
+            "localRouteContains": "local",
+            "replyContains": ["Платон", "Сартр"],
             "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
             "noRawTokens": true,
             "buttonsPresent": true

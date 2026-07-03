@@ -75,20 +75,36 @@ function looseText(value) {
 }
 
 function roleAliases(role) {
-  return [role.key, role.name, role.englishName, ...(Array.isArray(role.aliases) ? role.aliases : [])].filter(Boolean);
+  const aliases = [role.key, role.name, role.englishName, ...(Array.isArray(role.aliases) ? role.aliases : [])].filter(Boolean);
+  for (const value of [role.name, role.englishName]) {
+    const words = looseText(value).split(" ").filter((word) => word.length >= 4);
+    if (words.length) aliases.push(words[words.length - 1]);
+  }
+  return aliases;
 }
 
 function roleKeyInText(text, chamberId = DEFAULT_CHAMBER_ID) {
+  return roleKeysInText(text, chamberId)[0] || "";
+}
+
+function roleKeysInText(text, chamberId = DEFAULT_CHAMBER_ID) {
   const haystack = looseText(text);
-  if (!haystack) return "";
+  if (!haystack) return [];
+  const keys = [];
   for (const role of loadRolesForChamber(chamberId)) {
     for (const alias of roleAliases(role)) {
       const normalized = looseText(alias);
-      if (normalized && haystack.includes(normalized)) return role.key;
-      if (normalized.length >= 5 && haystack.includes(normalized.slice(0, -1))) return role.key;
+      if (normalized && haystack.includes(normalized)) {
+        keys.push(role.key);
+        break;
+      }
+      if (normalized.length >= 5 && haystack.includes(normalized.slice(0, -1))) {
+        keys.push(role.key);
+        break;
+      }
     }
   }
-  return "";
+  return unique(keys);
 }
 
 function resolveRoleKey(token, chamberId = DEFAULT_CHAMBER_ID) {
@@ -212,7 +228,6 @@ function cleanTopic(text) {
     "совет",
     "агора",
     "агоре",
-    "философов",
     "коротко",
     "быстро",
     "кратко",
@@ -293,7 +308,8 @@ export function regexFallbackSlots(userText, context = {}) {
   }
 
   const roleChamber = chamberFromText(text) || "philosophy";
-  const roleKey = roleKeyInText(text, roleChamber);
+  const roleKeys = roleKeysInText(text, roleChamber);
+  const roleKey = roleKeys[0] || "";
   if (hasAny(loose, ["новый вопрос", "новая тема", "отдельный вопрос"])) {
     return normalizeIntentSlots(
       baseSlots({
@@ -301,7 +317,7 @@ export function regexFallbackSlots(userText, context = {}) {
         chamber,
         mode: modeFromText(text),
         topic: cleanTopic(text) || text,
-        roles: roleKey ? [roleKey] : [],
+        roles: roleKeys,
         confidence: 0.84,
       }),
       { chamberId: chamber },
@@ -328,7 +344,7 @@ export function regexFallbackSlots(userText, context = {}) {
         chamber,
         mode: modeFromText(text),
         topic: text,
-        roles: roleKey ? [roleKey] : [],
+        roles: roleKeys,
         confidence: 0.8,
       }),
       { chamberId: chamber },
@@ -342,7 +358,7 @@ export function regexFallbackSlots(userText, context = {}) {
         chamber,
         mode: modeFromText(text),
         topic: text,
-        roles: roleKey ? [roleKey] : [],
+        roles: roleKeys,
         confidence: context.implicitFollowUp ? 0.72 : 0.8,
       }),
       { chamberId: chamber },
@@ -377,7 +393,7 @@ export function regexFallbackSlots(userText, context = {}) {
         chamber,
         mode: modeFromText(text),
         topic: cleanTopic(text) || null,
-        roles: roleKey ? [roleKey] : [],
+        roles: roleKeys,
         confidence: 0.82,
       }),
       { chamberId: chamber },

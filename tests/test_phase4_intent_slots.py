@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INTENT_SCHEMA = ROOT / "data" / "schema" / "intent-slots.schema.json"
 INTENT_SCRIPT = ROOT / "scripts" / "intent-slots.mjs"
+AGORA_SCRIPT = ROOT / "scripts" / "agora.mjs"
 
 
 class Phase4IntentSlotTests(unittest.TestCase):
@@ -223,6 +224,21 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(plan["action"], "command")
         self.assertEqual(plan["command"][:4], ["/agora", "ask", "--mode", "min"])
         self.assertIn("--voices", plan["command"])
+
+    def test_regex_extractor_keeps_multiple_requested_roles_for_new_session(self):
+        result = self.run_node(
+            AGORA_SCRIPT,
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "собери совет с Платоном и Сартром: что такое свобода",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertIn("--voices plato,sartre", payload["text"])
 
     def test_plan_missing_topic_asks_one_question(self):
         slots = {
@@ -516,6 +532,22 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["total"], 20)
         self.assertGreaterEqual(payload["semanticCorrect"], 16)
         self.assertEqual(len(payload["results"]), 20)
+
+    def test_agora_natural_preserves_pair_philosopher_limit_words(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "собери совет у пары философов: как поддерживать взрослого ребенка",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertIn("пары философов", payload["text"])
 
     def test_agora_natural_follow_up_uses_last_root_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:
