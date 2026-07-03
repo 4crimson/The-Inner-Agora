@@ -78,15 +78,25 @@ function messageButtons(messages) {
   return (messages || []).flatMap((message) => Array.isArray(message.buttons) ? message.buttons : []);
 }
 
-export async function executeSuite({ config, suiteName, userbot, paperclipClient, cleanupMode = "", now = new Date() }) {
-  const suite = config.suites[suiteName];
-  if (!suite) throw new ConfigValidationError([`suite not found: ${suiteName}`]);
+async function executeTestList({
+  config,
+  suiteName,
+  tests,
+  userbot,
+  paperclipClient,
+  cleanupMode = "",
+  now = new Date(),
+  previousRunId = "",
+  runSuiteName = suiteName,
+}) {
   const mode = cleanupMode || config.paperclip.cleanup;
   if (!["hard", "soft", "none"].includes(mode)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
 
-  const run = createRun({ config, suite: suiteName });
+  const run = createRun({ config, suite: runSuiteName });
   const manifest = {
     ...run.manifest,
+    suite: suiteName,
+    ...(previousRunId ? { previousRunId } : {}),
     cleanup: {
       ...run.manifest.cleanup,
       mode,
@@ -99,7 +109,7 @@ export async function executeSuite({ config, suiteName, userbot, paperclipClient
   const before = await paperclipClient.listIssues(company.id);
   const beforeIds = issueIds(before);
 
-  for (const test of suite.tests) {
+  for (const test of tests) {
     const sent = userbot.send({
       text: test.message || "",
       wait: test.waitSeconds ?? 8,
@@ -160,6 +170,20 @@ export async function executeSuite({ config, suiteName, userbot, paperclipClient
   };
 }
 
+export async function executeSuite({ config, suiteName, userbot, paperclipClient, cleanupMode = "", now = new Date() }) {
+  const suite = config.suites[suiteName];
+  if (!suite) throw new ConfigValidationError([`suite not found: ${suiteName}`]);
+  return executeTestList({
+    config,
+    suiteName,
+    tests: suite.tests,
+    userbot,
+    paperclipClient,
+    cleanupMode,
+    now,
+  });
+}
+
 export function createRetestRun({ config, previousManifest, dryRun = false, cleanupMode = "" }) {
   const mode = cleanupMode || previousManifest.cleanup?.mode || config.paperclip.cleanup;
   if (!["hard", "soft", "none"].includes(mode)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
@@ -194,5 +218,46 @@ export function createRetestRun({ config, previousManifest, dryRun = false, clea
     runId: run.runId,
     manifestPath: run.manifestPath,
     selectedTests: manifest.tests.map((test) => test.id),
+  };
+}
+
+export async function executeRetestRun({
+  config,
+  previousManifest,
+  userbot,
+  paperclipClient,
+  cleanupMode = "",
+  now = new Date(),
+}) {
+  const suiteName = previousManifest.suite;
+  const suite = config.suites[suiteName];
+  if (!suite) throw new ConfigValidationError([`suite not found for retest: ${suiteName}`]);
+
+  const failedIds = new Set(
+    (Array.isArray(previousManifest.tests) ? previousManifest.tests : [])
+      .filter((test) => test.status === "fail")
+      .map((test) => test.id),
+  );
+  const tests = (suite.tests || []).filter((test) => failedIds.has(test.id));
+  const missingIds = [...failedIds].filter((id) => !tests.some((test) => test.id === id));
+  if (missingIds.length) {
+    throw new ConfigValidationError([`retest test definitions not found: ${missingIds.join(", ")}`]);
+  }
+
+  const result = await executeTestList({
+    config,
+    suiteName,
+    tests,
+    userbot,
+    paperclipClient,
+    cleanupMode: cleanupMode || previousManifest.cleanup?.mode || config.paperclip.cleanup,
+    now,
+    previousRunId: previousManifest.runId,
+    runSuiteName: `${suiteName}-retest`,
+  });
+  return {
+    ...result,
+    previousRunId: previousManifest.runId,
+    selectedTests: tests.map((test) => test.id),
   };
 }

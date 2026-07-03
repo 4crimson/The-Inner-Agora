@@ -261,13 +261,19 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
 ```
 
+Live retest reruns only failed test ids from the previous manifest and then writes cleanup/report/bug artifacts:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok --json
+```
+
 Cleanup for a manifest-backed run:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
 ```
 
-When a live run is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
+When a live run or retest is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
 
 Live Telegram runs require an explicit operator confirmation immediately before the run:
 

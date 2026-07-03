@@ -821,6 +821,34 @@ Evidence:
 
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_universal_tool_metadata_is_project_neutral -v` -> OK after metadata fix
 
+## Task 17: Live-Gated Retest Execution
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/suite-runner.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add retest lifecycle tests**
+
+Assert:
+
+- non-dry retest fails before Telegram side effects without `--live-ok`;
+- live-gated retest executes only previously failed test ids;
+- live-gated retest writes cleanup, report, and bug artifacts.
+
+- [x] **Step 2: Share suite execution path**
+
+`run` and live `retest` now use the same execution path for Telegram send, Paperclip issue snapshotting, evaluation, manifest writing, cleanup, report, and bug artifacts.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_retest_dry_run_selects_previous_failed_tests_only tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_retest_without_live_ok_fails_before_telegram_side_effects tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_retest_live_executes_only_failed_tests_and_writes_artifacts -v` -> `Ran 3 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/suite-runner.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

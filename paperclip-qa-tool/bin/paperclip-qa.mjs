@@ -6,7 +6,7 @@ import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
 import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
-import { createRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
+import { createRetestRun, executeRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
@@ -206,11 +206,34 @@ async function main(argv) {
   }
   if (options.command === "retest") {
     if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    if (!options.dryRun && !options.liveOk) {
+      throw new ConfigValidationError(["--live-ok is required for non-dry-run retest execution"]);
+    }
     const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
     const previousManifest = readManifest(manifestPath);
-    const result = createRetestRun({ config, previousManifest, dryRun: options.dryRun, cleanupMode: options.cleanup });
+    const result = options.dryRun
+      ? createRetestRun({ config, previousManifest, dryRun: true, cleanupMode: options.cleanup })
+      : await executeRetestRun({
+        config,
+        previousManifest,
+        cleanupMode: options.cleanup,
+        userbot: new TelegramUserbot({ config }),
+        paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+      });
+    if (!options.dryRun && result.cleanup !== "none") {
+      const cleanupResult = await runCleanupForManifest({
+        config,
+        manifestPath: result.manifestPath,
+        mode: result.cleanup,
+      });
+      result.cleanup = cleanupResult.cleanup;
+      result.ok = result.ok && cleanupResult.ok;
+    }
+    if (!options.dryRun) {
+      Object.assign(result, writeRunArtifacts({ config, runId: result.runId, manifestPath: result.manifestPath }));
+    }
     printPayload(result, options.json);
-    return 0;
+    return result.ok ? 0 : 1;
   }
   if (options.command === "bug-batch") {
     if (!options.run) throw new ConfigValidationError(["--run is required"]);

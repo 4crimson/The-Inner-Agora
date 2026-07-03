@@ -436,10 +436,11 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.con
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md --dry-run
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area telegram-ui --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
 ```
 
-When `run` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
+When `run` or `retest` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
 
 Live suites require explicit operator confirmation immediately before the run:
 
@@ -455,6 +456,7 @@ Planned live interface:
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite smoke --cleanup hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite full --cleanup hard --live-ok
+node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md
