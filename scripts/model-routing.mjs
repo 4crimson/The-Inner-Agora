@@ -84,6 +84,9 @@ function routeAdapterName(request, config) {
   const roleCount = Number(request.roleCount || 0);
   const intent = String(request.intent || "");
 
+  if (String(process.env.INNER_AGORA_FORCE_LOCAL_ADAPTER || "").trim().match(/^(1|true|yes|on)$/i)) {
+    return { adapterName: config.routingRule.localMode, reason: "forcedLocalAdapter", riskTier };
+  }
   if (mode === "local") return { adapterName: config.routingRule.localMode, reason: "localMode", riskTier };
   if ((intent === "dialogue" || intent === "follow-up") && roleCount <= 1) {
     return { adapterName: config.routingRule.shortDialogueSingleRole, reason: "shortDialogueSingleRole", riskTier };

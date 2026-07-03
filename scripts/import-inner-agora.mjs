@@ -462,16 +462,15 @@ function roleDefs(roles, promptOverrides = new Map(), chamber = activeChamber())
 async function ensureAgent(companyId, roleDef, createdByKey) {
   const agents = await api(`/companies/${companyId}/agents`);
   const existing = agents.find((agent) => agent.name === roleDef.name);
-  if (existing) {
-    await syncAgent(existing.id, roleDef);
-    await ensureCodexAuthSymlink(existing);
-    console.log(`Using existing agent: ${roleDef.name} (${existing.id})`);
-    return existing;
-  }
-
   const reportsTo = roleDef.reportsTo ? createdByKey.get(roleDef.reportsTo)?.id : null;
   if (roleDef.reportsTo && !reportsTo) {
     throw new Error(`Missing manager ${roleDef.reportsTo} for ${roleDef.name}`);
+  }
+  if (existing) {
+    await syncAgent(existing.id, roleDef, reportsTo, existing);
+    await ensureCodexAuthSymlink(existing);
+    console.log(`Using existing agent: ${roleDef.name} (${existing.id})`);
+    return existing;
   }
 
   const agent = await api(`/companies/${companyId}/agents`, {
@@ -505,18 +504,23 @@ async function ensureAgent(companyId, roleDef, createdByKey) {
   return agent;
 }
 
-async function syncAgent(agentId, roleDef) {
+async function syncAgent(agentId, roleDef, reportsTo = null, existing = {}) {
+  const patch = {
+    role: roleDef.role,
+    title: roleDef.title,
+    icon: roleDef.icon,
+    reportsTo,
+    capabilities: roleDef.capabilities,
+    metadata: roleDef.metadata,
+    adapterType: AGENT_ADAPTER,
+    adapterConfig: selectedAdapterConfig(),
+    replaceAdapterConfig: true,
+  };
+  if (existing.status === "error") patch.status = "idle";
+
   await api(`/agents/${agentId}`, {
     method: "PATCH",
-    body: JSON.stringify({
-      title: roleDef.title,
-      icon: roleDef.icon,
-      capabilities: roleDef.capabilities,
-      metadata: roleDef.metadata,
-      adapterType: AGENT_ADAPTER,
-      adapterConfig: selectedAdapterConfig(),
-      replaceAdapterConfig: true,
-    }),
+    body: JSON.stringify(patch),
   });
 
   await api(`/agents/${agentId}/instructions-bundle`, {

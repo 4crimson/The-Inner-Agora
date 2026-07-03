@@ -192,6 +192,13 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 )
                 self.assertEqual(self.plugin._rewrite_text("go/no-go: нанимать CTO"), "/agora go-no-go нанимать CTO")
 
+    def test_real_quick_and_deep_actions_force_local_adapter(self):
+        config = json.loads(AGORA_CONFIG.read_text(encoding="utf-8"))
+        for name in ("quick", "deep"):
+            with self.subTest(action=name):
+                self.assertEqual(config["actions"][name]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
+                self.assertEqual(config["actions"][name]["env"]["INNER_AGORA_MODE"], "local")
+
     def test_natural_rewrite_can_delegate_to_configured_understander(self):
         config = {
             "command": {"name": "agora"},

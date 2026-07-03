@@ -708,6 +708,10 @@
         "ask",
         "--min"
       ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
       "timeout": 900
     },
     "max": {
@@ -727,6 +731,10 @@
         "ask",
         "--max"
       ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
       "timeout": 900
     },
     "all": {
@@ -765,6 +773,10 @@
         "ask",
         "--min"
       ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
       "timeout": 900
     },
     "deep": {
@@ -784,6 +796,10 @@
         "ask",
         "--max"
       ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
       "timeout": 900
     },
     "go-no-go": {
@@ -804,7 +820,8 @@
       ],
       "env": {
         "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
-        "INNER_AGORA_MODE": "local"
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
       },
       "timeout": 900
     },

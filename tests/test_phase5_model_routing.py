@@ -56,6 +56,21 @@ class Phase5ModelRoutingTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["adapter"]["model"], "test/hermes-override")
 
+    def test_force_local_adapter_env_overrides_depth_mode_route(self):
+        result = self.run_node(
+            MODEL_ROUTING,
+            "route",
+            "--json",
+            "--mode",
+            "max",
+            env={"INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["name"], "hermes_local")
+        self.assertEqual(payload["reason"], "forcedLocalAdapter")
+
     def test_slot_extractor_config_supports_env_override(self):
         default = self.run_node(MODEL_ROUTING, "slot-extractor", "--json")
         self.assertEqual(default.returncode, 0, default.stderr)

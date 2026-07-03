@@ -237,6 +237,8 @@ Status 2026-07-03: implemented. `help` now returns a local `message` plan instea
 - Ensure `/agora quick ...` executes through Paperclip Cockpit/Hermes command dispatch, not shell execution.
 - Add regression test that quick advice creates a session and never produces internal direct advice.
 
+Status 2026-07-03: partially implemented. `quick`/`deep` actions now force the local adapter route with `INNER_AGORA_FORCE_LOCAL_ADAPTER=1` while preserving `--min`/`--max` depth. Live forced-local verification created `THE-91` with route `hermes_local`, model `google/gemma-4-26b-a4b-qat`, reason `forcedLocalAdapter`. Remaining: live Telegram inbound verification through the actual gateway, not only plugin/action and CLI diagnostics.
+
 **Batch E — Telegram Persona Hardening**
 
 - Update Hermes instructions: Telegram user should never be told to edit docs manually.
@@ -256,6 +258,8 @@ Status 2026-07-03: implemented. `help` now returns a local `message` plan instea
 - Add a repair/prepare path that reassigns affected voices, including `Хайдеггер`, under an active Agora manager/root.
 - Block live ask creation when hierarchy health fails and return a human recovery message.
 - Add a regression or dry-run test for the HTTP 409 terminated-ancestor case.
+
+Status 2026-07-03: repair path implemented through `prepare local`. Existing agents now resync `reportsTo` to the active `Agora Assistant / Синтезатор`, switch to `hermes_local`, and clear `error` status after successful sync. Live verification: `node scripts/agora.mjs prepare local` passed; guard returned `ok=true`; `Хайдеггер` and `Аристотель` are `idle`, `hermes_local`, and report to the active синтезатор. A live max-depth create no longer hit the 409 and created `THE-82`; a follow-up forced-local create created `THE-91` and queued `Хайдеггер` successfully. Remaining: add explicit guard ancestry validation before ask creation.
 
 **Batch H — Per-Chat State Propagation**
 
