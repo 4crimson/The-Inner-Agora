@@ -68,6 +68,12 @@ export class TelegramUserbot {
     return this.run(args);
   }
 
+  send({ text, wait = 8, limit = 20, dryRun = false } = {}) {
+    const args = ["send", String(text || ""), "--wait", String(wait), "--limit", String(limit)];
+    if (dryRun) args.push("--dry-run");
+    return this.run(args);
+  }
+
   deleteMessages({ ids, dryRun = false } = {}) {
     const messageIds = [...new Set((ids || []).map((id) => Number(id)).filter(Number.isInteger))];
     const args = ["delete", "--ids", messageIds.join(",")];

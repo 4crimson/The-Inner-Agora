@@ -650,6 +650,44 @@ Evidence:
 - `node --check paperclip-qa-tool/src/cleanup-engine.mjs` -> OK
 - `node --check paperclip-qa-tool/src/telegram-userbot.mjs` -> OK
 
+## Task 12: Executable Suite Lifecycle
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/suite-runner.mjs`
+- Modify: `paperclip-qa-tool/src/telegram-userbot.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add fake-adapter lifecycle test**
+
+Assert non-dry-run `run` can execute without live side effects when adapters are faked:
+
+- sends configured Telegram message;
+- snapshots Paperclip before/after;
+- detects new Paperclip root;
+- records Telegram messages in manifest;
+- evaluates expectations and records pass/fail.
+
+- [x] **Step 2: Implement runner lifecycle**
+
+`executeSuite` now:
+
+1. resolves Paperclip company;
+2. snapshots issues before;
+3. sends Telegram message through `TelegramUserbot.send`;
+4. snapshots issues after;
+5. stores new Paperclip issues/roots;
+6. evaluates expectations;
+7. writes manifest and generated bugs.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_executes_suite_with_fake_telegram_and_paperclip -v` -> `Ran 1 test ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/suite-runner.mjs` -> OK
+- `node --check paperclip-qa-tool/src/telegram-userbot.mjs` -> OK
+
 - [ ] **Step 3: Request explicit live confirmation**
 
 Before live run, state:

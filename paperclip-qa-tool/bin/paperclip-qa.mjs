@@ -5,7 +5,7 @@ import { cleanupPaperclipIssues, cleanupTelegramMessages } from "../src/cleanup-
 import { createRun, manifestPathForRun, readManifest, runDirectory, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
 import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
-import { createRetestRun, runSuite } from "../src/suite-runner.mjs";
+import { createRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
@@ -107,9 +107,17 @@ async function main(argv) {
   }
   if (options.command === "run") {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
-    const result = runSuite({ config, suiteName: options.suite, dryRun: options.dryRun, cleanupMode: options.cleanup });
+    const result = options.dryRun
+      ? runSuite({ config, suiteName: options.suite, dryRun: true, cleanupMode: options.cleanup })
+      : await executeSuite({
+        config,
+        suiteName: options.suite,
+        cleanupMode: options.cleanup,
+        userbot: new TelegramUserbot({ config }),
+        paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+      });
     printPayload(result, options.json);
-    return 0;
+    return result.ok ? 0 : 1;
   }
   if (options.command === "manifest-show") {
     if (!options.run) throw new ConfigValidationError(["--run is required"]);

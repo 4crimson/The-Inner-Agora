@@ -16,6 +16,7 @@ CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
 class FakePaperclipHandler(BaseHTTPRequestHandler):
     routes = {}
     calls = []
+    issues_responses = []
 
     def log_message(self, *_):
         return
@@ -39,6 +40,20 @@ class FakePaperclipHandler(BaseHTTPRequestHandler):
         status, body = self.__class__.routes.get(("DELETE", self.path), (200, {"ok": True}))
         self.send_json(status, body)
 
+    def do_GET(self):
+        self.__class__.calls.append(("GET", self.path, None))
+        if self.path == "/api/companies":
+            self.send_json(200, [{"id": "company-1", "name": "Example", "status": "active"}])
+            return
+        if self.path == "/api/companies/company-1/issues":
+            if self.__class__.issues_responses:
+                self.send_json(200, self.__class__.issues_responses.pop(0))
+            else:
+                self.send_json(200, [])
+            return
+        status, body = self.__class__.routes.get(("GET", self.path), (404, {"error": "not found"}))
+        self.send_json(status, body)
+
     def do_PATCH(self):
         body = self.read_body()
         self.__class__.calls.append(("PATCH", self.path, body))
@@ -47,14 +62,16 @@ class FakePaperclipHandler(BaseHTTPRequestHandler):
 
 
 class FakePaperclipServer:
-    def __init__(self, routes=None):
+    def __init__(self, routes=None, issues_responses=None):
         self.routes = routes or {}
+        self.issues_responses = issues_responses or []
         self.server = None
         self.thread = None
 
     def __enter__(self):
         FakePaperclipHandler.routes = self.routes
         FakePaperclipHandler.calls = []
+        FakePaperclipHandler.issues_responses = list(self.issues_responses)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakePaperclipHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -338,6 +355,39 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                     handle.write("\\n")
                 print(json.dumps({{"ok": {str(ok)}, "args": sys.argv[1:]}}))
                 raise SystemExit(0 if {str(ok)} else 1)
+                """
+            ),
+            encoding="utf-8",
+        )
+        return script
+
+    def write_fake_send_driver(self, temp_dir):
+        script = Path(temp_dir) / "fake-telegram-send-driver.py"
+        script.write_text(
+            textwrap.dedent(
+                """
+                import json
+                import os
+                import pathlib
+                import sys
+
+                calls_path = pathlib.Path(os.environ["FAKE_TELEGRAM_CALLS"])
+                calls_path.parent.mkdir(parents=True, exist_ok=True)
+                with calls_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(sys.argv[1:], ensure_ascii=False))
+                    handle.write("\\n")
+                if sys.argv[1] == "send":
+                    print(json.dumps({
+                        "ok": True,
+                        "target": os.environ.get("TELEGRAM_TEST_TARGET"),
+                        "sent_id": 101,
+                        "messages": [
+                            {"id": 101, "out": True, "text": sys.argv[2]},
+                            {"id": 102, "out": False, "text": "Готово, Синтез", "buttons": [{"text": "Синтез"}]}
+                        ]
+                    }, ensure_ascii=False))
+                else:
+                    print(json.dumps({"ok": True, "args": sys.argv[1:]}, ensure_ascii=False))
                 """
             ),
             encoding="utf-8",
@@ -667,6 +717,67 @@ console.log(JSON.stringify(result));
             self.assertEqual(manifest["tests"][0]["status"], "planned")
             self.assertTrue(manifest["tests"][0]["dryRun"])
             self.assertEqual(manifest["cleanup"]["mode"], "hard")
+
+    def test_run_executes_suite_with_fake_telegram_and_paperclip(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_issues = [
+            *before_issues,
+            {"id": "new-root", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(issues_responses=[before_issues, after_issues]) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                                "buttonsPresent": True,
+                                "noRawTokens": True,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertFalse(payload["dryRun"])
+            self.assertEqual(payload["tests"], [{"id": "liveish.basic", "status": "pass"}])
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls[0][:2], ["send", "агора помощь"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["paperclip"]["companyId"], "company-1")
+            self.assertEqual([issue["id"] for issue in manifest["paperclip"]["issues"]], ["new-root"])
+            self.assertEqual([message["messageId"] for message in manifest["telegram"]["messages"]], [101, 102])
+            self.assertEqual(manifest["tests"][0]["status"], "pass")
 
     def test_report_writes_summary_failures_cleanup_and_redacts_secrets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
