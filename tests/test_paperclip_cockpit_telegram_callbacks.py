@@ -168,6 +168,39 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
 
         self.with_config(config, assertions)
 
+    def test_run_action_passes_configured_env_overrides_to_subprocess(self):
+        script = (
+            "process.stdout.write(["
+            "process.env.INNER_AGORA_ACTIVE_CHAMBER || '',"
+            "process.env.INNER_AGORA_MODE || '',"
+            "process.env.INNER_AGORA_CHAT_ID || ''"
+            "].join(':'))"
+        )
+        config = {
+            "actions": {
+                "board_go_no_go": {
+                    "exec": ["node", "-e", script],
+                    "append_args": False,
+                    "env": {
+                        "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
+                        "INNER_AGORA_MODE": "local",
+                    },
+                }
+            }
+        }
+
+        def assertions():
+            output = self.plugin._run_action(
+                "board_go_no_go",
+                config["actions"]["board_go_no_go"],
+                "",
+                chat_id="chat-env",
+            )
+
+            self.assertEqual(output, "board-directors:local:chat-env")
+
+        self.with_config(config, assertions)
+
     def test_pre_gateway_dispatch_passes_chat_id_to_natural_delegate(self):
         config = {
             "command": {"name": "agora"},

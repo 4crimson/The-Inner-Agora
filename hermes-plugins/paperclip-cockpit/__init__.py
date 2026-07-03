@@ -285,8 +285,13 @@ def _api(path: str, *, method: str = "GET", body: dict[str, Any] | None = None, 
         raise PaperclipError(f"{method} {path} failed: {exc}") from exc
 
 
-def _subprocess_env(chat_id: Any = None) -> dict[str, str]:
+def _subprocess_env(chat_id: Any = None, extra_env: dict[str, Any] | None = None) -> dict[str, str]:
     env = dict(os.environ)
+    if isinstance(extra_env, dict):
+        for key, value in extra_env.items():
+            if value is None:
+                continue
+            env[str(key)] = str(value)
     chat = str(chat_id or "").strip()
     if chat:
         env["INNER_AGORA_CHAT_ID"] = chat
@@ -1701,7 +1706,7 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str, *, chat_id: An
             capture_output=True,
             timeout=timeout,
             check=False,
-            env=_subprocess_env(chat_id),
+            env=_subprocess_env(chat_id, action.get("env")),
         )
     except subprocess.TimeoutExpired:
         return f"Project action timed out after {timeout}s: `{shlex.join(args)}`"

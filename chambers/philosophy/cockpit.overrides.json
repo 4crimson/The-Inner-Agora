@@ -599,6 +599,66 @@
       ],
       "timeout": 900
     },
+    "quick": {
+      "usage": "quick QUESTION",
+      "aliases": [
+        "quick",
+        "быстрый"
+      ],
+      "natural_aliases": [
+        "быстрый совет",
+        "короткий совет"
+      ],
+      "description": "быстрый локальный совет",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--min"
+      ],
+      "timeout": 900
+    },
+    "deep": {
+      "usage": "deep QUESTION",
+      "aliases": [
+        "deep",
+        "глубоко"
+      ],
+      "natural_aliases": [
+        "глубокое исследование",
+        "глубокий разбор"
+      ],
+      "description": "глубокое локальное исследование",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--max"
+      ],
+      "timeout": 900
+    },
+    "go-no-go": {
+      "usage": "go-no-go QUESTION",
+      "aliases": [
+        "go-no-go"
+      ],
+      "natural_aliases": [
+        "go/no-go",
+        "совет директоров go/no-go"
+      ],
+      "description": "быстрый go/no-go разбор в палате совета директоров",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--min"
+      ],
+      "env": {
+        "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
+        "INNER_AGORA_MODE": "local"
+      },
+      "timeout": 900
+    },
     "dialogue": {
       "usage": "dialogue PHILOSOPHER QUESTION",
       "aliases": [

@@ -166,6 +166,31 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 )
                 self.assertEqual(self.plugin._rewrite_text("show ticket 42"), "/work ticket WK-42")
 
+    def test_configured_presets_rewrite_from_human_aliases(self):
+        config = {
+            "command": {"name": "agora"},
+            "actions": {
+                "quick": {"natural_aliases": ["быстрый совет"], "exec": ["echo", "quick"]},
+                "deep": {"natural_aliases": ["глубокое исследование"], "exec": ["echo", "deep"]},
+                "go-no-go": {"natural_aliases": ["go/no-go"], "exec": ["echo", "go"]},
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+            json.dump(config, handle)
+            handle.flush()
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+            ):
+                self.assertEqual(self.plugin._rewrite_text("быстрый совет: стоит ли ждать"), "/agora quick стоит ли ждать")
+                self.assertEqual(
+                    self.plugin._rewrite_text("глубокое исследование: свобода и долг"),
+                    "/agora deep свобода и долг",
+                )
+                self.assertEqual(self.plugin._rewrite_text("go/no-go: нанимать CTO"), "/agora go-no-go нанимать CTO")
+
     def test_natural_rewrite_can_delegate_to_configured_understander(self):
         config = {
             "command": {"name": "agora"},
