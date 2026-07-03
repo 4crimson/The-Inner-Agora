@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
+import { createRun, manifestPathForRun, readManifest } from "../src/manifest.mjs";
 
 function parseArgs(argv) {
   if (argv[0] === "--help" || argv[0] === "-h") return { command: "", help: true, json: false, config: "" };
   const [command, ...tail] = argv;
-  const options = { command, json: false, config: "" };
+  const options = { command, json: false, config: "", suite: "", run: "" };
   for (let index = 0; index < tail.length; index += 1) {
     const arg = tail[index];
     if (arg === "--json") options.json = true;
     else if (arg === "--config") options.config = tail[++index] || "";
+    else if (arg === "--suite") options.suite = tail[++index] || "";
+    else if (arg === "--run") options.run = tail[++index] || "";
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -19,6 +22,8 @@ function parseArgs(argv) {
 function usage() {
   return `Usage:
   node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config FILE [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
 `;
 }
 
@@ -55,12 +60,28 @@ async function main(argv) {
     console.log(usage());
     return options.help ? 0 : 1;
   }
-  if (options.command !== "config-check") throw new Error(`Unknown command: ${options.command}`);
   if (!options.config) throw new ConfigValidationError(["--config is required"]);
 
   const config = loadConfig(options.config);
-  printPayload(configSummary(config), options.json);
-  return 0;
+  if (options.command === "config-check") {
+    printPayload(configSummary(config), options.json);
+    return 0;
+  }
+  if (options.command === "run-start") {
+    if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
+    if (!config.suites[options.suite]) throw new ConfigValidationError([`suite not found: ${options.suite}`]);
+    const run = createRun({ config, suite: options.suite });
+    printPayload({ ok: true, runId: run.runId, manifestPath: run.manifestPath }, options.json);
+    return 0;
+  }
+  if (options.command === "manifest-show") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const manifest = readManifest(manifestPath);
+    printPayload({ ...manifest, ok: true, manifestPath }, options.json);
+    return 0;
+  }
+  throw new Error(`Unknown command: ${options.command}`);
 }
 
 try {
