@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
 QA_SCHEMA = ROOT / "paperclip-qa-tool" / "qa-tool.config.schema.json"
+QA_PLUGIN_ROOT = ROOT / "codex-plugins" / "telegram-paperclip-qa"
 QA_PLUGIN_MANIFEST = ROOT / "codex-plugins" / "telegram-paperclip-qa" / ".codex-plugin" / "plugin.json"
 
 
@@ -200,6 +201,36 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertNotIn("the inner agora", metadata)
         self.assertIn("paperclip-qa-tool", schema["$id"])
         self.assertEqual(plugin["name"], "telegram-paperclip-qa")
+
+    def test_codex_plugin_packaging_references_current_workflow(self):
+        skill_path = QA_PLUGIN_ROOT / "skills" / "telegram-paperclip-qa" / "SKILL.md"
+        readme_path = QA_PLUGIN_ROOT / "README.md"
+        self.assertTrue(readme_path.exists())
+        skill = skill_path.read_text(encoding="utf-8")
+        readme = readme_path.read_text(encoding="utf-8")
+
+        for reference in [
+            "tester-mode.md",
+            "developer-mode.md",
+            "retest-mode.md",
+            "release-review-mode.md",
+            "bug-template.md",
+        ]:
+            self.assertTrue((skill_path.parent / "references" / reference).exists())
+            self.assertIn(reference, skill)
+
+        for command in [
+            "config-check",
+            "health",
+            "telegram-check",
+            "run --config",
+            "acceptance --config",
+            "bug-batch --config",
+            "retest --config",
+        ]:
+            self.assertIn(command, skill)
+        self.assertIn("--live-ok", readme)
+        self.assertIn("telegram-testing.config.json", readme)
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:

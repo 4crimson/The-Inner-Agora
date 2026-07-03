@@ -952,6 +952,27 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_with_cleanup_returns_cleanup_result_and_updates_manifest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_retest_live_executes_only_failed_tests_and_writes_artifacts -v` -> OK
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 
+## Task 22: Codex Plugin Packaging Readiness
+
+**Files:**
+
+- Create: `codex-plugins/telegram-paperclip-qa/README.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add plugin-level usage doc**
+
+Document the runtime/config/skill layers and non-live commands at plugin root without adding extra files inside the skill folder.
+
+- [x] **Step 2: Keep skill safe commands current**
+
+`SKILL.md` now lists current non-live commands for config, health, Telegram check, dry-run, report, acceptance, bugs, bug-batch, and retest preview.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_codex_plugin_packaging_references_current_workflow -v` -> OK
+- `node -e "JSON.parse(...plugin.json...)"` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:
