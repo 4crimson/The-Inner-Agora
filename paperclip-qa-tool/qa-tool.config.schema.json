@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://inner-agora.local/paperclip-qa-tool.config.schema.json",
+  "$id": "https://paperclip-qa-tool.local/paperclip-qa-tool.config.schema.json",
   "title": "Paperclip QA Tool Config",
   "type": "object",
   "required": ["name", "telegram", "paperclip", "suites"],

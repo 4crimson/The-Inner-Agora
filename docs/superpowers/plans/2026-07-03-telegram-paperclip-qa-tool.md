@@ -801,6 +801,26 @@ Evidence:
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 - `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 
+## Task 16: Project-Neutral Tool And Plugin Metadata
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/qa-tool.config.schema.json`
+- Modify: `codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add neutrality regression test**
+
+Assert universal tool/plugin metadata does not contain `inner-agora` or `The Inner Agora`.
+
+- [x] **Step 2: Remove project identity from universal metadata**
+
+Keep Inner Agora binding in `telegram-testing.config.json`, not in `paperclip-qa-tool` schema identity or Codex plugin author/developer metadata.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_universal_tool_metadata_is_project_neutral -v` -> OK after metadata fix
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

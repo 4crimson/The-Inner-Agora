@@ -11,6 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
+QA_SCHEMA = ROOT / "paperclip-qa-tool" / "qa-tool.config.schema.json"
+QA_PLUGIN_MANIFEST = ROOT / "codex-plugins" / "telegram-paperclip-qa" / ".codex-plugin" / "plugin.json"
 
 
 class FakePaperclipHandler(BaseHTTPRequestHandler):
@@ -152,6 +154,23 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["config"]["telegram"]["target"], "@crimson_philosophs_bot")
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
         self.assertEqual(payload["suites"], [{"name": "help", "tests": 1}])
+
+    def test_universal_tool_metadata_is_project_neutral(self):
+        schema = json.loads(QA_SCHEMA.read_text(encoding="utf-8"))
+        plugin = json.loads(QA_PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+
+        metadata = json.dumps(
+            {
+                "schemaId": schema.get("$id"),
+                "pluginAuthor": plugin.get("author", {}),
+                "pluginInterface": plugin.get("interface", {}),
+            },
+            ensure_ascii=False,
+        ).lower()
+        self.assertNotIn("inner-agora", metadata)
+        self.assertNotIn("the inner agora", metadata)
+        self.assertIn("paperclip-qa-tool", schema["$id"])
+        self.assertEqual(plugin["name"], "telegram-paperclip-qa")
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
