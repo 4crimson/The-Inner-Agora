@@ -2,8 +2,9 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const DEFAULT_DRIVER = path.join(ROOT, "scripts", "telegram-userbot-driver.py");
+const TOOL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PROJECT_ROOT = process.cwd();
+const DEFAULT_DRIVER = path.join(TOOL_ROOT, "scripts", "telegram-userbot-driver.py");
 
 export class TelegramUserbotError extends Error {
   constructor(message, { status = 1, stdout = "", stderr = "", payload = null } = {}) {
@@ -42,7 +43,7 @@ export class TelegramUserbot {
 
   run(args) {
     const result = spawnSync(this.python, [this.driverPath, ...args], {
-      cwd: ROOT,
+      cwd: PROJECT_ROOT,
       env: this.commandEnv(),
       encoding: "utf8",
     });
@@ -70,6 +71,12 @@ export class TelegramUserbot {
 
   send({ text, wait = 8, limit = 20, dryRun = false } = {}) {
     const args = ["send", String(text || ""), "--wait", String(wait), "--limit", String(limit)];
+    if (dryRun) args.push("--dry-run");
+    return this.run(args);
+  }
+
+  notify({ text, dryRun = false } = {}) {
+    const args = ["notify", String(text || "")];
     if (dryRun) args.push("--dry-run");
     return this.run(args);
   }

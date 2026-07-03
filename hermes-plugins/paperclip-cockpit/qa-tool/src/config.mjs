@@ -50,6 +50,24 @@ function validateGuardWarnings(config, errors) {
   }
 }
 
+function validateReporting(config, errors) {
+  const reporting = config.reporting;
+  if (reporting === undefined) return;
+  if (!reporting || typeof reporting !== "object" || Array.isArray(reporting)) {
+    errors.push("reporting");
+    return;
+  }
+  const telegram = reporting.telegram;
+  if (telegram === undefined) return;
+  if (!telegram || typeof telegram !== "object" || Array.isArray(telegram)) {
+    errors.push("reporting.telegram");
+    return;
+  }
+  if (telegram.transport !== undefined && telegram.transport !== "userbot") {
+    errors.push("reporting.telegram.transport");
+  }
+}
+
 function normalizeTest(test, suiteName, index) {
   if (!test || typeof test !== "object" || Array.isArray(test)) {
     return { id: `${suiteName}.${index + 1}`, invalid: true };
@@ -112,6 +130,7 @@ export function validateConfig(config) {
     errors.push("suites");
   }
   validateGuardWarnings(config, errors);
+  validateReporting(config, errors);
 
   let resolvedSuites = {};
   if (!errors.includes("suites")) {
@@ -160,6 +179,17 @@ export function normalizeConfig(config) {
     guards: {
       allowWarnings: [],
       ...(config.guards || {}),
+    },
+    reporting: {
+      ...(config.reporting || {}),
+      telegram: {
+        enabled: false,
+        transport: "userbot",
+        sendStart: false,
+        sendResult: false,
+        retainResultMessage: true,
+        ...(config.reporting?.telegram || {}),
+      },
     },
     suites: resolveSuites(config),
   };

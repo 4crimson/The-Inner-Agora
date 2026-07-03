@@ -10,12 +10,14 @@ The target is not a minimal smoke script. The target is a full acceptance harnes
 
 The human-facing suite expectations and Telegram result-message format live in [TELEGRAM_ACCEPTANCE_CHECKLIST.md](TELEGRAM_ACCEPTANCE_CHECKLIST.md). Use that checklist when deciding what to show the operator after each run.
 
-The implementation should be split into two layers:
+The implementation is split into two layers:
 
-1. `paperclip-qa-tool`: a universal runtime tool that knows how to run Telegram/Paperclip QA cycles from config.
-2. `telegram-paperclip-qa`: a Codex skill/plugin that defines tester, developer, retest, and release-review behavior for Codex.
+1. `hermes-plugins/paperclip-cockpit/qa-tool`: the canonical universal runtime tool that knows how to run Telegram/Paperclip QA cycles from config.
+2. `hermes-plugins/paperclip-cockpit/codex-plugin/telegram-paperclip-qa`: the Codex skill/plugin that defines tester, developer, retest, and release-review behavior for Codex.
 
 The Inner Agora should be one project configuration for the universal tool, not the tool's hard-coded domain.
+
+The legacy `paperclip-qa-tool/bin/paperclip-qa.mjs` command remains in this repository as a wrapper to the canonical cockpit runner.
 
 ## Product Principle
 
@@ -45,7 +47,7 @@ Expected behavior:
 Targeted live retest command:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --live-ok --cleanup hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --notify telegram --live-ok --json
 ```
 
 Run this suite after syncing the Hermes profile and restarting the gateway. If cleanup reports residuals, keep the run artifacts and file a cleanup bug before broader release review.
@@ -57,7 +59,7 @@ Run this suite after syncing the Hermes profile and restarting the gateway. If c
 Planned location:
 
 ```text
-paperclip-qa-tool/
+hermes-plugins/paperclip-cockpit/qa-tool/
 ```
 
 Responsibilities:
@@ -95,7 +97,7 @@ Responsibilities:
 Planned location:
 
 ```text
-codex-plugins/telegram-paperclip-qa/
+hermes-plugins/paperclip-cockpit/codex-plugin/telegram-paperclip-qa/
 ```
 
 Responsibilities:
@@ -476,10 +478,14 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area telegram-ui --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok --json
-node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs notify --config telegram-testing.config.json --run QA-... --kind result --live-ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --live-ok --json
 ```
 
 When `run` or `retest` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`. Completed non-dry runs also write `REPORT.md`, `ACCEPTANCE.md`, and `bugs.jsonl` in the run directory.
+
+When a live `run` or `retest` is invoked with `--notify telegram`, the runner sends a compact retained result summary after cleanup and records that notification under `manifest.reporting.telegram[]`.
 
 Live suites require explicit operator confirmation immediately before the run:
 
@@ -497,8 +503,9 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-t
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json
 # Then run release-plan.preflightCommands and, after explicit approval, release-plan.liveCommands.
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok
-node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md
 ```
@@ -507,8 +514,8 @@ Useful safety flags:
 
 ```bash
 --dry-run
---no-cleanup
 --cleanup hard|soft|none
+--notify telegram
 --allow-known-guard-error <name>
 --max-paperclip-roots <n>
 --timeout <seconds>
@@ -545,7 +552,7 @@ See [TELEGRAM_QA_READINESS_AUDIT.md](TELEGRAM_QA_READINESS_AUDIT.md) for the cur
 
 The implementation should be built in phases, but the target remains the full system:
 
-1. Add universal tool skeleton and config schema under `paperclip-qa-tool/`.
+1. Add universal tool skeleton and config schema under `hermes-plugins/paperclip-cockpit/qa-tool/`.
 2. Add manifest and run directory primitives.
 3. Add Telegram userbot adapter for send/capture/delete.
 4. Add Paperclip scanner and tree cleanup with hard-delete-first fallback.
@@ -553,5 +560,5 @@ The implementation should be built in phases, but the target remains the full sy
 6. Add report and bug JSONL generator.
 7. Add Inner Agora `telegram-testing.config.json`.
 8. Add retest and bug-batch modes.
-9. Add Codex QA skill/plugin under `codex-plugins/telegram-paperclip-qa/`.
+9. Add Codex QA skill/plugin under `hermes-plugins/paperclip-cockpit/codex-plugin/telegram-paperclip-qa/`.
 10. Run a controlled live acceptance cycle and clean it up.

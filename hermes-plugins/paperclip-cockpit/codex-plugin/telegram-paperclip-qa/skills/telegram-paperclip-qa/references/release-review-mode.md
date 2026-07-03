@@ -8,8 +8,8 @@ Workflow:
 2. Run `release-plan --config telegram-testing.config.json --cleanup hard --json`, then any extra diagnostic config, health, readiness, or dry-run checks needed to explain failures.
 3. Ask for explicit live confirmation using the readiness/live-plan acknowledgement.
 4. Run the full suite.
-5. Run cleanup.
-6. Generate report, bug output, and acceptance output.
+5. Run cleanup through the live run/retest command, or use standalone `cleanup --live-ok` for an existing manifest.
+6. Generate report, summary, bug output, and acceptance output.
 7. Use `acceptance --run RUN_ID --json` and `ACCEPTANCE.md` as the decision source.
 8. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
 9. Decide accept, accept-with-known-issues, or reject.

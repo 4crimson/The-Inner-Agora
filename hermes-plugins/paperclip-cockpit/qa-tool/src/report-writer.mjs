@@ -24,6 +24,35 @@ function testCounts(manifest) {
   };
 }
 
+function statusForSummary({ counts, bugs, residuals }) {
+  const blockingBugs = bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
+  if (counts.planned > 0 && counts.pass === 0 && counts.fail === 0) return "BLOCKED";
+  if (counts.fail > 0 || residuals.length > 0 || blockingBugs.length > 0) return "FAIL";
+  return "PASS";
+}
+
+function compactObjectSummary(value) {
+  const entries = Object.entries(value || {});
+  if (!entries.length) return "none";
+  return entries.map(([key, count]) => `${key}:${count}`).join(", ");
+}
+
+function topFinding({ status, bugs, residuals }) {
+  if (residuals.length) return `cleanup residuals: ${residuals.length}`;
+  if (bugs.length) return `${bugs[0].area || "unknown"} ${bugs[0].severity || "P2"}: ${bugs[0].title || bugs[0].testId}`;
+  if (status === "PASS") return "критичных проблем не найдено";
+  return "run blocked before acceptance";
+}
+
+function nextStep({ status, bugs, residuals }) {
+  if (status === "PASS") return "live suite complete";
+  if (status === "BLOCKED") return "readiness or live approval";
+  if (residuals.length) return "developer batch: cleanup";
+  const firstP1 = bugs.find((bug) => bug.severity === "P0" || bug.severity === "P1") || bugs[0];
+  if (firstP1?.area) return `developer batch: ${firstP1.area}`;
+  return "retest failed ids";
+}
+
 function failedTests(manifest) {
   return (Array.isArray(manifest.tests) ? manifest.tests : []).filter((test) => test.status === "fail");
 }
@@ -273,6 +302,47 @@ export function writeAcceptance({ manifest, outputDir }) {
       byArea: batch.summary.byArea,
       bySeverity: batch.summary.bySeverity,
       cleanupResiduals: residuals.length,
+    },
+  };
+}
+
+export function buildTelegramSummary({ manifest, outputDir }) {
+  const counts = testCounts(manifest);
+  const batch = bugBatch({ manifest });
+  const bugs = batch.bugs;
+  const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
+  const status = statusForSummary({ counts, bugs, residuals });
+  const reportPath = path.join(outputDir, "REPORT.md");
+  const acceptancePath = path.join(outputDir, "ACCEPTANCE.md");
+  const bugsPath = path.join(outputDir, "bugs.jsonl");
+  const text = [
+    `QA ${redact(manifest.suite || "suite")}: ${status}`,
+    `Run: ${redact(manifest.runId || "")}`,
+    "",
+    `Проверки: ${counts.pass}/${counts.total} passed, ${counts.fail} failed`,
+    `Баги: ${bugs.length} (${compactObjectSummary(batch.summary.byArea)}; ${compactObjectSummary(batch.summary.bySeverity)})`,
+    `Cleanup: ${residuals.length ? `residuals ${residuals.length}` : "clean"}`,
+    "",
+    "Главное:",
+    `- ${redact(topFinding({ status, bugs, residuals }))}`,
+    "",
+    "Артефакты:",
+    `- REPORT.md: ${redact(reportPath)}`,
+    `- ACCEPTANCE.md: ${redact(acceptancePath)}`,
+    `- bugs.jsonl: ${redact(bugsPath)}`,
+    "",
+    `Следующий шаг: ${redact(nextStep({ status, bugs, residuals }))}`,
+  ].join("\n");
+  return {
+    status,
+    text,
+    summary: {
+      tests: counts,
+      bugs: bugs.length,
+      byArea: batch.summary.byArea,
+      bySeverity: batch.summary.bySeverity,
+      cleanupResiduals: residuals.length,
+      nextStep: nextStep({ status, bugs, residuals }),
     },
   };
 }

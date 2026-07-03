@@ -6,6 +6,8 @@ Date: 2026-07-03
 
 This checklist turns product expectations into a repeatable Telegram QA ritual. It is the human-readable layer above `telegram-testing.config.json`: the config defines exact test ids and machine checks, while this document explains what we expect the user to experience and how results should be reported back in Telegram.
 
+The generic runner now lives in `hermes-plugins/paperclip-cockpit/qa-tool/`. The legacy `paperclip-qa-tool/bin/paperclip-qa.mjs` command remains as a compatibility wrapper for this project.
+
 The goal is simple: after each fix cycle, a tester can run one suite, clean up after it, and send a compact Telegram summary that says what passed, what failed, what was cleaned, and what should happen next.
 
 ## Reporting Contract
@@ -198,10 +200,17 @@ Live run:
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite <suite> --cleanup hard --live-ok --json
 ```
 
+To retain a compact Telegram result summary after cleanup:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite <suite> --cleanup hard --notify telegram --live-ok --json
+```
+
 Post-run:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run <runId> --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run <runId> --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run <runId> --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run <runId> --json
 ```

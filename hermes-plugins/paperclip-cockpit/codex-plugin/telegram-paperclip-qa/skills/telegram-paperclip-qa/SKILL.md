@@ -9,7 +9,7 @@ Use this skill to keep Telegram/Paperclip QA work separated into explicit modes.
 
 ## Core Rules
 
-- Treat `paperclip-qa-tool` as the runtime source of truth.
+- Treat `hermes-plugins/paperclip-cockpit/qa-tool` as the runtime source of truth; `paperclip-qa-tool/bin/paperclip-qa.mjs` is a compatibility wrapper.
 - Treat `manifest.json` as the cleanup source of truth.
 - Do not run live Telegram or Paperclip-creating commands unless the user explicitly confirms that live side effects are allowed for this step.
 - Do not edit code in tester mode.
@@ -39,6 +39,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.con
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json

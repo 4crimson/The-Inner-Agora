@@ -4,7 +4,7 @@ Date: 2026-07-03
 
 This audit checks the current Telegram/Paperclip QA harness against the product goal:
 
-- universal `paperclip-qa-tool` runtime;
+- universal `paperclip-cockpit/qa-tool` runtime, with `paperclip-qa-tool/bin/paperclip-qa.mjs` kept as a compatibility wrapper;
 - Inner Agora binding through config only;
 - Codex QA skill/plugin for tester, developer, retest, and release-review modes;
 - no live side effects without explicit acknowledgement.
@@ -27,9 +27,10 @@ Use these commands before asking to touch the live system:
 [ -f .env ] && set -a && source .env && set +a
 python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v
 node --check paperclip-qa-tool/bin/paperclip-qa.mjs
-node --check paperclip-qa-tool/src/report-writer.mjs
-node --check paperclip-qa-tool/src/config.mjs
-node -e "JSON.parse(require('fs').readFileSync('codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json','utf8')); JSON.parse(require('fs').readFileSync('telegram-testing.config.json','utf8')); console.log('json ok')"
+node --check hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs
+node --check hermes-plugins/paperclip-cockpit/qa-tool/src/report-writer.mjs
+node --check hermes-plugins/paperclip-cockpit/qa-tool/src/config.mjs
+node -e "JSON.parse(require('fs').readFileSync('hermes-plugins/paperclip-cockpit/codex-plugin/telegram-paperclip-qa/.codex-plugin/plugin.json','utf8')); JSON.parse(require('fs').readFileSync('telegram-testing.config.json','utf8')); console.log('json ok')"
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
@@ -91,13 +92,14 @@ This will send Telegram messages and may create Paperclip issues. Cleanup will r
 3. If approved, run the controlled live help suite:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --notify telegram --live-ok --json
 ```
 
 4. Inspect the resulting manifest and report:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
 ```

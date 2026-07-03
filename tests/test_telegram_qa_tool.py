@@ -11,9 +11,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
-QA_SCHEMA = ROOT / "paperclip-qa-tool" / "qa-tool.config.schema.json"
-QA_PLUGIN_ROOT = ROOT / "codex-plugins" / "telegram-paperclip-qa"
-QA_PLUGIN_MANIFEST = ROOT / "codex-plugins" / "telegram-paperclip-qa" / ".codex-plugin" / "plugin.json"
+CANONICAL_QA_TOOL = ROOT / "hermes-plugins" / "paperclip-cockpit" / "qa-tool"
+CANONICAL_CLI = CANONICAL_QA_TOOL / "bin" / "paperclip-qa.mjs"
+QA_SCHEMA = CANONICAL_QA_TOOL / "qa-tool.config.schema.json"
+QA_PLUGIN_ROOT = ROOT / "hermes-plugins" / "paperclip-cockpit" / "codex-plugin" / "telegram-paperclip-qa"
+QA_PLUGIN_MANIFEST = QA_PLUGIN_ROOT / ".codex-plugin" / "plugin.json"
 QA_COMPLETION_CHECKLIST = ROOT / "docs" / "telegram-testing" / "TELEGRAM_QA_COMPLETION_CHECKLIST.json"
 
 
@@ -141,10 +143,16 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         return config
 
     def run_cli(self, *args, env=None):
+        return self.run_cli_path(CLI, *args, env=env)
+
+    def run_canonical_cli(self, *args, env=None):
+        return self.run_cli_path(CANONICAL_CLI, *args, env=env)
+
+    def run_cli_path(self, cli_path, *args, env=None):
         clean_env = os.environ.copy()
         clean_env.update(env or {})
         return subprocess.run(
-            ["node", str(CLI), *map(str, args)],
+            ["node", str(cli_path), *map(str, args)],
             cwd=ROOT,
             env=clean_env,
             text=True,
@@ -174,6 +182,18 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         )
         self.assertEqual(payload["suites"], [{"name": "help", "tests": 1}])
 
+    def test_canonical_cockpit_cli_and_compat_wrapper_both_validate_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            canonical = self.run_canonical_cli("config-check", "--config", config_path, "--json")
+            wrapper = self.run_cli("config-check", "--config", config_path, "--json")
+
+        self.assertEqual(canonical.returncode, 0, canonical.stderr)
+        self.assertEqual(wrapper.returncode, 0, wrapper.stderr)
+        self.assertEqual(json.loads(canonical.stdout)["config"]["name"], "inner-agora-telegram-qa")
+        self.assertEqual(json.loads(wrapper.stdout)["config"]["name"], "inner-agora-telegram-qa")
+
     def test_missing_guard_warning_reason_fails_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             config = self.base_config()
@@ -202,6 +222,18 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertNotIn("the inner agora", metadata)
         self.assertIn("paperclip-qa-tool", schema["$id"])
         self.assertEqual(plugin["name"], "telegram-paperclip-qa")
+
+    def test_cockpit_qa_bundle_does_not_hardcode_inner_agora_domain(self):
+        checked = []
+        for folder in [CANONICAL_QA_TOOL, QA_PLUGIN_ROOT]:
+            for path in folder.rglob("*"):
+                if path.is_file() and path.suffix in {".mjs", ".json", ".md", ".py"}:
+                    checked.append(path)
+                    text = path.read_text(encoding="utf-8").lower()
+                    self.assertNotIn("the inner agora", text, str(path))
+                    self.assertNotIn("crimson_philosophs", text, str(path))
+                    self.assertNotIn("платон", text, str(path))
+        self.assertTrue(checked)
 
     def test_codex_plugin_packaging_references_current_workflow(self):
         skill_path = QA_PLUGIN_ROOT / "skills" / "telegram-paperclip-qa" / "SKILL.md"
@@ -355,6 +387,8 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["config"]["telegram"]["target"], "@crimson_philosophs_bot")
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
+        self.assertEqual(payload["config"]["reporting"]["telegram"]["transport"], "userbot")
+        self.assertTrue(payload["config"]["reporting"]["telegram"]["sendResult"])
         self.assertEqual(
             [suite["name"] for suite in payload["suites"]],
             ["health", "help", "service-commands", "natural-dialogue", "council-create", "cleanup"],
@@ -580,6 +614,12 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                             {"id": 102, "out": False, "text": "Готово, Синтез", "buttons": [{"text": "Синтез"}]}
                         ]
                     }, ensure_ascii=False))
+                elif sys.argv[1] == "notify":
+                    print(json.dumps({
+                        "ok": True,
+                        "target": os.environ.get("TELEGRAM_TEST_TARGET"),
+                        "sent_id": 201
+                    }, ensure_ascii=False))
                 else:
                     print(json.dumps({"ok": True, "args": sys.argv[1:]}, ensure_ascii=False))
                 """
@@ -659,7 +699,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                 ],
             )
 
-            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--json")
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--live-ok", "--json")
 
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(result.stdout)
@@ -686,7 +726,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                 [{"id": "root-1", "identifier": "THE-1", "parentId": None, "status": "todo", "matchedBy": "manifest"}],
             )
 
-            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--json")
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--live-ok", "--json")
 
             self.assertEqual(result.returncode, 0, result.stderr)
             patch_calls = [call for call in server.calls if call[0] == "PATCH"]
@@ -725,6 +765,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                 run_id,
                 "--mode",
                 "hard",
+                "--live-ok",
                 "--json",
                 env={
                     "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
@@ -773,6 +814,39 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [20, 21])
             self.assertTrue(manifest["cleanup"]["telegram"][0]["dryRun"])
+
+    def test_cleanup_without_live_ok_fails_before_side_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260703-cleanup-no-live-a1b2c3"
+            self.write_cleanup_manifest(artifacts_dir, run_id, telegram_messages=[{"messageId": 30}])
+
+            result = self.run_cli(
+                "cleanup",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--mode",
+                "hard",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertIn("--live-ok is required for cleanup", payload["errors"])
+            self.assertFalse(calls_path.exists())
+            self.assertEqual(server.calls, [])
 
     def test_telegram_check_uses_configured_target_and_session(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -854,7 +928,7 @@ printf '%s\n' '{"ok":true,"config":{"api_id":"12345","api_hash":"abcd****","phon
 
     def run_node_eval(self, expression):
         script = f"""
-import {{ evaluateTest }} from './paperclip-qa-tool/src/evaluator.mjs';
+import {{ evaluateTest }} from './hermes-plugins/paperclip-cockpit/qa-tool/src/evaluator.mjs';
 const result = evaluateTest({expression});
 console.log(JSON.stringify(result));
 """
@@ -1153,6 +1227,78 @@ console.log(JSON.stringify(result));
             self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [101, 102])
             self.assertEqual(manifest["cleanup"]["paperclip"][0]["issueId"], "new-root")
 
+    def test_run_with_notify_sends_retained_result_after_cleanup(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_issues = [
+            *before_issues,
+            {"id": "new-root", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(issues_responses=[before_issues, after_issues]) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["reporting"] = {
+                "telegram": {
+                    "enabled": True,
+                    "transport": "userbot",
+                    "sendStart": False,
+                    "sendResult": True,
+                    "retainResultMessage": True,
+                }
+            }
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--notify",
+                "telegram",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertIn("notification", payload)
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call[0] for call in calls], ["send", "delete", "notify"])
+            self.assertIn("QA liveish: PASS", calls[-1][1])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [101, 102])
+            self.assertEqual(manifest["reporting"]["telegram"][-1]["kind"], "result")
+            self.assertTrue(manifest["reporting"]["telegram"][-1]["retained"])
+
     def test_run_without_live_ok_fails_before_telegram_side_effects(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             artifacts_dir = Path(temp_dir) / "runs"
@@ -1201,6 +1347,94 @@ console.log(JSON.stringify(result));
             self.assertIn("help.raw-token", report)
             self.assertIn("delete failed", report)
             self.assertNotIn("1234567890:" + ("A" * 24), report)
+
+    def test_summary_renders_compact_telegram_result_from_manifest(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-summary-a1b2c3"
+            self.write_report_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli("summary", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["status"], "FAIL")
+            self.assertEqual(payload["runId"], run_id)
+            self.assertIn("QA reporting: FAIL", payload["text"])
+            self.assertIn(f"Run: {run_id}", payload["text"])
+            self.assertIn("Проверки: 1/2 passed, 1 failed", payload["text"])
+            self.assertIn("Cleanup: residuals 1", payload["text"])
+            self.assertIn("REPORT.md:", payload["text"])
+            self.assertNotIn("1234567890:" + ("A" * 24), payload["text"])
+
+    def test_notify_requires_live_ok_before_telegram_side_effect(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-notify-no-live-a1b2c3"
+            self.write_report_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli(
+                "notify",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--kind",
+                "result",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertIn("--live-ok is required for notify", payload["errors"])
+            self.assertFalse(calls_path.exists())
+
+    def test_notify_live_sends_summary_and_records_retained_result_message(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-notify-live-a1b2c3"
+            self.write_report_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli(
+                "notify",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--kind",
+                "result",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["notification"]["kind"], "result")
+            self.assertTrue(payload["notification"]["retained"])
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls[0][0], "notify")
+            self.assertIn("QA reporting: FAIL", calls[0][1])
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["reporting"]["telegram"][-1]["kind"], "result")
+            self.assertTrue(manifest["reporting"]["telegram"][-1]["retained"])
 
     def test_acceptance_rejects_failures_or_cleanup_residuals(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -17,6 +17,8 @@ This is complementary to [NousResearch/hermes-paperclip-adapter](https://github.
 - Can move an issue between Paperclip statuses when writes are explicitly enabled.
 - Can rewrite simple natural-language Telegram messages into `/pc ...` commands before the LLM is called.
 - Can route project-specific natural-language intents into configured project actions.
+- Ships a generic `qa-tool/` runner for Telegram/Paperclip acceptance cycles.
+- Ships an optional `codex-plugin/telegram-paperclip-qa/` workflow layer for tester, developer, retest, and release-review discipline.
 - Keeps Paperclip control out of the model context, which helps avoid slow or bloated prompts.
 - Ships a model-facing skill note in `skills/paperclip-control/SKILL.md`.
 
@@ -71,6 +73,21 @@ Put `paperclip-cockpit.json` in the Hermes profile directory or in the profile `
 If a config defines a command name, that command replaces `/pc` in the Telegram menu. For example, `"name": "work"` registers `/work`, not `/pc`.
 
 See `examples/paperclip-cockpit.example.json` for a generic placeholder config. The plugin itself should not contain project-specific nouns, scripts, or prompts.
+
+## QA Runner
+
+The `qa-tool/` directory contains a project-neutral Telegram/Paperclip QA runner. It reads a project config, executes suites, captures Telegram messages and Paperclip issues in a manifest, performs manifest-scoped cleanup, writes reports, and can send a compact retained Telegram result summary after a live run.
+
+Canonical CLI:
+
+```bash
+node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --notify telegram --live-ok --json
+```
+
+Projects may keep their own wrapper command for compatibility. Live mutation commands such as `run`, `retest`, `cleanup`, and `notify` require explicit `--live-ok`; planning, readiness, dry-run, summary, report, acceptance, and bug-batch commands are non-live.
+
+The optional Codex workflow plugin lives in `codex-plugin/telegram-paperclip-qa/`. It is not part of the Hermes runtime; it teaches Codex agents how to keep tester, developer, retest, and release-review work separate.
 
 Optional gateway behavior:
 

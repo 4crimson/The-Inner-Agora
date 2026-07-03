@@ -50,6 +50,21 @@
         }
       }
     },
+    "reporting": {
+      "type": "object",
+      "properties": {
+        "telegram": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "transport": { "enum": ["userbot"] },
+            "sendStart": { "type": "boolean" },
+            "sendResult": { "type": "boolean" },
+            "retainResultMessage": { "type": "boolean" }
+          }
+        }
+      }
+    },
     "suites": {
       "type": "object",
       "additionalProperties": {

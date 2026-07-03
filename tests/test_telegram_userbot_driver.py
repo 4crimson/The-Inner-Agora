@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DRIVER = ROOT / "scripts" / "telegram-userbot-driver.py"
+DRIVER = ROOT / "hermes-plugins" / "paperclip-cockpit" / "qa-tool" / "scripts" / "telegram-userbot-driver.py"
 
 
 def load_driver_module():
@@ -79,6 +79,26 @@ class TelegramUserbotDriverTests(unittest.TestCase):
         self.assertTrue(payload["dry_run"])
         self.assertEqual(payload["target"], "@example_bot")
         self.assertEqual(payload["text"], "агора помощь")
+
+    def test_notify_dry_run_does_not_import_telethon_or_connect(self):
+        result = self.run_driver(
+            "notify",
+            "QA help: PASS",
+            "--dry-run",
+            env={
+                "TELEGRAM_API_ID": "12345",
+                "TELEGRAM_API_HASH": "abcdef0123456789",
+                "TELEGRAM_TEST_TARGET": "@example_bot",
+                "TELEGRAM_USERBOT_SESSION": ".telegram-userbot-test",
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["dry_run"])
+        self.assertEqual(payload["target"], "@example_bot")
+        self.assertEqual(payload["text"], "QA help: PASS")
+        self.assertEqual(payload["wait_seconds"], 0)
 
     def test_history_dry_run_does_not_import_telethon_or_connect(self):
         result = self.run_driver(

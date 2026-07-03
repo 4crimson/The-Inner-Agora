@@ -270,7 +270,7 @@ Telegram menu показывает одну команду проекта: `/ago
 
 ## Telegram/Paperclip QA
 
-QA harness lives in `paperclip-qa-tool/` and project binding lives in `telegram-testing.config.json`.
+Canonical QA harness lives in `hermes-plugins/paperclip-cockpit/qa-tool/`; `paperclip-qa-tool/bin/paperclip-qa.mjs` is a compatibility wrapper, and project binding lives in `telegram-testing.config.json`.
 Run artifacts are written to `artifacts/telegram-test-runs/` and are ignored by git.
 
 Safe non-live checks:
@@ -311,10 +311,12 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.con
 Cleanup for a manifest-backed run:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --live-ok --json
 ```
 
 When a live run or retest is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`. Completed non-dry runs also write `REPORT.md`, `ACCEPTANCE.md`, and `bugs.jsonl` in the run directory.
+
+To keep a compact QA result in Telegram after cleanup, add `--notify telegram` to the live run or retest command.
 
 Live Telegram runs require an explicit operator confirmation immediately before the run:
 
@@ -324,7 +326,7 @@ This will send Telegram messages and may create Paperclip issues. Cleanup will r
 
 After confirmation, pass `--live-ok` on the exact command being run.
 
-The Codex QA workflow plugin is in `codex-plugins/telegram-paperclip-qa/`. It separates tester, developer, retest, and release-review modes so live evidence gathering does not get mixed with patching.
+The canonical QA runner and Codex QA workflow plugin now live inside `hermes-plugins/paperclip-cockpit/`: `qa-tool/` contains the runtime, and `codex-plugin/telegram-paperclip-qa/` contains the tester/developer/retest/release discipline. The root `paperclip-qa-tool/bin/paperclip-qa.mjs` command is a compatibility wrapper.
 
 Обычные read-only фразы про Paperclip тоже разрешены для Hermes: например, `список философов`, `кто в перклипе`, `узнай список философов в перклипе`, `статус`, `задачи`. Они должны запускать безопасные команды чтения, а не создавать новые задачи.
 
