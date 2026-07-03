@@ -116,19 +116,10 @@
       "nextAction": {
         "mode": "release-review",
         "preflight": [
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite natural-dialogue --cleanup hard --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite council-create --cleanup hard --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite cleanup --cleanup hard --json"
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json"
         ],
         "acknowledgement": "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
-        "liveCommands": [
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite natural-dialogue --cleanup hard --live-ok --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite council-create --cleanup hard --live-ok --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite cleanup --cleanup hard --live-ok --json"
-        ],
+        "liveCommandsSource": "release-plan.liveCommands",
         "postRun": [
           "node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json",
           "node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json",

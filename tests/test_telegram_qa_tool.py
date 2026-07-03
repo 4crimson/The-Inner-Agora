@@ -223,6 +223,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         for command in [
             "config-check",
             "completion-check",
+            "release-plan",
             "readiness",
             "health",
             "telegram-check",
@@ -263,7 +264,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual([action["id"] for action in payload["blockingActions"]], payload["blockingRequirements"])
             self.assertIn("readiness", payload["blockingActions"][0]["preflight"][0])
             self.assertIn("--live-ok", payload["blockingActions"][0]["liveCommand"])
-            self.assertIn("council-create", " ".join(payload["blockingActions"][1]["liveCommands"]))
+            self.assertIn("release-plan", payload["blockingActions"][1]["preflight"][0])
 
     def test_documented_suite_commands_exist_in_project_config(self):
         config = json.loads((ROOT / "telegram-testing.config.json").read_text(encoding="utf-8"))
@@ -284,6 +285,28 @@ class TelegramQaToolConfigTests(unittest.TestCase):
 
         self.assertTrue(documented)
         self.assertTrue(documented.issubset(suites), f"unknown documented suites: {sorted(documented - suites)}")
+
+    def test_release_plan_uses_configured_live_suites_without_artifacts(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["suites"] = {
+                "health": {"tests": [{"id": "health.basic", "kind": "health"}]},
+                "help": {"tests": [{"id": "help.basic", "message": "help"}]},
+                "dialogue": {"tests": [{"id": "dialogue.basic", "message": "hello"}]},
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli("release-plan", "--config", config_path, "--cleanup", "hard", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["suites"], ["help", "dialogue"])
+            self.assertNotIn("health", payload["suites"])
+            self.assertEqual(len(payload["liveCommands"]), 2)
+            self.assertTrue(all("--live-ok" in command for command in payload["liveCommands"]))
+            self.assertFalse(artifacts_dir.exists())
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:

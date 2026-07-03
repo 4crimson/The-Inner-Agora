@@ -1119,6 +1119,32 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_completion_check_reports_live_blockers tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_documented_suite_commands_exist_in_project_config -v` -> OK
 - `node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json` -> includes `blockingActions`
 
+## Task 29: Config-Derived Release Plan
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `tests/test_telegram_qa_tool.py`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`
+- Modify: `codex-plugins/telegram-paperclip-qa/README.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+
+- [x] **Step 1: Add non-live release-plan command**
+
+`release-plan --config FILE` reads the current config and emits preflight commands, the acknowledgement, live commands, and post-run commands for the configured live suites. It excludes the `health` suite and does not create artifacts.
+
+- [x] **Step 2: Use release-plan as the release-review command source**
+
+Release review docs and checklist now point to `release-plan` instead of duplicating configured suite names by hand.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_release_plan_uses_configured_live_suites_without_artifacts -v` -> OK
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json` -> suites: `help`, `natural-dialogue`, `council-create`, `cleanup`
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

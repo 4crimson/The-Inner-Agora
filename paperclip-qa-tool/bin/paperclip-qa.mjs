@@ -57,6 +57,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs health --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run|--live-ok]
@@ -137,6 +138,34 @@ function completionSummary() {
       status: item.status,
       remainingEvidence: item.remainingEvidence || "",
     })),
+  };
+}
+
+function releasePlan({ configPath, config, cleanupMode }) {
+  const cleanup = cleanupMode || config.paperclip.cleanup;
+  if (!["hard", "soft", "none"].includes(cleanup)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
+  const base = "node paperclip-qa-tool/bin/paperclip-qa.mjs";
+  const quotedConfig = shellQuote(configPath);
+  const quotedCleanup = shellQuote(cleanup);
+  const suites = Object.entries(config.suites)
+    .filter(([name, suite]) => name !== "health" && (suite.tests || []).some((test) => (test.kind || "telegram") !== "health"))
+    .map(([name]) => name);
+  return {
+    ok: true,
+    cleanup,
+    suites,
+    preflightCommands: [
+      `${base} completion-check --config ${quotedConfig} --json`,
+      ...suites.map((suite) => `${base} readiness --config ${quotedConfig} --suite ${shellQuote(suite)} --cleanup ${quotedCleanup} --json`),
+    ],
+    acknowledgement: "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
+    liveCommands: suites.map((suite) => `${base} run --config ${quotedConfig} --suite ${shellQuote(suite)} --cleanup ${quotedCleanup} --live-ok --json`),
+    postRunCommands: [
+      `${base} report --config ${quotedConfig} --run QA-... --json`,
+      `${base} acceptance --config ${quotedConfig} --run QA-... --json`,
+      `${base} bug-batch --config ${quotedConfig} --run QA-... --json`,
+      `${base} completion-check --config ${quotedConfig} --json`,
+    ],
   };
 }
 
@@ -258,6 +287,10 @@ async function main(argv) {
   }
   if (options.command === "completion-check") {
     printPayload(completionSummary(), options.json);
+    return 0;
+  }
+  if (options.command === "release-plan") {
+    printPayload(releasePlan({ configPath: options.config, config, cleanupMode: options.cleanup }), options.json);
     return 0;
   }
   if (options.command === "health") {
