@@ -267,7 +267,7 @@ Cleanup for a manifest-backed run:
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
 ```
 
-When a live run is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`.
+When a live run is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
 
 Live Telegram runs require an explicit operator confirmation immediately before the run:
 

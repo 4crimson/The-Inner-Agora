@@ -99,6 +99,18 @@ async function runCleanupForManifest({ config, manifestPath, mode, dryRun = fals
   });
 }
 
+function writeRunArtifacts({ config, runId, manifestPath }) {
+  const manifest = readManifest(manifestPath);
+  const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId });
+  const report = writeReport({ manifest, outputDir });
+  const bugs = writeBugsJsonl({ manifest, outputDir });
+  return {
+    reportPath: report.reportPath,
+    bugsPath: bugs.bugsPath,
+    bugs: bugs.bugs.length,
+  };
+}
+
 async function main(argv) {
   const options = parseArgs(argv);
   if (!options.command || options.help) {
@@ -150,6 +162,9 @@ async function main(argv) {
       });
       result.cleanup = cleanupResult.cleanup;
       result.ok = result.ok && cleanupResult.ok;
+    }
+    if (!options.dryRun) {
+      Object.assign(result, writeRunArtifacts({ config, runId: result.runId, manifestPath: result.manifestPath }));
     }
     printPayload(result, options.json);
     return result.ok ? 0 : 1;

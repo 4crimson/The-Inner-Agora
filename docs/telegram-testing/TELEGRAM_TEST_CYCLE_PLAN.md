@@ -439,7 +439,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.con
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
 ```
 
-When `run` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`.
+When `run` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`. Completed non-dry runs also write `REPORT.md` and `bugs.jsonl` in the run directory.
 
 Live suites require explicit operator confirmation immediately before the run:
 

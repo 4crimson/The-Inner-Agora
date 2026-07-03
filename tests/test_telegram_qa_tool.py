@@ -868,6 +868,11 @@ console.log(JSON.stringify(result));
             self.assertEqual(payload["cleanup"]["mode"], "hard")
             self.assertEqual(payload["cleanup"]["telegram"][0]["messageIds"], [101, 102])
             self.assertEqual(payload["cleanup"]["paperclip"][0]["issueId"], "new-root")
+            report_path = Path(payload["reportPath"])
+            bugs_path = Path(payload["bugsPath"])
+            self.assertTrue(report_path.exists())
+            self.assertTrue(bugs_path.exists())
+            self.assertIn("Residuals: none", report_path.read_text(encoding="utf-8"))
             calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(calls, [["send", "агора помощь", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
             delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
@@ -954,6 +959,36 @@ console.log(JSON.stringify(result));
             self.assertIn("preview", payload["appendDoc"])
             self.assertIn("help.raw-token", payload["appendDoc"]["preview"])
             self.assertFalse(append_doc.exists())
+
+    def test_bugs_deduplicates_generated_and_manifest_entries_by_id(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-bugs-dedupe-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["bugs"] = [
+                {
+                    "id": f"{run_id}:help.raw-token",
+                    "runId": run_id,
+                    "suite": "reporting",
+                    "testId": "help.raw-token",
+                    "title": "QA failure: help.raw-token",
+                    "evidence": "manifest bug should replace generated duplicate",
+                    "acceptanceCriteria": ["help.raw-token passes on retest"],
+                }
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("bugs", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            bugs_path = Path(payload["bugsPath"])
+            rows = [json.loads(line) for line in bugs_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["id"], f"{run_id}:help.raw-token")
+            self.assertIn("manifest bug", rows[0]["evidence"])
 
     def write_retest_manifest(self, artifacts_dir, run_id):
         run_dir = Path(artifacts_dir) / run_id

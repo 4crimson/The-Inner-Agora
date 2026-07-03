@@ -100,7 +100,11 @@ export function bugsFromManifest(manifest) {
 
 export function writeBugsJsonl({ manifest, outputDir }) {
   ensureDir(outputDir);
-  const bugs = [...bugsFromManifest(manifest), ...(Array.isArray(manifest.bugs) ? manifest.bugs : [])];
+  const bugsById = new Map();
+  for (const bug of [...bugsFromManifest(manifest), ...(Array.isArray(manifest.bugs) ? manifest.bugs : [])]) {
+    bugsById.set(bug.id, bug);
+  }
+  const bugs = [...bugsById.values()];
   const bugsPath = path.join(outputDir, "bugs.jsonl");
   fs.writeFileSync(bugsPath, bugs.map((bug) => JSON.stringify(bug)).join("\n") + (bugs.length ? "\n" : ""), "utf8");
   return { bugsPath, bugs };

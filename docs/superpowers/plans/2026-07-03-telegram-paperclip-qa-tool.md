@@ -130,6 +130,7 @@ git commit -m "Add Telegram QA tool config loader"
 
 - Create: `paperclip-qa-tool/src/manifest.mjs`
 - Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `paperclip-qa-tool/src/report-writer.mjs`
 - Test: `tests/test_telegram_qa_tool.py`
 
 - [ ] **Step 1: Write failing manifest tests**
@@ -768,6 +769,37 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v` -> `Ran 30 tests ... OK`
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 - `node --check paperclip-qa-tool/src/cleanup-runner.mjs` -> OK
+
+## Task 15: Run-Integrated Report And Bug Artifacts
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add run artifact assertions**
+
+Assert completed `run --cleanup hard --live-ok` returns and writes:
+
+- `manifest.json`;
+- `REPORT.md`;
+- `bugs.jsonl`;
+- cleanup result.
+
+- [x] **Step 2: Wire report writer into run**
+
+After non-dry-run suite execution and cleanup, CLI writes report and bug JSONL through the same writers used by `report` and `bugs`.
+
+- [x] **Step 3: Avoid duplicate bug artifacts**
+
+`bugs.jsonl` deduplicates generated and manifest-provided bug records by stable `id`, so a retest/fix cycle gets one actionable bug per failed expectation.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_with_cleanup_returns_cleanup_result_and_updates_manifest -v` -> `Ran 1 test ... OK`
+- `python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v` -> `Ran 31 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 
 - [ ] **Step 5: Commit docs and live evidence**
 
