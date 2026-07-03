@@ -1,0 +1,615 @@
+# Telegram Paperclip QA Tool Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a reusable Paperclip/Telegram QA runtime tool plus a Codex QA skill/plugin so live Telegram acceptance cycles can be run, cleaned up, bug-triaged, handed to development, and retested without mixing roles.
+
+**Architecture:** Implement a project-neutral `paperclip-qa-tool/` runtime with config-driven suites, manifest tracking, Telegram userbot operations, Paperclip issue tracking/cleanup, evaluators, reports, and bug output. Bind The Inner Agora through `telegram-testing.config.json`. Add a repo-local Codex plugin/skill under `codex-plugins/telegram-paperclip-qa/` to define Tester, Developer, Retest, and Release Review modes.
+
+**Tech Stack:** Node.js ESM CLI, Python Telethon userbot bridge, Paperclip HTTP API, JSON schema-style validation, Python `unittest` or Node built-in tests, Codex skill/plugin manifest files.
+
+---
+
+## File Structure
+
+Create:
+
+- `paperclip-qa-tool/bin/paperclip-qa.mjs`: CLI entrypoint.
+- `paperclip-qa-tool/qa-tool.config.schema.json`: config schema.
+- `paperclip-qa-tool/src/config.mjs`: config loading and validation.
+- `paperclip-qa-tool/src/manifest.mjs`: run id, run directory, manifest read/write/update.
+- `paperclip-qa-tool/src/telegram-userbot.mjs`: Node wrapper around the Python userbot driver for send/capture/delete.
+- `paperclip-qa-tool/src/paperclip-client.mjs`: Paperclip API client, company lookup, issue snapshots, issue tree walk.
+- `paperclip-qa-tool/src/cleanup-engine.mjs`: Telegram and Paperclip cleanup, hard-delete-first with soft fallback.
+- `paperclip-qa-tool/src/suite-runner.mjs`: suite execution orchestration.
+- `paperclip-qa-tool/src/evaluator.mjs`: generic expectation checks.
+- `paperclip-qa-tool/src/report-writer.mjs`: `REPORT.md`, `bugs.jsonl`, and cleanup report output.
+- `paperclip-qa-tool/suites/generic-health.json`: reusable health suite.
+- `paperclip-qa-tool/suites/generic-telegram-help.json`: reusable help/menu suite.
+- `telegram-testing.config.json`: Inner Agora binding/config.
+- `tests/test_telegram_qa_tool.py`: focused CLI/unit tests using temp dirs and fake APIs.
+- `codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json`: Codex plugin manifest.
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`: QA workflow skill.
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/tester-mode.md`
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/developer-mode.md`
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/retest-mode.md`
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+- `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/bug-template.md`
+
+Modify:
+
+- `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`: keep aligned with implemented CLI commands.
+- `docs/superpowers/specs/2026-07-03-telegram-test-cycle-design.md`: update if implementation changes boundaries.
+- `.gitignore`: ignore `artifacts/telegram-test-runs/` if not already ignored.
+
+Do not modify live Hermes profile, Paperclip issues, or Telegram chat during unit-test tasks. Live smoke appears only at the end and requires explicit operator confirmation.
+
+## Task 1: Config Schema And Loader
+
+**Files:**
+
+- Create: `paperclip-qa-tool/qa-tool.config.schema.json`
+- Create: `paperclip-qa-tool/src/config.mjs`
+- Create: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write failing config-loader tests**
+
+Add tests that create a temporary config file and run:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config /tmp/config.json --json
+```
+
+Expected first failure: CLI file does not exist.
+
+Test cases:
+
+- valid config returns `ok: true`;
+- missing `telegram.target` fails;
+- missing `paperclip.company` fails;
+- duplicate test ids fail;
+- suite references are resolved from inline config and `paperclip-qa-tool/suites/*.json`.
+
+- [ ] **Step 2: Add minimal CLI and config loader**
+
+Implement `paperclip-qa-tool/bin/paperclip-qa.mjs` with commands:
+
+```text
+config-check --config FILE [--json]
+```
+
+Implement `loadConfig(filePath)` in `src/config.mjs`.
+
+Required config shape:
+
+```json
+{
+  "name": "inner-agora-telegram-qa",
+  "telegram": {
+    "target": "@crimson_philosophs_bot",
+    "userbot": {
+      "session": ".telegram-userbot"
+    }
+  },
+  "paperclip": {
+    "apiBase": "http://127.0.0.1:3100/api",
+    "company": "The Inner Agora",
+    "cleanup": "hard"
+  },
+  "artifacts": {
+    "dir": "artifacts/telegram-test-runs"
+  },
+  "suites": {
+    "help": {
+      "tests": []
+    }
+  }
+}
+```
+
+- [ ] **Step 3: Run tests**
+
+Run:
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+```
+
+Expected: config-loader tests pass.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram QA tool config loader"
+```
+
+## Task 2: Manifest And Run Directory
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/manifest.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write failing manifest tests**
+
+Test command:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config /tmp/config.json --suite help --json
+```
+
+Expected behavior:
+
+- creates `artifacts/telegram-test-runs/<runId>/manifest.json`;
+- `runId` starts with `QA-`;
+- manifest contains `telegram`, `paperclip`, `tests`, `bugs`, and `cleanup`;
+- repeated `manifest-update` operations preserve existing entries and append new events.
+
+- [ ] **Step 2: Implement manifest module**
+
+Implement:
+
+```js
+export function createRunId({ suite, now = new Date(), random = crypto.randomUUID() }) {}
+export function createRunDirectory({ artifactsDir, runId }) {}
+export function writeManifest(manifestPath, manifest) {}
+export function readManifest(manifestPath) {}
+export function updateManifest(manifestPath, updater) {}
+```
+
+Use atomic write through a temporary file plus rename.
+
+- [ ] **Step 3: Add CLI commands**
+
+Add:
+
+```text
+run-start --config FILE --suite NAME [--json]
+manifest-show --run RUN_ID --config FILE [--json]
+```
+
+- [ ] **Step 4: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram QA run manifests"
+```
+
+## Task 3: Paperclip Client And Cleanup
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/paperclip-client.mjs`
+- Create: `paperclip-qa-tool/src/cleanup-engine.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write fake Paperclip API tests**
+
+Use a Python test HTTP server with endpoints:
+
+- `GET /api/companies`
+- `GET /api/companies/:id/issues`
+- `GET /api/issues/:id`
+- `DELETE /api/issues/:id`
+- `PATCH /api/issues/:id`
+
+Test cases:
+
+- company lookup by name;
+- snapshot visible roots;
+- tree walk returns children before parent for cleanup;
+- hard delete success removes all manifest issues;
+- hard delete 500 falls back to `PATCH hiddenAt/status=cancelled`;
+- cleanup refuses issue without manifest entry or exact `[qa:<runId>]`.
+
+- [ ] **Step 2: Implement Paperclip client**
+
+Implement:
+
+```js
+export class PaperclipClient {
+  constructor({ apiBase, fetchImpl = fetch }) {}
+  async getCompanies() {}
+  async findCompanyByName(name) {}
+  async listIssues(companyId) {}
+  async getIssue(issueId) {}
+  async deleteIssue(issueId) {}
+  async patchIssue(issueId, body) {}
+}
+```
+
+- [ ] **Step 3: Implement cleanup engine**
+
+Implement:
+
+```js
+export async function cleanupPaperclipIssues({ client, manifest, mode, now }) {}
+```
+
+Rules:
+
+- bottom-up order;
+- hard mode tries delete first;
+- fallback patches hiddenAt and cancelled for non-terminal issues;
+- records each action in manifest cleanup results;
+- reports residuals.
+
+- [ ] **Step 4: Add CLI cleanup command**
+
+```text
+cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
+```
+
+- [ ] **Step 5: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Paperclip cleanup for Telegram QA"
+```
+
+## Task 4: Telegram Userbot Adapter
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/telegram-userbot.mjs`
+- Modify: `scripts/telegram-userbot-driver.py`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_userbot_driver.py`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Extend userbot driver tests**
+
+Add dry-run tests for:
+
+- `history --limit N`;
+- `delete --ids 1,2,3 --dry-run`;
+- output includes ids and target but no secrets.
+
+- [ ] **Step 2: Extend Python userbot driver**
+
+Add commands:
+
+```text
+history --limit N [--transcript FILE]
+delete --ids CSV [--dry-run]
+```
+
+`delete` uses Telethon `delete_messages(entity, ids, revoke=True)`.
+
+- [ ] **Step 3: Add Node wrapper**
+
+Implement:
+
+```js
+export class TelegramUserbot {
+  constructor({ python, scriptPath, env }) {}
+  async send({ target, text, wait, limit, transcript }) {}
+  async history({ target, limit }) {}
+  async deleteMessages({ target, ids, dryRun }) {}
+}
+```
+
+- [ ] **Step 4: Add CLI smoke commands**
+
+```text
+telegram-check --config FILE [--json]
+telegram-history --config FILE --limit 10 [--json]
+```
+
+These commands must not send messages.
+
+- [ ] **Step 5: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v
+git add scripts/telegram-userbot-driver.py paperclip-qa-tool tests/test_telegram_userbot_driver.py tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram userbot cleanup adapter"
+```
+
+## Task 5: Suite Runner And Evaluator
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/suite-runner.mjs`
+- Create: `paperclip-qa-tool/src/evaluator.mjs`
+- Create: `paperclip-qa-tool/suites/generic-health.json`
+- Create: `paperclip-qa-tool/suites/generic-telegram-help.json`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write suite/evaluator tests**
+
+Test generic expectations:
+
+- `replyContains`;
+- `replyNotContains`;
+- `paperclipRootsCreated: 0`;
+- `paperclipRootsCreatedAtLeast: 1`;
+- `noRawTokens`;
+- `localRouteContains`;
+- `buttonsPresent`.
+
+- [ ] **Step 2: Implement suite runner**
+
+Implement run lifecycle:
+
+1. baseline Paperclip snapshot;
+2. send Telegram message;
+3. capture reply/history;
+4. detect new Paperclip roots;
+5. update manifest;
+6. evaluate expectations.
+
+- [ ] **Step 3: Add CLI run command**
+
+```text
+run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run]
+```
+
+Dry run prints planned tests and expected cleanup but sends nothing.
+
+- [ ] **Step 4: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram QA suite runner"
+```
+
+## Task 6: Report Writer And Bug Output
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/report-writer.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write report tests**
+
+Given a manifest with one pass, one fail, one cleanup residual, assert:
+
+- `REPORT.md` contains summary, failed tests, evidence, cleanup result;
+- `bugs.jsonl` contains structured bug entries;
+- secrets are redacted;
+- `bugs --append-doc` produces a preview in dry-run mode.
+
+- [ ] **Step 2: Implement report writer**
+
+Implement:
+
+```js
+export function writeReport({ manifest, outputDir }) {}
+export function writeBugsJsonl({ manifest, outputDir }) {}
+export function appendBugsToDoc({ bugsPath, docPath, dryRun }) {}
+```
+
+- [ ] **Step 3: Add CLI commands**
+
+```text
+report --config FILE --run RUN_ID [--json]
+bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run]
+```
+
+- [ ] **Step 4: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram QA reports and bug output"
+```
+
+## Task 7: Inner Agora Project Config
+
+**Files:**
+
+- Create: `telegram-testing.config.json`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Add config validation test for real project config**
+
+Test:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+```
+
+Expected: `ok: true`.
+
+- [ ] **Step 2: Create Inner Agora config**
+
+Include suites:
+
+- `health`;
+- `help`;
+- `natural-dialogue`;
+- `council-create`;
+- `cleanup`.
+
+Use `[qa:<runId>]` markers only in Paperclip-creating tests.
+
+- [ ] **Step 3: Run config check and tests**
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+python3 -m unittest tests.test_telegram_qa_tool -v
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add telegram-testing.config.json docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md tests/test_telegram_qa_tool.py
+git commit -m "Add Inner Agora Telegram QA config"
+```
+
+## Task 8: Codex QA Skill And Plugin
+
+**Files:**
+
+- Create: `codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/tester-mode.md`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/developer-mode.md`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/retest-mode.md`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+- Create: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/bug-template.md`
+
+- [ ] **Step 1: Scaffold plugin manifest**
+
+Create a repo-local plugin manifest with name `telegram-paperclip-qa`. Keep it installable later, but do not require marketplace install for this task.
+
+- [ ] **Step 2: Write skill**
+
+`SKILL.md` must:
+
+- trigger on Telegram/Paperclip QA, live Telegram test cycle, tester mode, developer handoff, retest mode, release review;
+- require explicit live-side-effect acknowledgement before running live suites;
+- forbid code edits in tester mode;
+- require grouping bugs before developer mode;
+- require retest before claiming a bug fixed.
+
+- [ ] **Step 3: Write references**
+
+Each reference should be concise and mode-specific:
+
+- tester mode: run suites, gather evidence, no patches;
+- developer mode: one area per batch, write tests, patch, verify;
+- retest mode: rerun failed test ids, compare to previous run;
+- release review mode: full suite and cleanup report;
+- bug template: JSON and Markdown fields.
+
+- [ ] **Step 4: Validate plugin shape**
+
+If the local plugin validator is available, run it. Otherwise run:
+
+```bash
+python3 - <<'PY'
+import json, pathlib
+root = pathlib.Path('codex-plugins/telegram-paperclip-qa')
+json.loads((root/'.codex-plugin/plugin.json').read_text())
+assert (root/'skills/telegram-paperclip-qa/SKILL.md').exists()
+print('ok')
+PY
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add codex-plugins/telegram-paperclip-qa
+git commit -m "Add Telegram Paperclip QA Codex skill"
+```
+
+## Task 9: Retest And Bug Batch Modes
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/suite-runner.mjs`
+- Modify: `paperclip-qa-tool/src/report-writer.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [ ] **Step 1: Write tests for previous-run retest**
+
+Given a previous manifest with failing `testId`s, assert:
+
+- `retest --run OLD_RUN` selects only failed tests;
+- retest report links old and new runs;
+- fixed/still-failing/changed statuses are recorded.
+
+- [ ] **Step 2: Implement retest command**
+
+```text
+retest --config FILE --run OLD_RUN [--cleanup hard|soft|none] [--json]
+```
+
+- [ ] **Step 3: Implement bug-batch output**
+
+```text
+bug-batch --config FILE --run RUN_ID --area telegram-ui [--json]
+```
+
+Output should list bug ids, evidence, and acceptance criteria for one development area.
+
+- [ ] **Step 4: Run tests and commit**
+
+```bash
+python3 -m unittest tests.test_telegram_qa_tool -v
+git add paperclip-qa-tool tests/test_telegram_qa_tool.py
+git commit -m "Add Telegram QA retest and bug batches"
+```
+
+## Task 10: Documentation And Controlled Live Acceptance
+
+**Files:**
+
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `README.md`
+
+- [ ] **Step 1: Document operator workflow**
+
+Add concise commands:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+```
+
+- [ ] **Step 2: Run non-live verification**
+
+```bash
+python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
+```
+
+- [ ] **Step 3: Request explicit live confirmation**
+
+Before live run, state:
+
+```text
+This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?
+```
+
+- [ ] **Step 4: Run controlled live help suite**
+
+Only after confirmation:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --json
+```
+
+Expected:
+
+- local help/menu reply;
+- no Paperclip roots;
+- Telegram messages cleaned up;
+- report written.
+
+- [ ] **Step 5: Commit docs and live evidence**
+
+Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:
+
+```bash
+git add README.md docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md
+git commit -m "Document Telegram QA tool workflow"
+```
+
+## Completion Criteria
+
+The implementation is complete when:
+
+- `paperclip-qa-tool` can run config-check, health, run, cleanup, report, bugs, retest, and bug-batch commands.
+- `telegram-testing.config.json` validates and contains Inner Agora suites without hard-coding project details in tool source.
+- Telegram cleanup deletes only manifest message ids.
+- Paperclip cleanup attempts hard delete and falls back to hidden/cancelled.
+- Reports and bugs are written per run.
+- Codex QA skill/plugin exists and separates tester/developer/retest/release behavior.
+- A controlled live help run passes and cleans itself.
+- The full acceptance suite can be run later without changing architecture.

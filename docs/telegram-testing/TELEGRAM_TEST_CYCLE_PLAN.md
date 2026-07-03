@@ -4,15 +4,76 @@ Date: 2026-07-03
 
 ## Goal
 
-Build a repeatable live Telegram QA loop for The Inner Agora where Codex can act as a real Telegram user, run natural-language test suites against Hermes/Paperclip, collect evidence, file bugs, hand batches to development, retest fixes, and clean up all test artifacts after each cycle.
+Build a repeatable live Telegram QA loop where Codex can act as a real Telegram user, run natural-language test suites against Hermes/Paperclip, collect evidence, file bugs, hand batches to development, retest fixes, and clean up all test artifacts after each cycle.
 
 The target is not a minimal smoke script. The target is a full acceptance harness for the product idea: Telegram should feel like a human interface to Hermes and Paperclip, powered by local models, with visible progress, useful buttons, reliable synthesis, readable errors, and no hidden stale-state surprises.
+
+The implementation should be split into two layers:
+
+1. `paperclip-qa-tool`: a universal runtime tool that knows how to run Telegram/Paperclip QA cycles from config.
+2. `telegram-paperclip-qa`: a Codex skill/plugin that defines tester, developer, retest, and release-review behavior for Codex.
+
+The Inner Agora should be one project configuration for the universal tool, not the tool's hard-coded domain.
 
 ## Product Principle
 
 Live tests are allowed, but every test run must be accountable and reversible.
 
 Every run gets a unique `runId`, every Telegram message and Paperclip issue created by the run is captured in a manifest, and cleanup only touches artifacts in that manifest. Time windows may help detect artifacts, but time alone is never enough to delete anything.
+
+## Layer Boundaries
+
+### Universal Runtime Tool
+
+Planned location:
+
+```text
+paperclip-qa-tool/
+```
+
+Responsibilities:
+
+- validate QA config;
+- run health checks;
+- send/capture/delete Telegram messages;
+- snapshot and track Paperclip issues;
+- evaluate suite expectations;
+- write manifest, reports, and bug JSONL;
+- clean up Telegram and Paperclip artifacts.
+
+The universal tool must not contain Inner Agora-specific philosopher, chamber, or synthesis literals. Those belong in project config and suite definitions.
+
+### Inner Agora Project Config
+
+Planned location:
+
+```text
+telegram-testing.config.json
+```
+
+Responsibilities:
+
+- bind the generic tool to `@crimson_philosophs_bot`;
+- name the `The Inner Agora` Paperclip company;
+- define suites, phrases, and expected results;
+- list known guard warnings that may be allowed for a specific run;
+- define cleanup policy.
+
+### Codex QA Skill/Plugin
+
+Planned location:
+
+```text
+codex-plugins/telegram-paperclip-qa/
+```
+
+Responsibilities:
+
+- tell Codex which mode it is in;
+- forbid code changes in tester mode;
+- require bug grouping before developer mode;
+- require retest after fixes;
+- require release-review report before claiming acceptance.
 
 ## Roles
 
@@ -367,12 +428,12 @@ Batching rules:
 Planned interface:
 
 ```bash
-node scripts/telegram-test-cycle.mjs health
-node scripts/telegram-test-cycle.mjs run --suite smoke --cleanup hard
-node scripts/telegram-test-cycle.mjs run --suite full --cleanup hard
-node scripts/telegram-test-cycle.mjs cleanup --run QA-... --mode hard
-node scripts/telegram-test-cycle.mjs report --run QA-...
-node scripts/telegram-test-cycle.mjs bugs --run QA-... --append-doc docs/roadmap/BUGS.md
+node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite smoke --cleanup hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite full --cleanup hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
+node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md
 ```
 
 Useful safety flags:
@@ -400,6 +461,8 @@ The full Telegram QA harness is acceptable when:
 7. Retest mode can prove a bug fixed or still failing.
 8. Running the full suite twice leaves no extra visible Paperclip roots.
 9. The process stays local-model-first.
+10. The runtime tool stays project-neutral; Inner Agora behavior lives in `telegram-testing.config.json`.
+11. The Codex QA skill/plugin can be used independently to govern tester/developer/retest/release modes.
 
 ## Known Constraints
 
@@ -413,11 +476,13 @@ The full Telegram QA harness is acceptable when:
 
 The implementation should be built in phases, but the target remains the full system:
 
-1. Add manifest and run directory primitives.
-2. Extend userbot driver or create a Node wrapper for send/capture/delete.
-3. Add Paperclip scanner and tree cleanup with hard-delete-first fallback.
-4. Add test suite registry and expected-result evaluators.
-5. Add report and bug JSONL generator.
-6. Add retest and bug-batch modes.
-7. Add docs and operator checklist.
-8. Run a controlled live acceptance cycle and clean it up.
+1. Add universal tool skeleton and config schema under `paperclip-qa-tool/`.
+2. Add manifest and run directory primitives.
+3. Add Telegram userbot adapter for send/capture/delete.
+4. Add Paperclip scanner and tree cleanup with hard-delete-first fallback.
+5. Add suite registry and expected-result evaluators.
+6. Add report and bug JSONL generator.
+7. Add Inner Agora `telegram-testing.config.json`.
+8. Add retest and bug-batch modes.
+9. Add Codex QA skill/plugin under `codex-plugins/telegram-paperclip-qa/`.
+10. Run a controlled live acceptance cycle and clean it up.

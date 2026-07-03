@@ -1,10 +1,10 @@
-# Telegram Test Cycle Design
+# Telegram Paperclip QA Tool And Codex Skill Design
 
 ## Objective
 
-Create a full live QA process for Telegram-based Agora testing. Codex should be able to act as a real Telegram user, run natural-language suites against Hermes and Paperclip, collect evidence, file bugs, pass bounded batches to development, retest fixes, and clean up all test artifacts.
+Create a two-layer live QA system for Telegram/Paperclip projects. The runtime layer is a universal Paperclip QA tool that can act as a real Telegram user, run configured suites, collect evidence, and clean up artifacts. The Codex layer is a QA skill/plugin that tells Codex how to behave in tester, developer handoff, retest, and release-review modes.
 
-This is intentionally larger than a smoke MVP. The design targets the end-state testing workflow needed to make Telegram feel like a reliable human interface to The Inner Agora.
+This is intentionally larger than a smoke MVP. The design targets the end-state testing workflow needed to make Telegram feel like a reliable human interface to The Inner Agora while keeping the runtime tool reusable for future Paperclip Cockpit projects.
 
 ## Context
 
@@ -17,11 +17,35 @@ The project already has:
 - Paperclip issue update support for `hiddenAt`.
 - Paperclip CLI support for `issue delete`, though live `DELETE /api/issues/:id` returned `500` on 2026-07-03.
 
-The missing piece is a run-level orchestrator that owns identity, evidence, cleanup, and bug handoff.
+The missing pieces are:
+
+- a reusable run-level QA tool that owns identity, evidence, cleanup, and bug output;
+- an Inner Agora project config that describes this project's bot, company, suites, and expectations;
+- a Codex QA skill/plugin that enforces the working modes and prevents mixing testing with development.
 
 ## Architecture
 
-Add a future `scripts/telegram-test-cycle.mjs` runner with these internal modules:
+Use three explicit boundaries:
+
+```text
+paperclip-qa-tool/                  # universal runtime tool
+telegram-testing.config.json        # Inner Agora project config
+codex-plugins/telegram-paperclip-qa # Codex workflow plugin/skill
+```
+
+The universal tool receives config and environment credentials, runs suites, writes manifests/reports/bugs, and cleans up artifacts. It must not know Agora-specific concepts such as philosophers, Plato, Heidegger, chambers, or synthesis semantics beyond what the config expresses as expectations.
+
+The Inner Agora config binds the generic tool to `@crimson_philosophs_bot`, the `The Inner Agora` Paperclip company, local-model expectations, and the project's suite matrix.
+
+The Codex plugin/skill tells the agent how to operate:
+
+1. Tester mode: run suites and collect evidence, do not patch code.
+2. Bug triage mode: group failures by area and severity.
+3. Developer mode: fix one bounded area at a time.
+4. Retest mode: rerun previous failing test ids.
+5. Release review mode: run the full suite, clean up, and report acceptance.
+
+The runtime tool modules are:
 
 - `RunManifest`: creates `runId`, run directory, manifest, and append-only updates.
 - `TelegramClient`: wraps the existing userbot driver or Telethon session for send, capture, and delete.
@@ -35,15 +59,17 @@ All live side effects must flow through the manifest.
 
 ## Data Flow
 
-1. Health preflight runs guard, gateway, Telegram token, userbot auth, Paperclip health, and profile sync checks.
-2. Runner creates `runId` and baseline Paperclip snapshot.
-3. Runner sends Telegram test messages. Paperclip-creating phrases include `[qa:<runId>]`.
-4. Runner captures replies and stores Telegram message ids.
-5. Runner watches Paperclip for roots and child issues related to the run marker.
-6. Evaluator checks expected outcomes and writes test results.
-7. BugWriter creates structured bug entries for failures.
-8. CleanupEngine runs according to `--cleanup hard|soft|none`.
-9. Report records pass/fail, bugs, cleanup actions, and residuals.
+1. Codex QA skill selects a mode and refuses to mix roles.
+2. Runtime tool loads `telegram-testing.config.json` and validates it against `paperclip-qa-tool/qa-tool.config.schema.json`.
+3. Health preflight runs guard, gateway, Telegram token, userbot auth, Paperclip health, and profile sync checks.
+4. Runner creates `runId` and baseline Paperclip snapshot.
+5. Runner sends Telegram test messages. Paperclip-creating phrases include `[qa:<runId>]`.
+6. Runner captures replies and stores Telegram message ids.
+7. Runner watches Paperclip for roots and child issues related to the run marker.
+8. Evaluator checks expected outcomes and writes test results.
+9. BugWriter creates structured bug entries for failures.
+10. CleanupEngine runs according to `--cleanup hard|soft|none`.
+11. Report records pass/fail, bugs, cleanup actions, and residuals.
 
 ## Cleanup Semantics
 
@@ -62,6 +88,51 @@ Paperclip:
 - try `DELETE /api/issues/:id`;
 - if hard delete fails, patch `hiddenAt` and `status=cancelled` where appropriate;
 - report hard-delete failures as cleanup bugs.
+
+## Universal Tool File Shape
+
+Planned runtime files:
+
+```text
+paperclip-qa-tool/
+  README.md
+  qa-tool.config.schema.json
+  bin/
+    paperclip-qa.mjs
+  src/
+    cleanup-engine.mjs
+    evaluator.mjs
+    manifest.mjs
+    paperclip-client.mjs
+    report-writer.mjs
+    suite-runner.mjs
+    telegram-userbot.mjs
+  suites/
+    generic-health.json
+    generic-telegram-help.json
+```
+
+Project config:
+
+```text
+telegram-testing.config.json
+```
+
+Codex workflow plugin:
+
+```text
+codex-plugins/telegram-paperclip-qa/
+  .codex-plugin/plugin.json
+  skills/
+    telegram-paperclip-qa/
+      SKILL.md
+      references/
+        bug-template.md
+        developer-mode.md
+        release-review-mode.md
+        retest-mode.md
+        tester-mode.md
+```
 
 ## Test Coverage
 
@@ -102,12 +173,15 @@ Each failure includes evidence and acceptance criteria. No raw secrets are writt
 - Bug reports are grouped by area for developer batches.
 - Retests can reference previous failing test ids.
 - No production Paperclip issues are touched without explicit manual inclusion.
+- The universal tool has no Inner Agora philosopher/chamber literals outside test config fixtures.
+- The Codex skill/plugin can be read independently and tells the agent not to patch code while in tester mode.
 
 ## Open Decisions
 
 - Whether to keep QA transcripts after cleanup or delete them by default.
 - Whether reports should append automatically to `docs/roadmap/BUGS.md` or stay run-local until reviewed.
 - Whether `THE-82`/`THE-74` style meaningful live checks should be classified as QA artifacts or retained as useful Agora sessions.
+- Whether the Codex plugin should live in this repository first (`codex-plugins/telegram-paperclip-qa`) or be promoted immediately to a personal marketplace plugin under `~/plugins`.
 
 ## User Review Gate
 
@@ -116,3 +190,4 @@ Before implementation, review:
 - whether visible `[qa:<runId>]` markers are acceptable in test prompts;
 - whether hard-delete-first plus soft fallback is acceptable;
 - whether run-local bug reports should auto-append to roadmap bugs or require approval.
+- whether the repo-local Codex plugin path is acceptable for the first implementation pass.
