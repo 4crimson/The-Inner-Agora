@@ -433,6 +433,7 @@ Implemented local-safe interface:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
@@ -461,6 +462,7 @@ Planned live interface:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json
+node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite full --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite full --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite smoke --cleanup hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite full --cleanup hard --live-ok

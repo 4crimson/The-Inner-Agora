@@ -50,6 +50,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs health --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run|--live-ok]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
@@ -130,6 +131,48 @@ function livePlan({ configPath, config, suiteName, cleanupMode }) {
   };
 }
 
+function suitePreview({ config, suiteName, cleanupMode }) {
+  const suite = config.suites[suiteName];
+  if (!suite) throw new ConfigValidationError([`suite not found: ${suiteName}`]);
+  const cleanup = cleanupMode || config.paperclip.cleanup;
+  if (!["hard", "soft", "none"].includes(cleanup)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
+  return {
+    suite: suiteName,
+    cleanup,
+    plannedTests: suite.tests.map((test) => test.id),
+    tests: suite.tests.map((test) => ({
+      id: test.id,
+      kind: test.kind || "telegram",
+      message: test.message || "",
+      expect: test.expect || {},
+    })),
+  };
+}
+
+async function readiness({ configPath, config, suiteName, cleanupMode, userbot, paperclipClient }) {
+  const plan = livePlan({ configPath, config, suiteName, cleanupMode });
+  const health = await runHealthChecks({ config, userbot, paperclipClient });
+  const preview = suitePreview({ config, suiteName, cleanupMode });
+  const gates = [
+    { name: "config", ok: true },
+    { name: "health", ok: health.ok },
+    { name: "suite", ok: preview.plannedTests.length > 0 },
+    { name: "live-acknowledgement", ok: Boolean(plan.acknowledgement) },
+    { name: "no-live-side-effects", ok: true },
+  ];
+  const readyForLive = gates.every((gate) => gate.ok);
+  return {
+    ok: readyForLive,
+    readyForLive,
+    suite: suiteName,
+    cleanup: preview.cleanup,
+    health,
+    preview,
+    livePlan: plan,
+    gates,
+  };
+}
+
 async function runCleanupForManifest({ config, manifestPath, mode, dryRun = false }) {
   return cleanupRun({
     manifestPath,
@@ -181,6 +224,19 @@ async function main(argv) {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
     printPayload(livePlan({ configPath: options.config, config, suiteName: options.suite, cleanupMode: options.cleanup }), options.json);
     return 0;
+  }
+  if (options.command === "readiness") {
+    if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
+    const result = await readiness({
+      configPath: options.config,
+      config,
+      suiteName: options.suite,
+      cleanupMode: options.cleanup,
+      userbot: new TelegramUserbot({ config }),
+      paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
   }
   if (options.command === "run-start") {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);

@@ -1019,6 +1019,33 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v` -> OK
 - `node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json` -> OK
 
+## Task 25: Machine-Readable Readiness Gate
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `tests/test_telegram_qa_tool.py`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/README.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/tester-mode.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+
+- [x] **Step 1: Add non-live readiness command**
+
+`readiness --suite NAME` composes config validation, health checks, suite preview, and live-plan acknowledgement into a machine-readable `readyForLive` gate. It does not create run artifacts or send Telegram messages.
+
+- [x] **Step 2: Make QA workflows prefer readiness before live confirmation**
+
+Tester and release-review docs now start live preparation with `readiness`, while preserving diagnostic `live-plan`, `health`, and dry-run commands.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_readiness_runs_preflight_without_creating_run_artifacts -v` -> OK
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

@@ -221,6 +221,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
 
         for command in [
             "config-check",
+            "readiness",
             "health",
             "telegram-check",
             "run --config",
@@ -863,6 +864,46 @@ console.log(JSON.stringify(result));
             self.assertEqual(payload["guardWarnings"][0]["name"], "paperclip-roster-sync-pending")
             self.assertEqual([test["id"] for test in payload["tests"]], ["help.basic"])
             self.assertFalse(calls_path.exists())
+            self.assertFalse(artifacts_dir.exists())
+
+    def test_readiness_runs_preflight_without_creating_run_artifacts(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "readiness",
+                "--config",
+                config_path,
+                "--suite",
+                "help",
+                "--cleanup",
+                "hard",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["readyForLive"])
+            self.assertEqual(payload["suite"], "help")
+            self.assertEqual(payload["cleanup"], "hard")
+            self.assertTrue(payload["health"]["ok"])
+            self.assertEqual(payload["preview"]["plannedTests"], ["help.basic"])
+            self.assertIn("--live-ok", payload["livePlan"]["commands"]["liveRun"])
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls, [["check-env"]])
             self.assertFalse(artifacts_dir.exists())
 
     def test_run_executes_suite_with_fake_telegram_and_paperclip(self):

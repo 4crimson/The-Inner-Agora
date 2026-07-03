@@ -5,8 +5,8 @@ Use release-review mode for final acceptance.
 Workflow:
 
 1. Confirm the intended acceptance suite.
-2. Run `live-plan`, config, health, and dry-run checks.
-3. Ask for explicit live confirmation using the live-plan acknowledgement.
+2. Run `readiness --suite SUITE --json`, then any extra diagnostic config, health, or dry-run checks needed to explain failures.
+3. Ask for explicit live confirmation using the readiness/live-plan acknowledgement.
 4. Run the full suite.
 5. Run cleanup.
 6. Generate report, bug output, and acceptance output.

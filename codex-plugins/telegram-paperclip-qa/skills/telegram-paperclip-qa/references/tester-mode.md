@@ -5,8 +5,8 @@ Use tester mode to collect evidence. Do not patch code.
 Workflow:
 
 1. State the target suite and whether live side effects are allowed.
-2. Run `live-plan`, `config-check`, and a `--dry-run` preview first.
-3. If live testing is needed, ask for explicit confirmation using the live-plan acknowledgement before sending Telegram messages.
+2. Run `readiness --suite SUITE --json` first. Inspect `readyForLive`, `health`, `preview`, and `livePlan`.
+3. If live testing is needed, ask for explicit confirmation using the readiness/live-plan acknowledgement before sending Telegram messages.
 4. Run the selected suite.
 5. Preserve the run id, manifest path, report path, and bugs path.
 6. Run `bug-batch --run RUN_ID` to group failures by area and severity.

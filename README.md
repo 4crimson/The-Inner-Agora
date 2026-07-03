@@ -247,6 +247,7 @@ Safe non-live checks:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json

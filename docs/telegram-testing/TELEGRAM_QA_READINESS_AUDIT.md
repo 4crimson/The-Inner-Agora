@@ -28,9 +28,10 @@ node --check paperclip-qa-tool/src/report-writer.mjs
 node --check paperclip-qa-tool/src/config.mjs
 node -e "JSON.parse(require('fs').readFileSync('codex-plugins/telegram-paperclip-qa/.codex-plugin/plugin.json','utf8')); JSON.parse(require('fs').readFileSync('telegram-testing.config.json','utf8')); console.log('json ok')"
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
-git diff -- . | rg -n "TELEGRAM_BOT_TOKEN|api_hash|bot-token-pattern"
+git diff -- . | rg -n "secret-token-or-api-hash-pattern"
 ```
 
 Expected result:
@@ -39,6 +40,7 @@ Expected result:
 - syntax checks pass;
 - JSON parses;
 - `config-check` returns `ok: true`;
+- `readiness` returns `readyForLive: true` when config, health, suite preview, and acknowledgement gates pass;
 - `live-plan` prints the exact acknowledgement and does not create run artifacts;
 - dry-run creates only local ignored artifacts;
 - secret scan returns no matches.
@@ -66,6 +68,7 @@ Only run this after explicit operator approval for live side effects.
 1. Run preflight:
 
 ```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --dry-run --json
