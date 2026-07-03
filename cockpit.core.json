@@ -70,6 +70,20 @@
     "buttons": {
       "enabled": true,
       "voice_limit": 6,
+      "quick_actions": [
+        {
+          "label": "Разногласия",
+          "callback": "disagreements"
+        },
+        {
+          "label": "Углубить",
+          "callback": "deepen"
+        },
+        {
+          "label": "Новый вопрос",
+          "callback": "new_question"
+        }
+      ],
       "labels": {
         "synthesis": "Синтез",
         "all_voices": "Все голоса",
@@ -104,6 +118,18 @@
       "clarify": {
         "answer": "Можно уточнять",
         "message": "Напиши уточнение обычным сообщением по сессии {arg}. Я подхвачу его как новый conversational запрос."
+      },
+      "disagreements": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением: покажи главные разногласия по сессии {arg}."
+      },
+      "deepen": {
+        "answer": "Ок",
+        "message": "Напиши обычным сообщением, что именно углубить по сессии {arg}."
+      },
+      "new_question": {
+        "answer": "Ок",
+        "message": "Напиши новый вопрос обычным сообщением. Если это новая тема, начни с: новый вопрос:"
       }
     }
   },

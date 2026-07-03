@@ -15,9 +15,11 @@ function usage(exitCode = 0) {
   node scripts/paperclip-cockpit-telegram.mjs send-result ISSUE [--chat CHAT] [--dry-run]
   node scripts/paperclip-cockpit-telegram.mjs send-voice ISSUE [--chat CHAT] [--dry-run]
   node scripts/paperclip-cockpit-telegram.mjs send-latest ISSUE [--chat CHAT] [--dry-run]
+  node scripts/paperclip-cockpit-telegram.mjs send-progress ISSUE [--chat CHAT] [--dry-run]
   node scripts/paperclip-cockpit-telegram.mjs payload-result ISSUE
   node scripts/paperclip-cockpit-telegram.mjs payload-voice ISSUE
   node scripts/paperclip-cockpit-telegram.mjs payload-latest ISSUE
+  node scripts/paperclip-cockpit-telegram.mjs payload-progress ISSUE
   node scripts/paperclip-cockpit-telegram.mjs keyboard ISSUE [--dry-run]
 `);
   process.exit(exitCode);
@@ -116,6 +118,16 @@ function isSynthesis(issue) {
   return new RegExp(pattern, "i").test(String(issue?.title || ""));
 }
 
+function terminalStatuses() {
+  const configured = Array.isArray(config.monitor?.terminal_statuses) ? config.monitor.terminal_statuses : [];
+  const values = configured.length ? configured : ["done", "blocked", "cancelled"];
+  return new Set(values.map((item) => String(item).trim().toLowerCase()).filter(Boolean));
+}
+
+function isTerminal(issue) {
+  return terminalStatuses().has(String(issue?.status || "").toLowerCase());
+}
+
 async function resolveRoot(issue) {
   let current = issue;
   const seen = new Set();
@@ -139,6 +151,21 @@ function voiceLabel(child) {
 function callbackData(name, arg) {
   const prefix = telegram.callback_prefix || "pc";
   return `${prefix}:${name}:${arg}`;
+}
+
+function quickActionRows(root) {
+  const actions = Array.isArray(buttonConfig.quick_actions) ? buttonConfig.quick_actions : [];
+  const buttons = actions
+    .map((action) => {
+      const label = String(action?.label || action?.text || "").trim();
+      const callback = String(action?.callback || action?.name || "").trim();
+      if (!label || !callback) return null;
+      return { text: label.slice(0, 32), callback_data: callbackData(callback, issueRef(root)) };
+    })
+    .filter(Boolean);
+  const rows = [];
+  for (let index = 0; index < buttons.length; index += 2) rows.push(buttons.slice(index, index + 2));
+  return rows;
 }
 
 function buildKeyboard(root, issues) {
@@ -171,8 +198,20 @@ function buildKeyboard(root, issues) {
   if (config.actions?.memory) bottom.push({ text: labels.export || "Export", callback_data: callbackData("export", issueRef(root)) });
   bottom.push({ text: labels.clarify || "Clarify", callback_data: callbackData("clarify", issueRef(root)) });
   rows.push(bottom);
+  rows.push(...quickActionRows(root));
 
   return { inline_keyboard: rows };
+}
+
+function progressText(root, issues) {
+  const voices = childrenOf(root, issues).filter((issue) => !isSynthesis(issue));
+  const done = voices.filter(isTerminal);
+  const waiting = voices.filter((issue) => !isTerminal(issue));
+  const lines = [`Совет работает: ${done.length}/${voices.length} (${issueRef(root)})`];
+  if (done.length) lines.push(`Готово: ${done.map(voiceLabel).join(", ")}`);
+  if (waiting.length) lines.push(`Ждем: ${waiting.map(voiceLabel).join(", ")}`);
+  if (!waiting.length && voices.length) lines.push("Все голоса готовы, жду синтез.");
+  return lines.join("\n");
 }
 
 function actionCommand(name, args = []) {
@@ -292,6 +331,11 @@ async function main() {
     return;
   }
 
+  if (command === "payload-progress") {
+    printPayload(progressText(root, issues), keyboard);
+    return;
+  }
+
   if (command === "send-result") {
     const synthesis = [...childrenOf(root, issues)].reverse().find(isSynthesis);
     const text = runAction("result", [issueRef(synthesis || root)]);
@@ -308,6 +352,11 @@ async function main() {
   if (command === "send-latest") {
     const text = runAction("latest", [issueRef(root)]);
     await sendText(options.chatId, text, keyboard, options.dryRun);
+    return;
+  }
+
+  if (command === "send-progress") {
+    await sendText(options.chatId, progressText(root, issues), keyboard, options.dryRun);
     return;
   }
 

@@ -110,6 +110,10 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
                 "synthesis_title_pattern": "^Executive summary:",
                 "buttons": {
                     "voice_limit": 2,
+                    "quick_actions": [
+                        {"label": "Disagreements", "callback": "disagreements"},
+                        {"label": "Deeper", "callback": "deepen"},
+                    ],
                     "labels": {
                         "synthesis": "Brief",
                         "all_voices": "Inputs",
@@ -147,6 +151,13 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
                 {"text": "Inputs", "callback_data": "wk:latest:WK-10"},
                 {"text": "Archive", "callback_data": "wk:export:WK-10"},
                 {"text": "Follow up", "callback_data": "wk:clarify:WK-10"},
+            ],
+        )
+        self.assertEqual(
+            rows[3],
+            [
+                {"text": "Disagreements", "callback_data": "wk:disagreements:WK-10"},
+                {"text": "Deeper", "callback_data": "wk:deepen:WK-10"},
             ],
         )
 
@@ -227,6 +238,70 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
                 {"text": "Follow up", "callback_data": "wk:clarify:WK-20"},
             ],
         )
+
+    def test_payload_progress_summarizes_done_and_waiting_voices(self):
+        root = {
+            "id": "root-progress",
+            "identifier": "WK-30",
+            "issueNumber": 30,
+            "companyId": "company-1",
+            "title": "Research: progress",
+        }
+        done = {
+            "id": "child-done",
+            "identifier": "WK-31",
+            "issueNumber": 31,
+            "companyId": "company-1",
+            "parentId": "root-progress",
+            "status": "done",
+            "title": "Voice Alpha: progress",
+        }
+        waiting_one = {
+            "id": "child-waiting-one",
+            "identifier": "WK-32",
+            "issueNumber": 32,
+            "companyId": "company-1",
+            "parentId": "root-progress",
+            "status": "in_progress",
+            "title": "Voice Beta: progress",
+        }
+        waiting_two = {
+            "id": "child-waiting-two",
+            "identifier": "WK-33",
+            "issueNumber": 33,
+            "companyId": "company-1",
+            "parentId": "root-progress",
+            "status": "todo",
+            "title": "Voice Gamma: progress",
+        }
+        config = {
+            "command": {"name": "work"},
+            "telegram": {
+                "callback_prefix": "wk",
+                "buttons": {
+                    "labels": {
+                        "synthesis": "Brief",
+                        "all_voices": "Inputs",
+                        "clarify": "Follow up",
+                    },
+                },
+            },
+        }
+
+        payload = self.run_helper(
+            config,
+            {
+                "/api/issues/WK-30": root,
+                "/api/companies/company-1/issues": [root, done, waiting_one, waiting_two],
+            },
+            ["payload-progress", "WK-30"],
+        )
+
+        self.assertIn("Совет работает: 1/3", payload["text"])
+        self.assertIn("Готово: Voice Alpha", payload["text"])
+        self.assertIn("Ждем: Voice Beta, Voice Gamma", payload["text"])
+        rows = payload["reply_markup"]["inline_keyboard"]
+        self.assertEqual(rows[-1][0], {"text": "Inputs", "callback_data": "wk:latest:WK-30"})
 
 
 if __name__ == "__main__":
