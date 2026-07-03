@@ -23,6 +23,7 @@ const HERMES_AGENT_DIR = process.env.INNER_AGORA_HERMES_AGENT_DIR || path.join(o
 const TELEGRAM_ADAPTER_PATH = path.join(HERMES_AGENT_DIR, "plugins", "platforms", "telegram", "adapter.py");
 const JSON_OUTPUT = process.argv.includes("--json");
 const FIX = process.argv.includes("--fix");
+const CHAMBERS_ONLY = process.argv.includes("--chambers-only");
 
 function readText(file) {
   try {
@@ -116,6 +117,20 @@ function runGatewayCommand(args, timeout = 20000) {
 
 function runMonitorCommand(args, timeout = 20000) {
   const result = spawnSync(process.execPath, ["scripts/paperclip-cockpit-monitor.mjs", ...args], {
+    cwd: ROOT,
+    encoding: "utf8",
+    timeout,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  return {
+    status: result.status,
+    stdout: String(result.stdout || "").trim(),
+    stderr: String(result.stderr || result.error?.message || "").trim(),
+  };
+}
+
+function runNodeScript(args, timeout = 20000) {
+  const result = spawnSync(process.execPath, args, {
     cwd: ROOT,
     encoding: "utf8",
     timeout,
@@ -270,6 +285,40 @@ async function checkMonitor(summary) {
     hint: "Run: node scripts/inner-agora-guard.mjs --fix",
     label: summary.monitor.label,
   });
+}
+
+function checkChambers(summary) {
+  const list = runNodeScript(["scripts/chamber-loader.mjs", "list", "--json"]);
+  let parsed = {};
+  try {
+    parsed = JSON.parse(list.stdout || "{}");
+  } catch {
+    parsed = {};
+  }
+  const chambers = Array.isArray(parsed.chambers) ? parsed.chambers : [];
+  const ids = chambers.map((chamber) => String(chamber.id || "")).filter(Boolean);
+  const active = process.env.INNER_AGORA_ACTIVE_CHAMBER || process.env.INNER_AGORA_DEFAULT_CHAMBER || "philosophy";
+  const cockpit = runNodeScript(["scripts/chamber-loader.mjs", "cockpit", active, "--json"]);
+
+  summary.chambers = {
+    ok: list.status === 0 && cockpit.status === 0 && ids.length > 0 && ids.includes(active),
+    count: ids.length,
+    ids,
+    active,
+    listStatus: list.status,
+    cockpitStatus: cockpit.status,
+  };
+
+  if (!summary.chambers.ok) {
+    record(summary, "error", "Chamber loader health check failed", {
+      active,
+      ids,
+      listStatus: list.status,
+      listStderr: list.stderr,
+      cockpitStatus: cockpit.status,
+      cockpitStderr: cockpit.stderr,
+    });
+  }
 }
 
 async function checkTelegram(summary) {
@@ -663,6 +712,9 @@ function printSummary(summary) {
   if (summary.monitor) {
     console.log(`- Paperclip monitor: ${summary.monitor.ok ? `ok (PID ${summary.monitor.pid})` : "failed"}`);
   }
+  if (summary.chambers) {
+    console.log(`- Chambers: ${summary.chambers.ok ? `ok (${summary.chambers.ids.join(", ")})` : "failed"}`);
+  }
   if (summary.telegram?.enabled) {
     console.log(`- Telegram Bot API: ${summary.telegram.ok ? `ok (${summary.telegram.botUsername || "bot"})` : "failed"}`);
   }
@@ -688,17 +740,22 @@ const summary = {
   events: [],
 };
 
-if (FIX) runSetup(summary);
-checkFiles(summary);
-checkRuntimeState(summary);
-await checkPaperclip(summary);
-await checkPaperclipAgents(summary);
-await checkGateway(summary);
-await checkMonitor(summary);
-await checkTelegram(summary);
-checkTelegramAdapterHook(summary);
-checkRouterContract(summary);
-checkTelegramCallbackContract(summary);
+if (CHAMBERS_ONLY) {
+  checkChambers(summary);
+} else {
+  if (FIX) runSetup(summary);
+  checkFiles(summary);
+  checkRuntimeState(summary);
+  checkChambers(summary);
+  await checkPaperclip(summary);
+  await checkPaperclipAgents(summary);
+  await checkGateway(summary);
+  await checkMonitor(summary);
+  await checkTelegram(summary);
+  checkTelegramAdapterHook(summary);
+  checkRouterContract(summary);
+  checkTelegramCallbackContract(summary);
+}
 
 summary.ok = !summary.events.some((event) => event.level === "error") && !summary.events.some((event) => event.level === "warn");
 printSummary(summary);
