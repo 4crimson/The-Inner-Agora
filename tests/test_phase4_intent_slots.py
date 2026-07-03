@@ -176,6 +176,36 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["source"], "regex")
         self.assertEqual(payload["slots"]["intent"], "new_session")
 
+    def test_llm_extractor_keeps_capabilities_question_as_help_service_intent(self):
+        fake = json.dumps(
+            {
+                "intent": "new_session",
+                "chamber": "philosophy",
+                "mode": "balanced",
+                "topic": "что ты умеешь в агоре?",
+                "roles": [],
+                "taskRef": None,
+                "missingSlots": [],
+                "confidence": 0.95,
+            },
+            ensure_ascii=False,
+        )
+        env = {**os.environ, "INNER_AGORA_FAKE_LLM_RESPONSE": fake}
+        result = self.run_node(
+            INTENT_SCRIPT,
+            "extract",
+            "--routing-mode",
+            "llm",
+            "--json",
+            "что ты умеешь в агоре?",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["source"], "regex")
+        self.assertEqual(payload["slots"]["intent"], "help")
+        self.assertEqual(payload["fallbackReason"], "deterministic_service_intent")
+
     def test_plan_new_session_builds_agora_ask_command(self):
         slots = {
             "intent": "new_session",
@@ -506,6 +536,36 @@ class Phase4IntentSlotTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["action"], "rewrite")
         self.assertEqual(payload["text"], "/agora follow-up THE-900 --voices plato уточни у Платона понятие долга")
+
+    def test_agora_natural_capabilities_question_is_help_not_follow_up(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "lastRootIssueRef": "THE-900",
+                        "lastSynthesisRef": "THE-901",
+                        "lastSynthesisSeenAt": "2099-01-01T00:00:00.000Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "что ты умеешь в агоре?",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "message")
+        self.assertEqual(payload["slots"]["intent"], "help")
+        self.assertIn("быстрый совет", payload["text"])
 
     def test_agora_natural_dialogue_with_role_uses_last_root_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -255,12 +255,19 @@ function hasAny(text, fragments) {
   return fragments.some((fragment) => text.includes(fragment));
 }
 
+function helpRequested(text) {
+  return (
+    hasAny(text, ["помощь", "help", "команды", "как пользоваться", "что доступно", "возможности"]) ||
+    /(^|\s)(что|чем)\s+(ты\s+)?(умеешь|можешь)(\s|$)/u.test(text)
+  );
+}
+
 export function regexFallbackSlots(userText, context = {}) {
   const text = String(userText || "").trim();
   const loose = looseText(text);
   const chamber = chamberFromText(text) || context.activeChamber || DEFAULT_CHAMBER_ID;
 
-  if (hasAny(loose, ["помощь", "help", "команды"])) {
+  if (helpRequested(loose)) {
     return normalizeIntentSlots(baseSlots({ intent: "help", chamber: chamberFromText(text), confidence: 0.9 }));
   }
 
@@ -473,18 +480,22 @@ function needsDeterministicFallback(slots, userText = "", context = {}) {
 
 export async function extractIntentSlots(userText, options = {}) {
   const routingMode = options.routingMode || process.env.ROUTING_MODE || "regex";
+  const deterministic = regexFallbackSlots(userText, options.context || {});
+  if (deterministic.intent === "help") {
+    return { source: "regex", fallbackReason: "deterministic_service_intent", slots: deterministic };
+  }
   if (routingMode === "llm") {
     try {
       const slots = await extractWithLlm(userText, options);
       if (needsDeterministicFallback(slots, userText, options.context || {})) {
-        return { source: "regex", fallbackReason: "llm_low_confidence_or_missing_critical_slot", slots: regexFallbackSlots(userText, options.context || {}) };
+        return { source: "regex", fallbackReason: "llm_low_confidence_or_missing_critical_slot", slots: deterministic };
       }
       return { source: "llm", slots };
     } catch (error) {
-      return { source: "regex", fallbackReason: error?.message || String(error), slots: regexFallbackSlots(userText, options.context || {}) };
+      return { source: "regex", fallbackReason: error?.message || String(error), slots: deterministic };
     }
   }
-  return { source: "regex", slots: regexFallbackSlots(userText, options.context || {}) };
+  return { source: "regex", slots: deterministic };
 }
 
 export function questionFor(slotName, slots = {}) {

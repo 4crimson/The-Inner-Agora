@@ -1,4 +1,5 @@
 import json
+import importlib.util
 import os
 import subprocess
 import unittest
@@ -7,6 +8,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DRIVER = ROOT / "scripts" / "telegram-userbot-driver.py"
+
+
+def load_driver_module():
+    spec = importlib.util.spec_from_file_location("telegram_userbot_driver_under_test", DRIVER)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class TelegramUserbotDriverTests(unittest.TestCase):
@@ -110,6 +119,27 @@ class TelegramUserbotDriverTests(unittest.TestCase):
         self.assertTrue(payload["dry_run"])
         self.assertEqual(payload["target"], "@example_bot")
         self.assertEqual(payload["message_ids"], [10, 11, 12])
+
+    def test_button_rows_are_serialized_for_evaluator(self):
+        module = load_driver_module()
+
+        class Button:
+            def __init__(self, text, data=None):
+                self.text = text
+                self.data = data
+
+        class Message:
+            buttons = [[Button("Синтез", b"pc:result:THE-1"), Button("Уточнить")]]
+
+        self.assertEqual(
+            module.serialize_button_rows(Message()),
+            [
+                [
+                    {"text": "Синтез", "data": "pc:result:THE-1"},
+                    {"text": "Уточнить", "data": ""},
+                ]
+            ],
+        )
 
 
 if __name__ == "__main__":

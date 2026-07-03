@@ -100,6 +100,24 @@
         "clarify": "Уточнить"
       }
     },
+    "help_buttons": [
+      {
+        "label": "Новый вопрос",
+        "callback": "new_question"
+      },
+      {
+        "label": "Уточнить",
+        "callback": "clarify"
+      },
+      {
+        "label": "Разногласия",
+        "callback": "disagreements"
+      },
+      {
+        "label": "Углубить",
+        "callback": "deepen"
+      }
+    ],
     "callbacks": {
       "result": {
         "action": "telegram_result",

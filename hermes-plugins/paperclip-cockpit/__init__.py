@@ -557,6 +557,43 @@ def _telegram_payload_from_output(output: str) -> tuple[str, dict[str, Any] | No
     return text or "OK", reply_markup
 
 
+def _telegram_callback_data(name: str, arg: str = "help") -> str:
+    callback = re.sub(r"[^0-9a-z_]+", "_", str(name or "").strip().casefold()).strip("_")
+    if not callback:
+        callback = "noop"
+    return f"{_telegram_callback_prefix()}:{callback}:{str(arg or 'help').strip() or 'help'}"
+
+
+def _telegram_help_keyboard() -> dict[str, Any] | None:
+    telegram = _telegram_config()
+    if _as_bool(telegram.get("help_buttons_disabled"), False):
+        return None
+    raw_buttons = telegram.get("help_buttons")
+    if raw_buttons is None:
+        raw_buttons = [
+            {"label": "Help", "callback": "noop"},
+            {"label": "Status", "callback": "latest"},
+        ]
+    if not isinstance(raw_buttons, list):
+        return None
+    buttons: list[dict[str, str]] = []
+    for item in raw_buttons:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or item.get("text") or "").strip()
+        callback = str(item.get("callback") or item.get("name") or "").strip()
+        arg = str(item.get("arg") or "help").strip()
+        if not label or not callback:
+            continue
+        buttons.append({"text": label[:32], "callback_data": _telegram_callback_data(callback, arg)})
+    if not buttons:
+        return None
+    rows = []
+    for index in range(0, len(buttons), 2):
+        rows.append(buttons[index : index + 2])
+    return {"inline_keyboard": rows}
+
+
 def _telegram_callback_actions() -> dict[str, dict[str, Any]]:
     defaults: dict[str, dict[str, Any]] = {
         "result": {"action": "result", "args": "{arg}"},
@@ -2463,11 +2500,12 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
         return None
     if isinstance(rewritten, dict):
         if rewritten.get("action") == "message":
+            reply_markup = rewritten.get("reply_markup") if isinstance(rewritten.get("reply_markup"), dict) else None
             try:
                 _telegram_send_message(
                     chat_id,
                     str(rewritten.get("text") or ""),
-                    rewritten.get("reply_markup") if isinstance(rewritten.get("reply_markup"), dict) else None,
+                    reply_markup or _telegram_help_keyboard(),
                 )
             except Exception as exc:
                 logger.info("Paperclip Cockpit Telegram delegate message failed: %s", exc)

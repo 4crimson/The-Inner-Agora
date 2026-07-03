@@ -232,7 +232,14 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
     def test_natural_delegate_message_is_sent_and_skips_gateway(self):
         config = {
             "command": {"name": "agora"},
-            "telegram": {"enabled": True},
+            "telegram": {
+                "enabled": True,
+                "callback_prefix": "pc",
+                "help_buttons": [
+                    {"label": "Новый вопрос", "callback": "new_question"},
+                    {"label": "Последний итог", "callback": "latest"},
+                ],
+            },
             "natural_language": {
                 "delegate": {
                     "exec": [
@@ -279,6 +286,15 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
         self.assertEqual(calls[0][1]["chat_id"], "chat-help")
         self.assertIn("быстрый совет", calls[0][1]["text"])
         self.assertNotIn("Project action", calls[0][1]["text"])
+        self.assertEqual(
+            calls[0][1]["reply_markup"]["inline_keyboard"],
+            [
+                [
+                    {"text": "Новый вопрос", "callback_data": "pc:new_question:help"},
+                    {"text": "Последний итог", "callback_data": "pc:latest:help"},
+                ]
+            ],
+        )
 
     def test_run_action_can_take_cwd_from_environment(self):
         config = {"actions": {"where": {"exec": ["pwd"], "append_args": False}}}

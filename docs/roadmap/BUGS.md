@@ -233,6 +233,8 @@ Status 2026-07-03: implemented. `help` now returns a local `message` plan instea
 
 Live follow-up 2026-07-03: a userbot smoke against `@crimson_philosophs_bot` initially reproduced the old bug because the installed Hermes profile plugin was stale while the repo plugin was fixed. After `scripts/setup-hermes-profile.mjs` synced the profile plugin and the gateway was restarted, userbot message `агора помощь` returned the local help/menu text and did not create another Paperclip issue. Acceptance evidence: transcript `transcripts/telegram-userbot/crimson-agora-help-after-sync-20260703.jsonl`.
 
+Live QA follow-up 2026-07-03: controlled run `QA-20260703-1517-help-c8e2b1` rejected `help.ru.basic` and `help.ru.capabilities` because help/capabilities replies had no inline buttons. Root cause: local help messages were sent through the Telegram side channel without a fallback keyboard, and “что ты умеешь...” was not protected as a deterministic help service intent when follow-up state or LLM routing was present. Fix: added config-driven `telegram.help_buttons`, attached them to delegate help messages, forced help/capabilities phrases to deterministic help before LLM/follow-up handling, and taught the QA userbot driver to record Telethon inline buttons. Retest `QA-20260703-1530-help-retest-32272c` reran only `help.ru.basic` and `help.ru.capabilities`: 2/2 pass, decision `accept`, cleanup residuals none.
+
 **Batch D — Quick Preset Dispatch**
 
 - Add/verify natural routing for “сделай быстрый совет: ...” to `quick`.

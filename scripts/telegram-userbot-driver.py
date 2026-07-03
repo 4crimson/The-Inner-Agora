@@ -107,6 +107,25 @@ def append_transcript(path: Path, rows: list[dict[str, Any]]) -> None:
             handle.write("\n")
 
 
+def serialize_button_rows(message: Any) -> list[list[dict[str, str]]]:
+    rows = []
+    for row in getattr(message, "buttons", None) or []:
+        buttons = []
+        for button in row:
+            data = getattr(button, "data", b"")
+            if isinstance(data, bytes):
+                data = data.decode("utf-8", "ignore")
+            buttons.append(
+                {
+                    "text": str(getattr(button, "text", "") or ""),
+                    "data": str(data or ""),
+                }
+            )
+        if buttons:
+            rows.append(buttons)
+    return rows
+
+
 async def client_context():
     cfg = config()
     TelegramClient = load_telethon()
@@ -170,6 +189,7 @@ async def send_message(args: argparse.Namespace) -> dict[str, Any]:
                     "date": date.isoformat() if date else "",
                     "out": bool(message.out),
                     "text": message.message or "",
+                    "buttons": serialize_button_rows(message),
                 }
             )
         rows.reverse()
@@ -217,6 +237,7 @@ async def history(args: argparse.Namespace) -> dict[str, Any]:
                     "date": date.isoformat() if date else "",
                     "out": bool(message.out),
                     "text": message.message or "",
+                    "buttons": serialize_button_rows(message),
                 }
             )
         rows.reverse()
