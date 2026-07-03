@@ -499,6 +499,8 @@ The full Telegram QA harness is acceptable when:
 10. The runtime tool stays project-neutral; Inner Agora behavior lives in `telegram-testing.config.json`.
 11. The Codex QA skill/plugin can be used independently to govern tester/developer/retest/release modes.
 
+See [TELEGRAM_QA_READINESS_AUDIT.md](TELEGRAM_QA_READINESS_AUDIT.md) for the current requirement-by-requirement evidence audit before live acceptance.
+
 ## Known Constraints
 
 - Telegram has no invisible metadata for normal messages, so Paperclip-creating QA phrases need a visible `[qa:<runId>]` marker.
