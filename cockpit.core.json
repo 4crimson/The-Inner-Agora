@@ -57,6 +57,15 @@
         "send-result",
         "{issue}"
       ]
+    },
+    "progress_notify": {
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "send-progress",
+        "{root}"
+      ],
+      "append_args": false
     }
   },
   "issue": {

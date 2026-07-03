@@ -239,6 +239,22 @@ function notifyCommand(vars) {
   return actionCommand(action, vars);
 }
 
+function progressNotifyCommand(vars) {
+  const notify = monitor.progress_notify && typeof monitor.progress_notify === "object" ? monitor.progress_notify : {};
+  const configured = notify.exec || notify.command;
+  const action = configured
+    ? { ...notify, exec: configured, append_args: false }
+    : { exec: ["node", "scripts/paperclip-cockpit-telegram.mjs", "send-progress", "{root}"], append_args: false };
+  return actionCommand(action, vars);
+}
+
+function progressFingerprint(voiceChildren) {
+  const voices = [...voiceChildren].sort(byIssueNumber);
+  const doneCount = voices.filter(isTerminal).length;
+  const statusParts = voices.map((issue) => `${issueRef(issue)}:${String(issue.status || "").toLowerCase()}`);
+  return `${doneCount}/${voices.length}:${statusParts.join("|")}`;
+}
+
 function runCommand(command, label, dryRun) {
   if (!command.length) throw new Error(`${label} command is empty`);
   if (dryRun) return { ok: true, dryRun: true, command };
@@ -601,6 +617,15 @@ async function inspectRoot(root, issues, state, options) {
 
   const openChildren = voiceChildren.filter((issue) => !isTerminal(issue));
   if (openChildren.length) {
+    const progress = progressFingerprint(voiceChildren);
+    if (rootState.lastProgressFingerprint !== progress) {
+      const command = progressNotifyCommand({ root: issueRef(root), issue: issueRef(root) });
+      const run = runCommand(command, `progress ${issueRef(root)}`, options.dryRun);
+      operations.push({ type: "progress_notify", root: issueRef(root), command, run });
+      rootState.lastProgressFingerprint = progress;
+      rootState.lastProgressAt = new Date().toISOString();
+      state.roots[rootKey] = rootState;
+    }
     operations.push({
       type: "wait",
       root: issueRef(root),

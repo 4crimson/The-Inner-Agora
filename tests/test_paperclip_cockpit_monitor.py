@@ -80,6 +80,7 @@ class PaperclipCockpitMonitorTests(unittest.TestCase):
                         "synthesis_title_pattern": "^Synthesis:",
                         "synthesis_action": "synth",
                         "notify": {"exec": ["echo", "notify", "{issue}"]},
+                        "progress_notify": {"exec": ["echo", "progress", "{root}"]},
                     },
                     "actions": {
                         "synth": {"exec": ["echo", "synth"]},
@@ -146,6 +147,7 @@ class PaperclipCockpitMonitorTests(unittest.TestCase):
                         "synthesis_title_pattern": "^Synthesis:",
                         "synthesis_action": "synth",
                         "notify": {"exec": ["echo", "notify", "{issue}"]},
+                        "progress_notify": {"exec": ["echo", "progress", "{root}"]},
                     },
                     "actions": {
                         "synth": {"exec": ["echo", "synth"]},
@@ -706,6 +708,41 @@ class PaperclipCockpitMonitorTests(unittest.TestCase):
 
         self.assertEqual([operation["type"] for operation in data["operations"]], ["cancel_terminal_live_run", "synthesize"])
         self.assertEqual(TerminalLiveRunHandler.cancels, [{}])
+
+    def test_monitor_notifies_progress_once_per_changed_voice_fingerprint(self):
+        root = {"id": "root-progress", "identifier": "ROOT-50", "companyId": "company-1", "status": "in_progress"}
+        done = {
+            "id": "child-progress-done",
+            "identifier": "ROOT-51",
+            "companyId": "company-1",
+            "parentId": "root-progress",
+            "status": "done",
+            "title": "Voice: Plato",
+            "updatedAt": "2026-07-01T20:01:00.000Z",
+        }
+        waiting = {
+            "id": "child-progress-waiting",
+            "identifier": "ROOT-52",
+            "companyId": "company-1",
+            "parentId": "root-progress",
+            "status": "in_progress",
+            "title": "Voice: Descartes",
+            "updatedAt": "2026-07-01T20:02:00.000Z",
+        }
+        routes = {
+            "/api/issues/ROOT-50": root,
+            "/api/companies/company-1/issues": [root, done, waiting],
+        }
+
+        outputs, state = self.run_monitor_sequence([routes, routes], "ROOT-50")
+
+        self.assertEqual([operation["type"] for operation in outputs[0]["operations"]], ["progress_notify", "wait"])
+        self.assertEqual(outputs[0]["operations"][0]["command"], ["echo", "progress", "ROOT-50"])
+        self.assertEqual([operation["type"] for operation in outputs[1]["operations"]], ["wait"])
+        self.assertEqual(
+            state["roots"]["ROOT-50"]["lastProgressFingerprint"],
+            "1/2:ROOT-51:done|ROOT-52:in_progress",
+        )
 
     def test_monitor_auto_finalizes_synthesis_disposition_wait_before_notify(self):
         class SynthesisDispositionHandler(JsonHandler):
