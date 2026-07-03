@@ -7,3 +7,9 @@ __pycache__/
 brain-runs/
 *.log
 memory/sessions/
+memory/profiles/
+state/
+.telegram-userbot*.session*
+.telegram-userbot*.session-journal
+transcripts/telegram-userbot/
+.venv-telegram-userbot/

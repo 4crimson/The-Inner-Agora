@@ -3,6 +3,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -537,7 +538,7 @@ class Phase4IntentSlotTests(unittest.TestCase):
                     {
                         "lastRootIssueRef": "THE-900",
                         "lastSynthesisRef": "THE-999",
-                        "lastIssueSeenAt": "2026-07-02T09:00:00.000Z",
+                        "lastIssueSeenAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                     }
                 ),
                 encoding="utf-8",
