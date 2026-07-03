@@ -973,6 +973,32 @@ Evidence:
 - `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_codex_plugin_packaging_references_current_workflow -v` -> OK
 - `node -e "JSON.parse(...plugin.json...)"` -> OK
 
+## Task 23: Non-Live Live-Plan Preflight
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/README.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/SKILL.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/tester-mode.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add read-only live-plan command**
+
+`live-plan --suite NAME` returns target, Paperclip company, cleanup mode, suite tests, guard warnings, health/dry-run/live commands, and the exact acknowledgement text. It does not create artifacts or call Telegram/Paperclip.
+
+- [x] **Step 2: Make QA modes use live-plan before live confirmation**
+
+Tester and release-review workflows now start live preparation with `live-plan` before explicit `--live-ok` confirmation.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_live_plan_outputs_acknowledgement_and_commands_without_side_effects -v` -> OK
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

@@ -49,6 +49,7 @@ function usage() {
   return `Usage:
   node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs health --config FILE [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run|--live-ok]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
@@ -90,6 +91,42 @@ function configSummary(config) {
       },
     },
     suites: suiteSummary(config),
+  };
+}
+
+function shellQuote(value) {
+  const text = String(value);
+  if (/^[A-Za-z0-9_./:=@-]+$/.test(text)) return text;
+  return `'${text.replace(/'/g, "'\\''")}'`;
+}
+
+function livePlan({ configPath, config, suiteName, cleanupMode }) {
+  const suite = config.suites[suiteName];
+  if (!suite) throw new ConfigValidationError([`suite not found: ${suiteName}`]);
+  const cleanup = cleanupMode || config.paperclip.cleanup;
+  if (!["hard", "soft", "none"].includes(cleanup)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
+  const base = "node paperclip-qa-tool/bin/paperclip-qa.mjs";
+  const quotedConfig = shellQuote(configPath);
+  const quotedSuite = shellQuote(suiteName);
+  const quotedCleanup = shellQuote(cleanup);
+  return {
+    ok: true,
+    suite: suiteName,
+    cleanup,
+    target: config.telegram.target,
+    paperclip: {
+      apiBase: config.paperclip.apiBase,
+      company: config.paperclip.company,
+    },
+    tests: suite.tests.map((test) => ({ id: test.id, kind: test.kind || "telegram", message: test.message || "" })),
+    guardWarnings: config.guards.allowWarnings,
+    commands: {
+      configCheck: `${base} config-check --config ${quotedConfig} --json`,
+      health: `${base} health --config ${quotedConfig} --json`,
+      dryRun: `${base} run --config ${quotedConfig} --suite ${quotedSuite} --cleanup ${quotedCleanup} --dry-run --json`,
+      liveRun: `${base} run --config ${quotedConfig} --suite ${quotedSuite} --cleanup ${quotedCleanup} --live-ok --json`,
+    },
+    acknowledgement: "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
   };
 }
 
@@ -139,6 +176,11 @@ async function main(argv) {
     });
     printPayload(result, options.json);
     return result.ok ? 0 : 1;
+  }
+  if (options.command === "live-plan") {
+    if (!options.suite) throw new ConfigValidationError(["--suite is required"]);
+    printPayload(livePlan({ configPath: options.config, config, suiteName: options.suite, cleanupMode: options.cleanup }), options.json);
+    return 0;
   }
   if (options.command === "run-start") {
     if (!options.suite) throw new ConfigValidationError(["--suite is required"]);

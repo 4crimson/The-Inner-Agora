@@ -830,6 +830,41 @@ console.log(JSON.stringify(result));
             self.assertTrue(manifest["tests"][0]["dryRun"])
             self.assertEqual(manifest["cleanup"]["mode"], "hard")
 
+    def test_live_plan_outputs_acknowledgement_and_commands_without_side_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_telegram_driver(temp_dir)
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+
+            result = self.run_cli(
+                "live-plan",
+                "--config",
+                config_path,
+                "--suite",
+                "help",
+                "--cleanup",
+                "hard",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["suite"], "help")
+            self.assertEqual(payload["cleanup"], "hard")
+            self.assertIn("--live-ok", payload["commands"]["liveRun"])
+            self.assertIn("--dry-run", payload["commands"]["dryRun"])
+            self.assertIn("Proceed?", payload["acknowledgement"])
+            self.assertEqual(payload["guardWarnings"][0]["name"], "paperclip-roster-sync-pending")
+            self.assertEqual([test["id"] for test in payload["tests"]], ["help.basic"])
+            self.assertFalse(calls_path.exists())
+            self.assertFalse(artifacts_dir.exists())
+
     def test_run_executes_suite_with_fake_telegram_and_paperclip(self):
         before_issues = [
             {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
