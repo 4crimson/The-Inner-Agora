@@ -201,6 +201,33 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
 
         self.with_config(config, assertions)
 
+    def test_run_action_humanizes_paperclip_terminated_ancestor_error(self):
+        config = {
+            "presentation": {"language": "ru"},
+            "actions": {"deep": {"exec": ["node", "scripts/agora.mjs", "ask", "--max"]}},
+        }
+        stderr = (
+            'POST /companies/company-1/issues failed: 409 {"error":"Хайдеггер reports through '
+            "terminated ancestor Agora Assistant / Синтезатор. Reassign Хайдеггер or the nearest "
+            'affected ancestor under an active manager/root."}'
+        )
+
+        def fake_run(args, cwd=None, text=None, capture_output=None, timeout=None, check=None, env=None):
+            return type("Result", (), {"stdout": "", "stderr": stderr, "returncode": 1})()
+
+        def assertions():
+            with MonkeyPatch(subprocess, run=fake_run):
+                output = self.plugin._run_action("deep", config["actions"]["deep"], "как заботу не превратить в контроль")
+
+            self.assertIn("Paperclip-иерархия", output)
+            self.assertIn("Хайдеггер", output)
+            self.assertIn("repair/prepare", output)
+            self.assertNotIn("stderr:", output)
+            self.assertNotIn('{"error"', output)
+            self.assertNotIn("Project action exited", output)
+
+        self.with_config(config, assertions)
+
     def test_pre_gateway_dispatch_passes_chat_id_to_natural_delegate(self):
         config = {
             "command": {"name": "agora"},

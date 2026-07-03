@@ -1651,6 +1651,66 @@ def _humanize_action_output(text: str) -> str:
     return "\n".join(filtered).strip()
 
 
+def _humanize_action_error(name: str, returncode: int, output: str, error: str) -> str:
+    combined = "\n".join(part for part in [output, error] if part).strip()
+    errors = _presentation_config().get("errors", {})
+    show_details = _as_bool(errors.get("show_details") if isinstance(errors, dict) else None, False)
+    if not _human_enabled() or show_details:
+        body = output
+        if error:
+            body = f"{body}\n\nstderr:\n{error}".strip()
+        return f"Project action exited with {returncode}.\n\n{body}".strip()
+
+    lowered = combined.casefold()
+    language = _presentation_language()
+    if "terminated ancestor" in lowered and "reports through" in lowered:
+        match = re.search(r'"?([^"\n]+?)\s+reports through terminated ancestor\s+([^".\n]+)', combined)
+        role = match.group(1).strip() if match else ""
+        ancestor = match.group(2).strip() if match else ""
+        if language == "ru":
+            lines = [
+                "Не смог запустить действие Agora: сломана Paperclip-иерархия.",
+                "",
+            ]
+            if role:
+                lines.append(f"- Голос: {role}")
+            if ancestor:
+                lines.append(f"- Завершенный предок: {ancestor}")
+            lines.extend(
+                [
+                    "",
+                    "Сначала нужен repair/prepare: перепривязать голос под активного manager/root, потом повторить запрос.",
+                ]
+            )
+            return "\n".join(lines).strip()
+        lines = [
+            "I could not start the Agora action because the Paperclip hierarchy is stale.",
+            "",
+        ]
+        if role:
+            lines.append(f"- Voice: {role}")
+        if ancestor:
+            lines.append(f"- Terminated ancestor: {ancestor}")
+        lines.extend(["", "Run repair/prepare, then try the request again."])
+        return "\n".join(lines).strip()
+
+    if language == "ru":
+        return "\n".join(
+            [
+                f"Не смог выполнить действие проекта `{name}`.",
+                "",
+                "Технические детали сохранены в логах. Проверь локальный Paperclip/guard и повтори запрос.",
+            ]
+        )
+    return "\n".join(
+        [
+            f"I could not complete project action `{name}`.",
+            "",
+            "Technical details were kept in logs. Check local Paperclip/guard, then try again.",
+        ]
+    )
+
+
 def _format_error(exc: Exception) -> str:
     message = str(exc)
     errors = _presentation_config().get("errors", {})
@@ -1736,6 +1796,9 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str, *, chat_id: An
 
     if result.returncode == 0:
         return present(output or "OK")
+    if action_mode != "raw":
+        logger.info("project action %s exited %s: %s", name, result.returncode, error or output)
+        return _clip(_humanize_action_error(name, result.returncode, output, error), limit)
     body = output
     if error:
         body = f"{body}\n\nstderr:\n{error}".strip()

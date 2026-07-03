@@ -269,6 +269,8 @@ Status 2026-07-03: implemented. `help` now returns a local `message` plan instea
 - Preserve full technical details in logs, but show the user a short Russian recovery explanation.
 - Add tests for Paperclip 409, command-not-found, and provider timeout/error formatting.
 
+Status 2026-07-03: partially implemented for Paperclip `409 terminated ancestor` failures. Default project actions now show a short human recovery message and hide raw `stderr`/JSON unless the action explicitly uses `presentation.mode=raw`. Remaining: add cases for command-not-found and provider timeout/error formatting.
+
 ### Non-Goals
 
 - Do not implement Phase 9 as part of this bug.
