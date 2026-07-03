@@ -5,7 +5,7 @@ import { cleanupRun } from "../src/cleanup-runner.mjs";
 import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
-import { appendBugsToDoc, bugBatch, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
+import { appendBugsToDoc, bugBatch, writeAcceptance, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
 import { createRetestRun, executeRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
@@ -54,6 +54,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs report --config FILE --run RUN_ID [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config FILE --run OLD_RUN [--cleanup hard|soft|none] [--dry-run] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config FILE --run RUN_ID [--area AREA] [--json]
@@ -195,6 +196,15 @@ async function main(argv) {
     const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId: options.run });
     const report = writeReport({ manifest, outputDir });
     printPayload({ ok: true, runId: options.run, manifestPath, ...report }, options.json);
+    return 0;
+  }
+  if (options.command === "acceptance") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const manifest = readManifest(manifestPath);
+    const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const acceptance = writeAcceptance({ manifest, outputDir });
+    printPayload({ ok: true, runId: options.run, manifestPath, ...acceptance }, options.json);
     return 0;
   }
   if (options.command === "bugs") {

@@ -901,6 +901,35 @@ Evidence:
 - `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 
+## Task 20: Release Acceptance Decision Artifact
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/src/report-writer.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Modify: `codex-plugins/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/release-review-mode.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add acceptance decision tests**
+
+Assert `acceptance --run RUN_ID` writes `ACCEPTANCE.md` and returns:
+
+- `reject` for failed tests, P0/P1 bugs, or cleanup residuals;
+- `accept-with-known-issues` for only P2/P3 bugs;
+- `accept` for clean manifests.
+
+- [x] **Step 2: Add release-review command**
+
+`acceptance` reads an existing manifest, summarizes tests/bugs/cleanup, and writes a single release decision artifact without Telegram or Paperclip side effects.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_acceptance_rejects_failures_or_cleanup_residuals tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_acceptance_allows_known_p2_p3_issues tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_acceptance_accepts_clean_manifest -v` -> `Ran 3 tests ... OK`
+- `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

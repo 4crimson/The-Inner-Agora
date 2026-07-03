@@ -214,3 +214,65 @@ export function bugBatch({ manifest, area }) {
     bugs,
   };
 }
+
+export function writeAcceptance({ manifest, outputDir }) {
+  ensureDir(outputDir);
+  const batch = bugBatch({ manifest });
+  const counts = testCounts(manifest);
+  const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
+  const blockingBugs = batch.bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
+  const reasons = [];
+  if (counts.fail > 0) reasons.push("failed-tests");
+  if (residuals.length > 0) reasons.push("cleanup-residuals");
+  if (blockingBugs.length > 0) reasons.push("blocking-bugs");
+
+  const decision = reasons.length
+    ? "reject"
+    : batch.bugs.length
+      ? "accept-with-known-issues"
+      : "accept";
+  const lines = [
+    `# Acceptance: ${manifest.runId}`,
+    "",
+    `Decision: ${decision}`,
+    `Suite: ${manifest.suite}`,
+    "",
+    "## Test Counts",
+    "",
+    `Total: ${counts.total}`,
+    `Pass: ${counts.pass}`,
+    `Fail: ${counts.fail}`,
+    `Planned: ${counts.planned}`,
+    "",
+    "## Bugs",
+    "",
+    `Total: ${batch.summary.total}`,
+    `By area: ${JSON.stringify(batch.summary.byArea)}`,
+    `By severity: ${JSON.stringify(batch.summary.bySeverity)}`,
+    "",
+    "## Cleanup",
+    "",
+    residuals.length ? `Residuals: ${residuals.length}` : "Residuals: none",
+    "",
+  ];
+  if (reasons.length) {
+    lines.push("## Blocking Reasons", "");
+    for (const reason of reasons) lines.push(`- ${reason}`);
+    lines.push("");
+  }
+
+  const acceptancePath = path.join(outputDir, "ACCEPTANCE.md");
+  fs.writeFileSync(acceptancePath, `${lines.join("\n")}\n`, "utf8");
+  return {
+    acceptancePath,
+    decision,
+    reasons,
+    summary: {
+      tests: counts,
+      totalBugs: batch.summary.total,
+      byArea: batch.summary.byArea,
+      bySeverity: batch.summary.bySeverity,
+      cleanupResiduals: residuals.length,
+    },
+  };
+}

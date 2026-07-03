@@ -9,8 +9,9 @@ Workflow:
 3. Ask for explicit live confirmation.
 4. Run the full suite.
 5. Run cleanup.
-6. Generate report and bug output.
-7. Decide accept, accept-with-known-issues, or reject.
+6. Generate report, bug output, and acceptance output.
+7. Use `acceptance --run RUN_ID --json` and `ACCEPTANCE.md` as the decision source.
+8. Decide accept, accept-with-known-issues, or reject.
 
 Acceptance gates:
 

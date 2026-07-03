@@ -978,6 +978,72 @@ console.log(JSON.stringify(result));
             self.assertIn("delete failed", report)
             self.assertNotIn("1234567890:" + ("A" * 24), report)
 
+    def test_acceptance_rejects_failures_or_cleanup_residuals(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-accept-reject-a1b2c3"
+            self.write_report_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli("acceptance", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["decision"], "reject")
+            self.assertIn("failed-tests", payload["reasons"])
+            self.assertIn("cleanup-residuals", payload["reasons"])
+            acceptance_path = Path(payload["acceptancePath"])
+            self.assertTrue(acceptance_path.exists())
+            self.assertIn("Decision: reject", acceptance_path.read_text(encoding="utf-8"))
+
+    def test_acceptance_allows_known_p2_p3_issues(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-accept-known-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = [
+                {
+                    "id": "TQA-003",
+                    "severity": "P2",
+                    "area": "telegram-ui",
+                    "testId": "help.buttons",
+                    "title": "Buttons are present but visually weak",
+                    "evidence": {"transcript": "button text too terse"},
+                    "acceptanceCriteria": ["button labels are useful"],
+                }
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("acceptance", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["decision"], "accept-with-known-issues")
+            self.assertEqual(payload["summary"]["bySeverity"], {"P2": 1})
+
+    def test_acceptance_accepts_clean_manifest(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-accept-clean-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("acceptance", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["decision"], "accept")
+            self.assertEqual(payload["summary"]["totalBugs"], 0)
+
     def test_bugs_writes_jsonl_and_append_doc_dry_run_preview(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             artifacts_dir = Path(temp_dir) / "runs"

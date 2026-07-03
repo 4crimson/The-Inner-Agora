@@ -111,6 +111,7 @@ Each cycle creates:
 artifacts/telegram-test-runs/<runId>/
   manifest.json
   REPORT.md
+  ACCEPTANCE.md
   bugs.jsonl
   transcripts/
   paperclip-before.json
@@ -436,6 +437,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.con
 node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md --dry-run
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area telegram-ui --json
@@ -463,6 +465,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok
 node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-...
 node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md
 ```
 
