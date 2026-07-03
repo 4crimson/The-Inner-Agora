@@ -591,7 +591,7 @@ Evidence:
 - Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
 - Modify: `README.md`
 
-- [ ] **Step 1: Document operator workflow**
+- [x] **Step 1: Document operator workflow**
 
 Add concise commands:
 
@@ -602,13 +602,21 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.co
 node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
 ```
 
-- [ ] **Step 2: Run non-live verification**
+- [x] **Step 2: Run non-live verification**
 
 ```bash
 python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 ```
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v` -> `Ran 24 tests ... OK`
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json` -> `ok: true`
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json` -> planned 4 help tests
+
+Live steps remain pending until explicit operator confirmation.
 
 - [ ] **Step 3: Request explicit live confirmation**
 

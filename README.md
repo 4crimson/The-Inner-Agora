@@ -238,6 +238,42 @@ Telegram menu показывает одну команду проекта: `/ago
 
 `THE-1` и `THE-3` в примерах нужно заменить на реальные issue из Paperclip.
 
+## Telegram/Paperclip QA
+
+QA harness lives in `paperclip-qa-tool/` and project binding lives in `telegram-testing.config.json`.
+Run artifacts are written to `artifacts/telegram-test-runs/` and are ignored by git.
+
+Safe non-live checks:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
+```
+
+Report and bug output for an existing run:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --dry-run --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area telegram-ui --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
+```
+
+Cleanup for a manifest-backed run:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
+```
+
+Live Telegram runs require an explicit operator confirmation immediately before the run:
+
+```text
+This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?
+```
+
+The Codex QA workflow plugin is in `codex-plugins/telegram-paperclip-qa/`. It separates tester, developer, retest, and release-review modes so live evidence gathering does not get mixed with patching.
+
 Обычные read-only фразы про Paperclip тоже разрешены для Hermes: например, `список философов`, `кто в перклипе`, `узнай список философов в перклипе`, `статус`, `задачи`. Они должны запускать безопасные команды чтения, а не создавать новые задачи.
 
 Для создания исследовательской сессии можно писать явно:
