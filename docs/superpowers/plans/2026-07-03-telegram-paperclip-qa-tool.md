@@ -738,6 +738,37 @@ Evidence:
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 - `node --check paperclip-qa-tool/src/health-check.mjs` -> OK
 
+## Task 14: Run-Integrated Cleanup Result
+
+**Files:**
+
+- Create: `paperclip-qa-tool/src/cleanup-runner.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add fake-adapter run cleanup test**
+
+Assert `run --cleanup hard --live-ok`:
+
+- sends Telegram test message;
+- records Telegram messages in manifest;
+- detects new Paperclip issue;
+- calls Telegram delete for manifest message ids;
+- calls Paperclip delete for manifest issue ids;
+- returns cleanup result in JSON;
+- writes cleanup result back to manifest.
+
+- [x] **Step 2: Share cleanup implementation**
+
+`cleanup-runner.mjs` now owns manifest-backed cleanup mutation so `cleanup` command and post-run cleanup use the same path.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_with_cleanup_returns_cleanup_result_and_updates_manifest -v` -> `Ran 1 test ... OK`
+- `python3 -m unittest tests.test_telegram_userbot_driver tests.test_telegram_qa_tool -v` -> `Ran 30 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/cleanup-runner.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

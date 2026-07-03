@@ -813,6 +813,69 @@ console.log(JSON.stringify(result));
             self.assertEqual([message["messageId"] for message in manifest["telegram"]["messages"]], [101, 102])
             self.assertEqual(manifest["tests"][0]["status"], "pass")
 
+    def test_run_with_cleanup_returns_cleanup_result_and_updates_manifest(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_issues = [
+            *before_issues,
+            {"id": "new-root", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(issues_responses=[before_issues, after_issues]) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["cleanup"]["mode"], "hard")
+            self.assertEqual(payload["cleanup"]["telegram"][0]["messageIds"], [101, 102])
+            self.assertEqual(payload["cleanup"]["paperclip"][0]["issueId"], "new-root")
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls, [["send", "агора помощь", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
+            delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
+            self.assertEqual(delete_paths, ["/api/issues/new-root"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [101, 102])
+            self.assertEqual(manifest["cleanup"]["paperclip"][0]["issueId"], "new-root")
+
     def test_run_without_live_ok_fails_before_telegram_side_effects(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             artifacts_dir = Path(temp_dir) / "runs"
