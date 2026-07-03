@@ -84,6 +84,9 @@ function configSummary(config) {
       artifacts: {
         dir: config.artifacts.dir,
       },
+      guards: {
+        allowWarnings: config.guards.allowWarnings,
+      },
     },
     suites: suiteSummary(config),
   };

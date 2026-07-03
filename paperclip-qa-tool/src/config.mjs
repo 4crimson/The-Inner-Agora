@@ -28,6 +28,28 @@ function requireString(value, key, errors) {
   if (typeof value !== "string" || !value.trim()) errors.push(key);
 }
 
+function validateGuardWarnings(config, errors) {
+  const guards = config.guards;
+  if (guards === undefined) return;
+  if (!guards || typeof guards !== "object" || Array.isArray(guards)) {
+    errors.push("guards");
+    return;
+  }
+  if (guards.allowWarnings === undefined) return;
+  if (!Array.isArray(guards.allowWarnings)) {
+    errors.push("guards.allowWarnings");
+    return;
+  }
+  for (const warning of guards.allowWarnings) {
+    if (!warning || typeof warning !== "object" || Array.isArray(warning)) {
+      errors.push("guards.allowWarnings");
+      continue;
+    }
+    requireString(warning.name, "guards.allowWarnings.name", errors);
+    requireString(warning.reason, "guards.allowWarnings.reason", errors);
+  }
+}
+
 function normalizeTest(test, suiteName, index) {
   if (!test || typeof test !== "object" || Array.isArray(test)) {
     return { id: `${suiteName}.${index + 1}`, invalid: true };
@@ -89,6 +111,7 @@ export function validateConfig(config) {
   if (!config.suites || typeof config.suites !== "object" || Array.isArray(config.suites)) {
     errors.push("suites");
   }
+  validateGuardWarnings(config, errors);
 
   let resolvedSuites = {};
   if (!errors.includes("suites")) {
@@ -133,6 +156,10 @@ export function normalizeConfig(config) {
     artifacts: {
       dir: "artifacts/telegram-test-runs",
       ...(config.artifacts || {}),
+    },
+    guards: {
+      allowWarnings: [],
+      ...(config.guards || {}),
     },
     suites: resolveSuites(config),
   };

@@ -252,6 +252,8 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-tes
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
 ```
 
+`config-check` also prints `guards.allowWarnings`. These are predeclared warnings with reasons; they are visible before live confirmation and do not automatically approve a red guard.
+
 Report and bug output for an existing run:
 
 ```bash

@@ -14,6 +14,14 @@
   "artifacts": {
     "dir": "artifacts/telegram-test-runs"
   },
+  "guards": {
+    "allowWarnings": [
+      {
+        "name": "paperclip-roster-sync-pending",
+        "reason": "Allowed for dry-run planning only; live acceptance must resolve stale Paperclip roster state or record an explicit operator override."
+      }
+    ]
+  },
   "suites": {
     "health": {
       "extends": "generic-health",

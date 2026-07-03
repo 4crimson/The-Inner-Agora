@@ -112,6 +112,14 @@ class TelegramQaToolConfigTests(unittest.TestCase):
                 "cleanup": "hard",
             },
             "artifacts": {"dir": "artifacts/telegram-test-runs"},
+            "guards": {
+                "allowWarnings": [
+                    {
+                        "name": "paperclip-roster-sync-pending",
+                        "reason": "Allowed for dry-run planning only; live acceptance must resolve or explicitly override.",
+                    }
+                ]
+            },
             "suites": {
                 "help": {
                     "tests": [
@@ -153,7 +161,28 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["config"]["name"], "inner-agora-telegram-qa")
         self.assertEqual(payload["config"]["telegram"]["target"], "@crimson_philosophs_bot")
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
+        self.assertEqual(
+            payload["config"]["guards"]["allowWarnings"],
+            [
+                {
+                    "name": "paperclip-roster-sync-pending",
+                    "reason": "Allowed for dry-run planning only; live acceptance must resolve or explicitly override.",
+                }
+            ],
+        )
         self.assertEqual(payload["suites"], [{"name": "help", "tests": 1}])
+
+    def test_missing_guard_warning_reason_fails_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.base_config()
+            config["guards"] = {"allowWarnings": [{"name": "paperclip-roster-sync-pending"}]}
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli("config-check", "--config", config_path, "--json")
+
+        self.assertNotEqual(result.returncode, 0)
+        payload = json.loads(result.stdout)
+        self.assertIn("guards.allowWarnings.reason", payload["errors"])
 
     def test_universal_tool_metadata_is_project_neutral(self):
         schema = json.loads(QA_SCHEMA.read_text(encoding="utf-8"))

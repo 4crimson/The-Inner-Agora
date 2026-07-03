@@ -849,6 +849,32 @@ Evidence:
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 - `node --check paperclip-qa-tool/src/suite-runner.mjs` -> OK
 
+## Task 18: Guard Warning Policy In Project Config
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/qa-tool.config.schema.json`
+- Modify: `paperclip-qa-tool/src/config.mjs`
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `telegram-testing.config.json`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add config contract tests**
+
+Assert `config-check` prints `guards.allowWarnings`, and warning entries must include both `name` and `reason`.
+
+- [x] **Step 2: Add project-neutral guard policy support**
+
+The universal tool now normalizes `guards.allowWarnings` as data, while Inner Agora declares its current allowed planning-only guard warning in `telegram-testing.config.json`.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_valid_config_check_returns_normalized_summary tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_missing_guard_warning_reason_fails_validation tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_real_project_config_is_valid -v` -> `Ran 3 tests ... OK`
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json` -> prints `guards.allowWarnings`
+- `node -e "JSON.parse(...)"` for QA schema and Inner Agora config -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

@@ -34,6 +34,22 @@
         "dir": { "type": "string", "minLength": 1 }
       }
     },
+    "guards": {
+      "type": "object",
+      "properties": {
+        "allowWarnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "reason"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
     "suites": {
       "type": "object",
       "additionalProperties": {

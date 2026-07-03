@@ -56,8 +56,10 @@ Responsibilities:
 - bind the generic tool to `@crimson_philosophs_bot`;
 - name the `The Inner Agora` Paperclip company;
 - define suites, phrases, and expected results;
-- list known guard warnings that may be allowed for a specific run;
+- list known guard warnings in `guards.allowWarnings[]`, each with a `name` and `reason`;
 - define cleanup policy.
+
+`guards.allowWarnings` is an operator-facing policy list for pre-run review. It does not make live guard failures pass by itself; live acceptance still needs either a resolved guard or an explicit operator override note.
 
 ### Codex QA Skill/Plugin
 
