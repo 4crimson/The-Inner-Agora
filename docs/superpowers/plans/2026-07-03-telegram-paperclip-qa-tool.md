@@ -388,7 +388,7 @@ Evidence:
 - Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
 - Test: `tests/test_telegram_qa_tool.py`
 
-- [ ] **Step 1: Write report tests**
+- [x] **Step 1: Write report tests**
 
 Given a manifest with one pass, one fail, one cleanup residual, assert:
 
@@ -397,7 +397,7 @@ Given a manifest with one pass, one fail, one cleanup residual, assert:
 - secrets are redacted;
 - `bugs --append-doc` produces a preview in dry-run mode.
 
-- [ ] **Step 2: Implement report writer**
+- [x] **Step 2: Implement report writer**
 
 Implement:
 
@@ -407,20 +407,24 @@ export function writeBugsJsonl({ manifest, outputDir }) {}
 export function appendBugsToDoc({ bugsPath, docPath, dryRun }) {}
 ```
 
-- [ ] **Step 3: Add CLI commands**
+- [x] **Step 3: Add CLI commands**
 
 ```text
 report --config FILE --run RUN_ID [--json]
 bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run]
 ```
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests**
 
 ```bash
 python3 -m unittest tests.test_telegram_qa_tool -v
-git add paperclip-qa-tool tests/test_telegram_qa_tool.py
-git commit -m "Add Telegram QA reports and bug output"
 ```
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool -v` -> `Ran 16 tests ... OK`
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+- `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 
 ## Task 7: Inner Agora Project Config
 

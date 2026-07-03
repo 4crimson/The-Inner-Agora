@@ -278,6 +278,61 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
         return manifest_path
 
+    def write_report_manifest(self, artifacts_dir, run_id):
+        run_dir = Path(artifacts_dir) / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_dir / "manifest.json"
+        fake_token = "1234567890:" + ("A" * 24)
+        manifest = {
+            "runId": run_id,
+            "suite": "reporting",
+            "startedAt": "2026-07-03T00:00:00.000Z",
+            "finishedAt": "2026-07-03T00:01:00.000Z",
+            "telegram": {
+                "target": "@example_bot",
+                "userId": None,
+                "chatId": None,
+                "messages": [
+                    {
+                        "id": 10,
+                        "text": f"token {fake_token} should be redacted",
+                    }
+                ],
+            },
+            "paperclip": {
+                "apiBase": "http://127.0.0.1:3100/api",
+                "company": "Example",
+                "companyId": "company-1",
+                "roots": [],
+                "issues": [],
+            },
+            "tests": [
+                {
+                    "id": "help.ok",
+                    "message": "агора помощь",
+                    "status": "pass",
+                    "checks": [{"name": "replyContains", "ok": True}],
+                },
+                {
+                    "id": "help.raw-token",
+                    "message": "агора помощь",
+                    "status": "fail",
+                    "observed": {"replyText": "<|channel> Project action exited"},
+                    "checks": [{"name": "noRawTokens", "ok": False, "actual": "<|channel> Project action exited"}],
+                },
+            ],
+            "bugs": [],
+            "cleanup": {
+                "mode": "hard",
+                "attemptedAt": "2026-07-03T00:02:00.000Z",
+                "telegram": [],
+                "paperclip": [],
+                "residuals": [{"kind": "paperclip", "id": "THE-1", "reason": "delete failed"}],
+            },
+        }
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest_path
+
     def test_cleanup_hard_deletes_manifest_issues_children_before_parent(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
             artifacts_dir = Path(temp_dir) / "runs"
@@ -470,6 +525,56 @@ console.log(JSON.stringify(result));
             self.assertEqual(manifest["tests"][0]["status"], "planned")
             self.assertTrue(manifest["tests"][0]["dryRun"])
             self.assertEqual(manifest["cleanup"]["mode"], "hard")
+
+    def test_report_writes_summary_failures_cleanup_and_redacts_secrets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-report-a1b2c3"
+            self.write_report_manifest(artifacts_dir, run_id)
+
+            result = self.run_cli("report", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            report_path = Path(payload["reportPath"])
+            self.assertTrue(report_path.exists())
+            report = report_path.read_text(encoding="utf-8")
+            self.assertIn("Pass: 1", report)
+            self.assertIn("Fail: 1", report)
+            self.assertIn("help.raw-token", report)
+            self.assertIn("delete failed", report)
+            self.assertNotIn("1234567890:" + ("A" * 24), report)
+
+    def test_bugs_writes_jsonl_and_append_doc_dry_run_preview(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260703-bugs-d4e5f6"
+            self.write_report_manifest(artifacts_dir, run_id)
+            append_doc = Path(temp_dir) / "BUGS.md"
+
+            result = self.run_cli(
+                "bugs",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--append-doc",
+                append_doc,
+                "--dry-run",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            bugs_path = Path(payload["bugsPath"])
+            rows = [json.loads(line) for line in bugs_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["testId"], "help.raw-token")
+            self.assertIn("preview", payload["appendDoc"])
+            self.assertIn("help.raw-token", payload["appendDoc"]["preview"])
+            self.assertFalse(append_doc.exists())
 
 
 if __name__ == "__main__":

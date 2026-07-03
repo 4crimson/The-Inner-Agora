@@ -2,15 +2,27 @@
 
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
 import { cleanupPaperclipIssues } from "../src/cleanup-engine.mjs";
-import { createRun, manifestPathForRun, readManifest, writeManifest } from "../src/manifest.mjs";
+import { createRun, manifestPathForRun, readManifest, runDirectory, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
+import { appendBugsToDoc, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
 import { runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
   if (argv[0] === "--help" || argv[0] === "-h") return { command: "", help: true, json: false, config: "" };
   const [command, ...tail] = argv;
-  const options = { command, json: false, config: "", suite: "", run: "", mode: "", cleanup: "", dryRun: false, limit: 20 };
+  const options = {
+    command,
+    json: false,
+    config: "",
+    suite: "",
+    run: "",
+    mode: "",
+    cleanup: "",
+    appendDoc: "",
+    dryRun: false,
+    limit: 20,
+  };
   for (let index = 0; index < tail.length; index += 1) {
     const arg = tail[index];
     if (arg === "--json") options.json = true;
@@ -19,6 +31,7 @@ function parseArgs(argv) {
     else if (arg === "--run") options.run = tail[++index] || "";
     else if (arg === "--mode") options.mode = tail[++index] || "";
     else if (arg === "--cleanup") options.cleanup = tail[++index] || "";
+    else if (arg === "--append-doc") options.appendDoc = tail[++index] || "";
     else if (arg === "--limit") options.limit = Number(tail[++index] || "20");
     else if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
@@ -34,6 +47,8 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--json] [--dry-run]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs report --config FILE --run RUN_ID [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config FILE --run RUN_ID [--append-doc FILE] [--dry-run] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-history --config FILE [--limit N] [--dry-run] [--json]
 `;
@@ -117,6 +132,25 @@ async function main(argv) {
     writeManifest(manifestPath, manifest);
     printPayload({ ok: result.residuals.length === 0, runId: options.run, manifestPath, cleanup: manifest.cleanup }, options.json);
     return result.residuals.length === 0 ? 0 : 1;
+  }
+  if (options.command === "report") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const manifest = readManifest(manifestPath);
+    const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const report = writeReport({ manifest, outputDir });
+    printPayload({ ok: true, runId: options.run, manifestPath, ...report }, options.json);
+    return 0;
+  }
+  if (options.command === "bugs") {
+    if (!options.run) throw new ConfigValidationError(["--run is required"]);
+    const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const manifest = readManifest(manifestPath);
+    const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId: options.run });
+    const result = writeBugsJsonl({ manifest, outputDir });
+    const appendDoc = appendBugsToDoc({ bugs: result.bugs, docPath: options.appendDoc, dryRun: options.dryRun });
+    printPayload({ ok: true, runId: options.run, manifestPath, bugsPath: result.bugsPath, bugs: result.bugs.length, appendDoc }, options.json);
+    return 0;
   }
   if (options.command === "telegram-check") {
     const userbot = new TelegramUserbot({ config });
