@@ -1,12 +1,75 @@
 import json
+import threading
 import subprocess
 import tempfile
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "paperclip-qa-tool" / "bin" / "paperclip-qa.mjs"
+
+
+class FakePaperclipHandler(BaseHTTPRequestHandler):
+    routes = {}
+    calls = []
+
+    def log_message(self, *_):
+        return
+
+    def send_json(self, status, body):
+        payload = json.dumps(body).encode("utf-8")
+        self.send_response(status)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def read_body(self):
+        length = int(self.headers.get("content-length", "0"))
+        if not length:
+            return None
+        return json.loads(self.rfile.read(length).decode("utf-8"))
+
+    def do_DELETE(self):
+        self.__class__.calls.append(("DELETE", self.path, None))
+        status, body = self.__class__.routes.get(("DELETE", self.path), (200, {"ok": True}))
+        self.send_json(status, body)
+
+    def do_PATCH(self):
+        body = self.read_body()
+        self.__class__.calls.append(("PATCH", self.path, body))
+        status, response = self.__class__.routes.get(("PATCH", self.path), (200, {"ok": True}))
+        self.send_json(status, response)
+
+
+class FakePaperclipServer:
+    def __init__(self, routes=None):
+        self.routes = routes or {}
+        self.server = None
+        self.thread = None
+
+    def __enter__(self):
+        FakePaperclipHandler.routes = self.routes
+        FakePaperclipHandler.calls = []
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakePaperclipHandler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+
+    @property
+    def api_base(self):
+        return f"http://127.0.0.1:{self.server.server_address[1]}/api"
+
+    @property
+    def calls(self):
+        return list(FakePaperclipHandler.calls)
 
 
 class TelegramQaToolConfigTests(unittest.TestCase):
@@ -186,6 +249,85 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertNotEqual(first["runId"], second["runId"])
             self.assertTrue(Path(first["manifestPath"]).exists())
             self.assertTrue(Path(second["manifestPath"]).exists())
+
+    def write_manifest(self, artifacts_dir, run_id, issues):
+        run_dir = Path(artifacts_dir) / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_dir / "manifest.json"
+        manifest = {
+            "runId": run_id,
+            "suite": "cleanup",
+            "startedAt": "2026-07-03T00:00:00.000Z",
+            "finishedAt": None,
+            "telegram": {"target": "@example_bot", "userId": None, "chatId": None, "messages": []},
+            "paperclip": {
+                "apiBase": "http://127.0.0.1:3100/api",
+                "company": "Example",
+                "companyId": "company-1",
+                "roots": [],
+                "issues": issues,
+            },
+            "tests": [],
+            "bugs": [],
+            "cleanup": {"mode": "hard", "attemptedAt": None, "telegram": [], "paperclip": [], "residuals": []},
+        }
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        return manifest_path
+
+    def test_cleanup_hard_deletes_manifest_issues_children_before_parent(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260703-cleanup-a1b2c3"
+            self.write_manifest(
+                artifacts_dir,
+                run_id,
+                [
+                    {"id": "root-1", "identifier": "THE-1", "parentId": None, "status": "todo", "matchedBy": "manifest"},
+                    {"id": "child-1", "identifier": "THE-2", "parentId": "root-1", "status": "todo", "matchedBy": "manifest"},
+                ],
+            )
+
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
+            self.assertEqual(delete_paths, ["/api/issues/child-1", "/api/issues/root-1"])
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual([item["method"] for item in manifest["cleanup"]["paperclip"]], ["DELETE", "DELETE"])
+
+    def test_cleanup_hard_delete_failure_falls_back_to_hidden_cancelled_patch(self):
+        routes = {
+            ("DELETE", "/api/issues/root-1"): (500, {"error": "Internal server error"}),
+            ("PATCH", "/api/issues/root-1"): (200, {"ok": True}),
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(routes) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260703-cleanup-d4e5f6"
+            self.write_manifest(
+                artifacts_dir,
+                run_id,
+                [{"id": "root-1", "identifier": "THE-1", "parentId": None, "status": "todo", "matchedBy": "manifest"}],
+            )
+
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            patch_calls = [call for call in server.calls if call[0] == "PATCH"]
+            self.assertEqual(len(patch_calls), 1)
+            self.assertEqual(patch_calls[0][1], "/api/issues/root-1")
+            self.assertIn("hiddenAt", patch_calls[0][2])
+            self.assertEqual(patch_calls[0][2]["status"], "cancelled")
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            actions = [item["method"] for item in manifest["cleanup"]["paperclip"]]
+            self.assertEqual(actions, ["DELETE", "PATCH"])
 
 
 if __name__ == "__main__":
