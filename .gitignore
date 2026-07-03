@@ -5,6 +5,7 @@
 node_modules/
 __pycache__/
 brain-runs/
+artifacts/telegram-test-runs/
 *.log
 memory/sessions/
 memory/profiles/

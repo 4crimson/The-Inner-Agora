@@ -135,6 +135,19 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
         self.assertEqual(payload["suites"], [{"name": "help", "tests": 1}])
 
+    def test_real_project_config_is_valid(self):
+        result = self.run_cli("config-check", "--config", ROOT / "telegram-testing.config.json", "--json")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["config"]["telegram"]["target"], "@crimson_philosophs_bot")
+        self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
+        self.assertEqual(
+            [suite["name"] for suite in payload["suites"]],
+            ["health", "help", "natural-dialogue", "council-create", "cleanup"],
+        )
+
     def test_missing_telegram_target_fails_validation(self):
         config = self.base_config()
         del config["telegram"]["target"]

@@ -434,7 +434,7 @@ Evidence:
 - Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
 - Test: `tests/test_telegram_qa_tool.py`
 
-- [ ] **Step 1: Add config validation test for real project config**
+- [x] **Step 1: Add config validation test for real project config**
 
 Test:
 
@@ -444,7 +444,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testi
 
 Expected: `ok: true`.
 
-- [ ] **Step 2: Create Inner Agora config**
+- [x] **Step 2: Create Inner Agora config**
 
 Include suites:
 
@@ -456,14 +456,20 @@ Include suites:
 
 Use `[qa:<runId>]` markers only in Paperclip-creating tests.
 
-- [ ] **Step 3: Run config check and tests**
+- [x] **Step 3: Run config check and tests**
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 python3 -m unittest tests.test_telegram_qa_tool -v
 ```
 
-- [ ] **Step 4: Commit**
+Evidence:
+
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json` -> `ok: true`
+- `node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json` -> planned 4 help tests
+- `python3 -m unittest tests.test_telegram_qa_tool -v` -> `Ran 17 tests ... OK`
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add telegram-testing.config.json docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md tests/test_telegram_qa_tool.py

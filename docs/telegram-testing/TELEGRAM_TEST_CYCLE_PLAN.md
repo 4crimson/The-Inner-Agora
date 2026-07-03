@@ -425,7 +425,18 @@ Batching rules:
 
 ## Commands
 
-Planned interface:
+Implemented local-safe interface:
+
+```bash
+node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config telegram-testing.config.json --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --dry-run --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-...
+node paperclip-qa-tool/bin/paperclip-qa.mjs bugs --config telegram-testing.config.json --run QA-... --append-doc docs/roadmap/BUGS.md --dry-run
+node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.config.json --run QA-... --mode hard --json
+```
+
+Planned live interface:
 
 ```bash
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json

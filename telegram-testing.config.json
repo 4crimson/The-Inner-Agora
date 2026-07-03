@@ -1,0 +1,131 @@
+{
+  "name": "inner-agora-telegram-qa",
+  "telegram": {
+    "target": "@crimson_philosophs_bot",
+    "userbot": {
+      "session": ".telegram-userbot"
+    }
+  },
+  "paperclip": {
+    "apiBase": "http://127.0.0.1:3100/api",
+    "company": "The Inner Agora",
+    "cleanup": "hard"
+  },
+  "artifacts": {
+    "dir": "artifacts/telegram-test-runs"
+  },
+  "suites": {
+    "health": {
+      "extends": "generic-health",
+      "tests": [
+        {
+          "id": "health.telegram-userbot",
+          "kind": "health",
+          "expect": {
+            "ok": true
+          }
+        }
+      ]
+    },
+    "help": {
+      "extends": "generic-telegram-help",
+      "tests": [
+        {
+          "id": "help.ru.basic",
+          "message": "агора помощь",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "help.ru.capabilities",
+          "message": "что ты умеешь в агоре?",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        }
+      ]
+    },
+    "natural-dialogue": {
+      "tests": [
+        {
+          "id": "dialogue.freedom-adult-child",
+          "message": "хочу разобраться с вопросом свободы взрослого ребенка",
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noRawTokens": true
+          }
+        },
+        {
+          "id": "dialogue.ask-two-philosophers",
+          "message": "а можешь спросить пару философов, но не слишком глубоко",
+          "expect": {
+            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "dialogue.latest-session",
+          "message": "что там по последней сессии?",
+          "expect": {
+            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        }
+      ]
+    },
+    "council-create": {
+      "tests": [
+        {
+          "id": "council.quick-advice",
+          "message": "быстрый совет: что такое свобода ребенка когда ему 18-20 лет [qa:<runId>]",
+          "expect": {
+            "paperclipRootsCreatedAtLeast": 1,
+            "localRouteContains": "local",
+            "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        },
+        {
+          "id": "council.deep-care-control",
+          "message": "глубокое исследование: как заботу не превратить в контроль [qa:<runId>]",
+          "expect": {
+            "paperclipRootsCreatedAtLeast": 1,
+            "localRouteContains": "local",
+            "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        }
+      ]
+    },
+    "cleanup": {
+      "tests": [
+        {
+          "id": "cleanup.paperclip-hard-fallback",
+          "kind": "cleanup",
+          "expect": {
+            "ok": true
+          }
+        },
+        {
+          "id": "cleanup.telegram-manifest-only",
+          "kind": "cleanup",
+          "expect": {
+            "ok": true
+          }
+        }
+      ]
+    }
+  }
+}
