@@ -57,6 +57,16 @@ stderr:
 POST /companies/20a10ec7-7ddc-42ac-a474-beebb574b028/issues failed: 409 {"error":"Хайдеггер reports through terminated ancestor Agora Assistant / Синтезатор. Reassign Хайдеггер or the nearest affected ancestor under an active manager/root, or explicitly pause or terminate the invalid subtree before assigning work or starting runs."}
 ```
 
+Additional live Telegram check for help intent:
+
+```text
+[03.07.2026 10:37] User: агора помощь
+[03.07.2026 10:37] BoF: Project action exited with 1.
+
+stderr:
+POST /companies/20a10ec7-7ddc-42ac-a474-beebb574b028/issues failed: 409 {"error":"Хайдеггер reports through terminated ancestor Agora Assistant / Синтезатор. Reassign Хайдеггер or the nearest affected ancestor under an active manager/root, or explicitly pause or terminate the invalid subtree before assigning work or starting runs."}
+```
+
 ### Actual Behavior
 
 - Telegram receives raw service markup: `<|channel>`.
@@ -73,6 +83,7 @@ POST /companies/20a10ec7-7ddc-42ac-a474-beebb574b028/issues failed: 409 {"error"
 - `mode get` then answers the previous philosophical topic directly; a mode/status command should not continue latent conversation content.
 - A deep-research natural request reaches the Paperclip project action path, but issue creation fails with HTTP 409 because `Хайдеггер` reports through a terminated `Agora Assistant / Синтезатор` ancestor.
 - The raw Paperclip stderr/JSON error is sent to the Telegram user.
+- `агора помощь` incorrectly reaches the Paperclip issue-creation/action path and fails on the same `Хайдеггер` hierarchy error; help should be a local Telegram UX/menu response and must not depend on live philosopher hierarchy.
 
 ### Expected Behavior
 
@@ -126,6 +137,14 @@ the bot should either create a real Paperclip Agora session or stop before dispa
 Вижу проблему в Paperclip-иерархии: один из голосов привязан к завершенному синтезатору. Сначала нужно выполнить repair/prepare, потом я запущу исследование.
 ```
 
+For a message like:
+
+```text
+агора помощь
+```
+
+the bot should return a local help/menu response with available natural actions and buttons. It should not create Paperclip issues, select voices, or depend on philosopher agent health.
+
 ### Acceptance Criteria
 
 - No Telegram message contains `<|channel>`, `<tool_call|>`, raw provider markers, or internal stream protocol text.
@@ -142,6 +161,7 @@ the bot should either create a real Paperclip Agora session or stop before dispa
 - Telegram mode/status and Agora actions use the same expected state scope; when a chat id is available, state must be per-chat rather than the legacy/global `.inner-agora-state.json`.
 - Before creating live Paperclip issues, the system detects invalid `reportsTo` ancestry and terminated-manager links for selected voices.
 - Paperclip 409/runtime errors are translated into short human recovery messages; raw stderr/JSON is not sent to Telegram.
+- `агора помощь` is handled locally as help/menu UX and never triggers Paperclip issue creation.
 
 ### Initial Root-Cause Hypotheses
 
@@ -160,6 +180,7 @@ These are hypotheses only; do not fix before evidence is gathered.
 11. **Paperclip hierarchy drift:** Existing Paperclip agents may have stale `reportsTo` links to a terminated `Agora Assistant / Синтезатор` ancestor after imports or previous live runs.
 12. **Guard coverage gap:** `inner-agora-guard` may check chamber availability but not active manager ancestry before live issue creation.
 13. **Error humanization gap:** Project-action failures may be forwarded directly to Telegram without a product-level recovery formatter.
+14. **Help intent routing gap:** `агора помощь` may be routed through the generic Agora ask/create path instead of a local help/menu handler.
 
 ### Investigation Checklist
 
@@ -179,6 +200,7 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Inspect Paperclip agents/manager tree for `Хайдеггер` and `Agora Assistant / Синтезатор`.
 - Run a guard/prepare dry check that validates selected voices are under an active manager/root before live ask creation.
 - Reproduce the deep-research create path in dry-run mode, then identify exactly where the Paperclip 409 is surfaced to Telegram.
+- Reproduce `агора помощь` without live side effects and verify whether it is classified as help/menu or as a generic ask.
 
 ### Fix Batches
 
@@ -200,6 +222,12 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Add natural intent/alias for “проверить что вышло”, “финал проверяем”, “давай acceptance”.
 - Route to an acceptance checklist response or command.
 - Prevent roadmap-phase discussion unless the user explicitly asks about roadmap.
+
+**Batch C2 — Local Help/Menu Intent**
+
+- Route `агора помощь`, `помощь агора`, and close variants to a local Telegram help/menu response.
+- Ensure help/menu intent does not create Paperclip issues, select voices, or start council work.
+- Add a regression test proving help works even when Paperclip hierarchy health is failing.
 
 **Batch D — Quick Preset Dispatch**
 
