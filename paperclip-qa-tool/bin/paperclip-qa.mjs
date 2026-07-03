@@ -108,8 +108,11 @@ function writeRunArtifacts({ config, runId, manifestPath }) {
   const outputDir = runDirectory({ artifactsDir: config.artifacts.dir, runId });
   const report = writeReport({ manifest, outputDir });
   const bugs = writeBugsJsonl({ manifest, outputDir });
+  const acceptance = writeAcceptance({ manifest, outputDir });
   return {
     reportPath: report.reportPath,
+    acceptancePath: acceptance.acceptancePath,
+    decision: acceptance.decision,
     bugsPath: bugs.bugsPath,
     bugs: bugs.bugs.length,
   };

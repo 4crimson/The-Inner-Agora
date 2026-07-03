@@ -930,6 +930,28 @@ Evidence:
 - `node --check paperclip-qa-tool/src/report-writer.mjs` -> OK
 - `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
 
+## Task 21: Run-Integrated Acceptance Artifact
+
+**Files:**
+
+- Modify: `paperclip-qa-tool/bin/paperclip-qa.mjs`
+- Modify: `README.md`
+- Modify: `docs/telegram-testing/TELEGRAM_TEST_CYCLE_PLAN.md`
+- Test: `tests/test_telegram_qa_tool.py`
+
+- [x] **Step 1: Add run/retest artifact assertions**
+
+Assert completed non-dry `run` and `retest` write `ACCEPTANCE.md` and return `acceptancePath` plus release `decision`.
+
+- [x] **Step 2: Wire acceptance writer into run artifacts**
+
+`writeRunArtifacts` now writes `REPORT.md`, `ACCEPTANCE.md`, and `bugs.jsonl` after cleanup for non-dry suite runs and retests.
+
+Evidence:
+
+- `python3 -m unittest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_run_with_cleanup_returns_cleanup_result_and_updates_manifest tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_retest_live_executes_only_failed_tests_and_writes_artifacts -v` -> OK
+- `node --check paperclip-qa-tool/bin/paperclip-qa.mjs` -> OK
+
 - [ ] **Step 5: Commit docs and live evidence**
 
 Do not commit secrets or transcripts if policy says run artifacts stay ignored. Commit only docs/config/test updates:

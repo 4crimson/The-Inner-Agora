@@ -917,10 +917,14 @@ console.log(JSON.stringify(result));
             self.assertEqual(payload["cleanup"]["telegram"][0]["messageIds"], [101, 102])
             self.assertEqual(payload["cleanup"]["paperclip"][0]["issueId"], "new-root")
             report_path = Path(payload["reportPath"])
+            acceptance_path = Path(payload["acceptancePath"])
             bugs_path = Path(payload["bugsPath"])
             self.assertTrue(report_path.exists())
+            self.assertTrue(acceptance_path.exists())
             self.assertTrue(bugs_path.exists())
+            self.assertEqual(payload["decision"], "accept")
             self.assertIn("Residuals: none", report_path.read_text(encoding="utf-8"))
+            self.assertIn("Decision: accept", acceptance_path.read_text(encoding="utf-8"))
             calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(calls, [["send", "агора помощь", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
             delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
@@ -1280,7 +1284,9 @@ console.log(JSON.stringify(result));
             self.assertEqual(payload["previousRunId"], old_run_id)
             self.assertEqual(payload["selectedTests"], ["liveish.fail"])
             self.assertTrue(Path(payload["reportPath"]).exists())
+            self.assertTrue(Path(payload["acceptancePath"]).exists())
             self.assertTrue(Path(payload["bugsPath"]).exists())
+            self.assertEqual(payload["decision"], "accept")
             calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(calls, [["send", "перепроверь упавшее", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
             manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
