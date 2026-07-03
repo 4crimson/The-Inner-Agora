@@ -35,6 +35,28 @@ Since I cannot run the direct `/agora` command to initiate the session through t
 [03.07.2026 10:32] BoF: <|channel>I apologize. It seems the /agora command is not correctly configured in this terminal environment ...
 ```
 
+Additional live Telegram check for mode/state and deep research dispatch:
+
+```text
+[03.07.2026 10:35] User: mode get
+[03.07.2026 10:35] BoF: Текущий режим системы:
+
+* Режим (Mode): local (минимальный)
+* Адаптер: hermes_local
+* Модель: google/gemma-4-26b-a4b-qat
+* Текущее состояние: state=/Users/admin/Documents/The Inner Agora/.inner-agora-state.json
+
+Так как выбран режим local, я отвечу максимально лаконично, без привлечения совета философов.
+...
+Если тебе нужен глубокий анализ этой темы ... просто скажи: «агора: что такое свобода...».
+
+[03.07.2026 10:36] User: глубокое исследование: как заботу не превратить в контроль
+[03.07.2026 10:36] BoF: Project action exited with 1.
+
+stderr:
+POST /companies/20a10ec7-7ddc-42ac-a474-beebb574b028/issues failed: 409 {"error":"Хайдеггер reports through terminated ancestor Agora Assistant / Синтезатор. Reassign Хайдеггер or the nearest affected ancestor under an active manager/root, or explicitly pause or terminate the invalid subtree before assigning work or starting runs."}
+```
+
 ### Actual Behavior
 
 - Telegram receives raw service markup: `<|channel>`.
@@ -47,6 +69,10 @@ Since I cannot run the direct `/agora` command to initiate the session through t
 - The bot falls back to internal reasoning, which violates the product contract: Agora research must create Paperclip work, not answer from the assistant's private reasoning.
 - The answer is duplicated in two Telegram messages.
 - The response switches to English and long markdown instead of concise Russian operational UX.
+- `mode get` confirms the live route is `local` with `hermes_local` and `google/gemma-4-26b-a4b-qat`, but reports the legacy/global state path `.inner-agora-state.json` instead of a per-chat state path.
+- `mode get` then answers the previous philosophical topic directly; a mode/status command should not continue latent conversation content.
+- A deep-research natural request reaches the Paperclip project action path, but issue creation fails with HTTP 409 because `Хайдеггер` reports through a terminated `Agora Assistant / Синтезатор` ancestor.
+- The raw Paperclip stderr/JSON error is sent to the Telegram user.
 
 ### Expected Behavior
 
@@ -80,6 +106,26 @@ the bot should create a real Paperclip Agora session through the configured `qui
 
 It should not produce a direct philosophical answer from internal reasoning.
 
+For a message like:
+
+```text
+mode get
+```
+
+the bot should only report current mode, adapter, model, and state scope. It should not answer a previous Agora topic or offer philosophical advice.
+
+For a message like:
+
+```text
+глубокое исследование: как заботу не превратить в контроль
+```
+
+the bot should either create a real Paperclip Agora session or stop before dispatch with a human recovery message, for example:
+
+```text
+Вижу проблему в Paperclip-иерархии: один из голосов привязан к завершенному синтезатору. Сначала нужно выполнить repair/prepare, потом я запущу исследование.
+```
+
 ### Acceptance Criteria
 
 - No Telegram message contains `<|channel>`, `<tool_call|>`, raw provider markers, or internal stream protocol text.
@@ -92,6 +138,10 @@ It should not produce a direct philosophical answer from internal reasoning.
 - The bot does not emit duplicate answer bodies for one user request.
 - The bot answers live Telegram operational flows in Russian unless the user explicitly asks otherwise.
 - The answer is short, operational, and human: what will be checked next, what the user should send/click, and what result to expect.
+- `mode get` only reports mode/status and never answers a previous latent topic.
+- Telegram mode/status and Agora actions use the same expected state scope; when a chat id is available, state must be per-chat rather than the legacy/global `.inner-agora-state.json`.
+- Before creating live Paperclip issues, the system detects invalid `reportsTo` ancestry and terminated-manager links for selected voices.
+- Paperclip 409/runtime errors are translated into short human recovery messages; raw stderr/JSON is not sent to Telegram.
 
 ### Initial Root-Cause Hypotheses
 
@@ -105,6 +155,11 @@ These are hypotheses only; do not fix before evidence is gathered.
 6. **Command dispatch boundary bug:** The live model tries to execute `/agora` inside a terminal shell, where slash commands are not available, instead of returning a rewrite/command to Hermes gateway.
 7. **Unsafe fallback policy:** Profile instructions may allow internal-reasoning fallback when project command execution fails; for Agora research this must be forbidden.
 8. **Duplicate send path:** Streaming chunks and final message may both be sent to Telegram, causing duplicate content.
+9. **Per-chat state propagation gap:** The Telegram natural-command path may not propagate `INNER_AGORA_CHAT_ID`, so commands fall back to `.inner-agora-state.json`.
+10. **Mode command continuation bug:** The profile or gateway may treat `mode get` output as context for answering the previous topic instead of as a terminal status command.
+11. **Paperclip hierarchy drift:** Existing Paperclip agents may have stale `reportsTo` links to a terminated `Agora Assistant / Синтезатор` ancestor after imports or previous live runs.
+12. **Guard coverage gap:** `inner-agora-guard` may check chamber availability but not active manager ancestry before live issue creation.
+13. **Error humanization gap:** Project-action failures may be forwarded directly to Telegram without a product-level recovery formatter.
 
 ### Investigation Checklist
 
@@ -118,6 +173,12 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Reproduce intent routing for “сделай быстрый совет: ...” and verify it maps to `quick`, not internal answer mode.
 - Determine whether `/agora` is being invoked by Hermes as a shell command or by Paperclip Cockpit as a registered command.
 - Check whether streaming partials and final responses both reach Telegram for the same provider turn.
+- Compare environment/state variables for Telegram `mode get`, natural quick requests, natural deep requests, and callback/button actions.
+- Inspect why Telegram `mode get` reports `.inner-agora-state.json` and whether a chat-specific state path should have been selected.
+- Reproduce `mode get` in isolation and verify whether it can accidentally consume/answer prior conversation content.
+- Inspect Paperclip agents/manager tree for `Хайдеггер` and `Agora Assistant / Синтезатор`.
+- Run a guard/prepare dry check that validates selected voices are under an active manager/root before live ask creation.
+- Reproduce the deep-research create path in dry-run mode, then identify exactly where the Paperclip 409 is surfaced to Telegram.
 
 ### Fix Batches
 
@@ -158,6 +219,25 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Identify whether streaming and final messages both go through Telegram send.
 - Ensure only one final answer body is sent for non-progress responses.
 - Keep explicit progress messages, but make them clearly separate and never include raw provider text.
+
+**Batch G — Paperclip Runtime Repair / Hierarchy Health**
+
+- Add/verify a guard check for selected voice ancestry: no selected voice may report through a terminated manager/root.
+- Add a repair/prepare path that reassigns affected voices, including `Хайдеггер`, under an active Agora manager/root.
+- Block live ask creation when hierarchy health fails and return a human recovery message.
+- Add a regression or dry-run test for the HTTP 409 terminated-ancestor case.
+
+**Batch H — Per-Chat State Propagation**
+
+- Ensure Telegram natural text actions inject the chat id into Agora command/action execution.
+- Verify `mode get` from Telegram reports the expected chat-scoped state when chat id is available.
+- Add tests for natural text, command aliases, and callback/button paths so they share the same state scope.
+
+**Batch I — Project Action Error UX**
+
+- Wrap project-action stderr/JSON failures before sending to Telegram.
+- Preserve full technical details in logs, but show the user a short Russian recovery explanation.
+- Add tests for Paperclip 409, command-not-found, and provider timeout/error formatting.
 
 ### Non-Goals
 
