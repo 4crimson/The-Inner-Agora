@@ -71,6 +71,46 @@ class TelegramUserbotDriverTests(unittest.TestCase):
         self.assertEqual(payload["target"], "@example_bot")
         self.assertEqual(payload["text"], "агора помощь")
 
+    def test_history_dry_run_does_not_import_telethon_or_connect(self):
+        result = self.run_driver(
+            "history",
+            "--limit",
+            "7",
+            "--dry-run",
+            env={
+                "TELEGRAM_API_ID": "12345",
+                "TELEGRAM_API_HASH": "abcdef0123456789",
+                "TELEGRAM_TEST_TARGET": "@example_bot",
+                "TELEGRAM_USERBOT_SESSION": ".telegram-userbot-test",
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["dry_run"])
+        self.assertEqual(payload["target"], "@example_bot")
+        self.assertEqual(payload["limit"], 7)
+
+    def test_delete_dry_run_parses_message_ids_without_connecting(self):
+        result = self.run_driver(
+            "delete",
+            "--ids",
+            "10,11,12",
+            "--dry-run",
+            env={
+                "TELEGRAM_API_ID": "12345",
+                "TELEGRAM_API_HASH": "abcdef0123456789",
+                "TELEGRAM_TEST_TARGET": "@example_bot",
+                "TELEGRAM_USERBOT_SESSION": ".telegram-userbot-test",
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["dry_run"])
+        self.assertEqual(payload["target"], "@example_bot")
+        self.assertEqual(payload["message_ids"], [10, 11, 12])
+
 
 if __name__ == "__main__":
     unittest.main()

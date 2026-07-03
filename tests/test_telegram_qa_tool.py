@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import subprocess
 import tempfile
@@ -109,10 +110,13 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         config["artifacts"] = {"dir": str(artifacts_dir)}
         return config
 
-    def run_cli(self, *args):
+    def run_cli(self, *args, env=None):
+        clean_env = os.environ.copy()
+        clean_env.update(env or {})
         return subprocess.run(
             ["node", str(CLI), *map(str, args)],
             cwd=ROOT,
+            env=clean_env,
             text=True,
             capture_output=True,
         )
@@ -328,6 +332,52 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
             actions = [item["method"] for item in manifest["cleanup"]["paperclip"]]
             self.assertEqual(actions, ["DELETE", "PATCH"])
+
+    def test_telegram_check_uses_configured_target_and_session(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            result = self.run_cli(
+                "telegram-check",
+                "--config",
+                config_path,
+                "--json",
+                env={
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["userbot"]["config"]["target"], "@crimson_philosophs_bot")
+        self.assertEqual(payload["userbot"]["config"]["session"], ".telegram-userbot")
+
+    def test_telegram_history_dry_run_uses_userbot_driver_without_connecting(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            result = self.run_cli(
+                "telegram-history",
+                "--config",
+                config_path,
+                "--limit",
+                "5",
+                "--dry-run",
+                "--json",
+                env={
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["history"]["dry_run"])
+        self.assertEqual(payload["history"]["target"], "@crimson_philosophs_bot")
+        self.assertEqual(payload["history"]["limit"], 5)
 
 
 if __name__ == "__main__":

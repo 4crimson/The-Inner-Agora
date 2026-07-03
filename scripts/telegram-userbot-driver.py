@@ -188,6 +188,95 @@ async def send_message(args: argparse.Namespace) -> dict[str, Any]:
         await client.disconnect()
 
 
+async def history(args: argparse.Namespace) -> dict[str, Any]:
+    missing = validate_config(require_phone=False)
+    if missing:
+        raise SystemExit(f"Missing required env: {', '.join(missing)}")
+    cfg = config()
+    if args.dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "target": cfg["target"],
+            "limit": args.limit,
+        }
+
+    client = await client_context()
+    try:
+        if not await client.is_user_authorized():
+            raise SystemExit("Userbot is not authorized. Run: scripts/telegram-userbot-driver.py login")
+        entity = await client.get_entity(cfg["target"])
+        rows = []
+        async for message in client.iter_messages(entity, limit=args.limit):
+            date = message.date
+            if date and date.tzinfo is None:
+                date = date.replace(tzinfo=timezone.utc)
+            rows.append(
+                {
+                    "id": message.id,
+                    "date": date.isoformat() if date else "",
+                    "out": bool(message.out),
+                    "text": message.message or "",
+                }
+            )
+        rows.reverse()
+        if args.transcript:
+            path = transcript_path(args.transcript)
+            append_transcript(path, rows)
+        return {
+            "ok": True,
+            "target": cfg["target"],
+            "messages": rows,
+            **({"transcript": str(transcript_path(args.transcript))} if args.transcript else {}),
+        }
+    finally:
+        await client.disconnect()
+
+
+def parse_message_ids(raw: str) -> list[int]:
+    ids = []
+    for item in str(raw or "").split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            ids.append(int(item))
+        except ValueError as exc:
+            raise SystemExit(f"Invalid message id: {item}") from exc
+    if not ids:
+        raise SystemExit("Missing required --ids")
+    return ids
+
+
+async def delete_messages(args: argparse.Namespace) -> dict[str, Any]:
+    missing = validate_config(require_phone=False)
+    if missing:
+        raise SystemExit(f"Missing required env: {', '.join(missing)}")
+    cfg = config()
+    message_ids = parse_message_ids(args.ids)
+    if args.dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "target": cfg["target"],
+            "message_ids": message_ids,
+        }
+
+    client = await client_context()
+    try:
+        if not await client.is_user_authorized():
+            raise SystemExit("Userbot is not authorized. Run: scripts/telegram-userbot-driver.py login")
+        entity = await client.get_entity(cfg["target"])
+        await client.delete_messages(entity, message_ids, revoke=True)
+        return {
+            "ok": True,
+            "target": cfg["target"],
+            "deleted_message_ids": message_ids,
+        }
+    finally:
+        await client.disconnect()
+
+
 def check_env(_: argparse.Namespace) -> dict[str, Any]:
     missing = validate_config(require_phone=False)
     return {
@@ -214,6 +303,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     send.add_argument("--transcript", default="", help="Optional JSONL transcript path")
     send.add_argument("--dry-run", action="store_true")
     send.set_defaults(func=lambda args: asyncio.run(send_message(args)))
+
+    hist = sub.add_parser("history", help="Read recent target chat messages")
+    hist.add_argument("--limit", type=int, default=20, help="Max messages to read from target chat")
+    hist.add_argument("--transcript", default="", help="Optional JSONL transcript path")
+    hist.add_argument("--dry-run", action="store_true")
+    hist.set_defaults(func=lambda args: asyncio.run(history(args)))
+
+    delete = sub.add_parser("delete", help="Delete target chat messages by id")
+    delete.add_argument("--ids", required=True, help="Comma-separated Telegram message ids")
+    delete.add_argument("--dry-run", action="store_true")
+    delete.set_defaults(func=lambda args: asyncio.run(delete_messages(args)))
     return parser.parse_args(argv)
 
 

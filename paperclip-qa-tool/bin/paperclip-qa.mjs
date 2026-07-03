@@ -4,11 +4,12 @@ import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.m
 import { cleanupPaperclipIssues } from "../src/cleanup-engine.mjs";
 import { createRun, manifestPathForRun, readManifest, writeManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
+import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
 
 function parseArgs(argv) {
   if (argv[0] === "--help" || argv[0] === "-h") return { command: "", help: true, json: false, config: "" };
   const [command, ...tail] = argv;
-  const options = { command, json: false, config: "", suite: "", run: "", mode: "", dryRun: false };
+  const options = { command, json: false, config: "", suite: "", run: "", mode: "", dryRun: false, limit: 20 };
   for (let index = 0; index < tail.length; index += 1) {
     const arg = tail[index];
     if (arg === "--json") options.json = true;
@@ -16,6 +17,7 @@ function parseArgs(argv) {
     else if (arg === "--suite") options.suite = tail[++index] || "";
     else if (arg === "--run") options.run = tail[++index] || "";
     else if (arg === "--mode") options.mode = tail[++index] || "";
+    else if (arg === "--limit") options.limit = Number(tail[++index] || "20");
     else if (arg === "--dry-run") options.dryRun = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
@@ -29,6 +31,8 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs manifest-show --config FILE --run RUN_ID [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config FILE --run RUN_ID --mode hard|soft|none [--json] [--dry-run]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-check --config FILE [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs telegram-history --config FILE [--limit N] [--dry-run] [--json]
 `;
 }
 
@@ -105,6 +109,19 @@ async function main(argv) {
     printPayload({ ok: result.residuals.length === 0, runId: options.run, manifestPath, cleanup: manifest.cleanup }, options.json);
     return result.residuals.length === 0 ? 0 : 1;
   }
+  if (options.command === "telegram-check") {
+    const userbot = new TelegramUserbot({ config });
+    printPayload({ ok: true, userbot: userbot.checkEnv() }, options.json);
+    return 0;
+  }
+  if (options.command === "telegram-history") {
+    if (!Number.isInteger(options.limit) || options.limit < 1) {
+      throw new ConfigValidationError(["--limit must be a positive integer"]);
+    }
+    const userbot = new TelegramUserbot({ config });
+    printPayload({ ok: true, history: userbot.history({ limit: options.limit, dryRun: options.dryRun }) }, options.json);
+    return 0;
+  }
   throw new Error(`Unknown command: ${options.command}`);
 }
 
@@ -113,6 +130,8 @@ try {
   process.exitCode = status;
 } catch (error) {
   const errors = error instanceof ConfigValidationError ? error.errors : [error.message || String(error)];
-  printPayload({ ok: false, errors }, process.argv.includes("--json"));
+  const payload = { ok: false, errors };
+  if (error instanceof TelegramUserbotError && error.payload) payload.userbot = error.payload;
+  printPayload(payload, process.argv.includes("--json"));
   process.exitCode = 1;
 }
