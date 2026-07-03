@@ -235,6 +235,10 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertIn(command, skill)
         self.assertIn("--live-ok", readme)
         self.assertIn("telegram-testing.config.json", readme)
+        self.assertIn("Use From Codex", readme)
+        self.assertIn("tester mode", readme)
+        self.assertIn("release-review mode", readme)
+        self.assertIn("explicit operator confirmation", readme)
 
     def test_completion_checklist_tracks_live_evidence_gap(self):
         checklist = json.loads(QA_COMPLETION_CHECKLIST.read_text(encoding="utf-8"))
