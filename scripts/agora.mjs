@@ -112,6 +112,8 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs synthesize [root-issue-id-or-key] [--fresh]
   node scripts/agora.mjs export-memory <issue-id-or-key>
   node scripts/agora.mjs philosophers [--tags|--tag TAG]
+  node scripts/agora.mjs philosopher-search [--json] "name or alias"
+  node scripts/agora.mjs role-proposal [--json] [--limit N] [--mode MODE] [--no-architects] "topic"
   node scripts/agora.mjs chamber [list|current|use <id>]
   node scripts/agora.mjs policy [skill-id]
   node scripts/agora.mjs skills [role-key] [--json]
@@ -531,6 +533,154 @@ function roleAliases(item) {
 }
 /** @deprecated Use roleAliases. */
 const philosopherAliases = roleAliases;
+
+function searchStem(value) {
+  return looseStem(value).replace(/ь$/u, "");
+}
+
+function editDistance(left, right) {
+  const a = Array.from(String(left || ""));
+  const b = Array.from(String(right || ""));
+  const rows = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let row = 0; row <= a.length; row += 1) rows[row][0] = row;
+  for (let column = 0; column <= b.length; column += 1) rows[0][column] = column;
+  for (let row = 1; row <= a.length; row += 1) {
+    for (let column = 1; column <= b.length; column += 1) {
+      const cost = a[row - 1] === b[column - 1] ? 0 : 1;
+      rows[row][column] = Math.min(
+        rows[row - 1][column] + 1,
+        rows[row][column - 1] + 1,
+        rows[row - 1][column - 1] + cost,
+      );
+    }
+  }
+  return rows[a.length][b.length];
+}
+
+function roleSearchEntry(item, query) {
+  const queryText = String(query || "").trim();
+  const queryLoose = looseText(queryText);
+  const queryStem = searchStem(queryText);
+  if (!queryLoose) return null;
+
+  let best = null;
+  for (const alias of roleAliases(item)) {
+    const aliasText = String(alias || "").trim();
+    const aliasLoose = looseText(aliasText);
+    const aliasStem = searchStem(aliasText);
+    if (!aliasLoose) continue;
+
+    const exact = aliasLoose === queryLoose;
+    const caseMatch = queryStem.length >= 4 && aliasStem === queryStem;
+    const startsWith = queryStem.length >= 3 && aliasStem.startsWith(queryStem);
+    const contains = queryStem.length >= 4 && aliasStem.includes(queryStem);
+    const distance = queryStem && aliasStem ? editDistance(queryStem, aliasStem) : 999;
+    const maxLength = Math.max(queryStem.length, aliasStem.length, 1);
+    const close = distance <= Math.max(2, Math.floor(maxLength * 0.28));
+    let score = 0;
+    if (exact) score = 10000 + aliasLoose.length;
+    else if (caseMatch) score = 9000 + aliasStem.length;
+    else if (startsWith) score = 8000 + queryStem.length;
+    else if (contains) score = 7000 + queryStem.length;
+    else if (close) score = 6000 - distance * 100 + aliasStem.length;
+    else score = Math.max(0, 1000 - distance * 20);
+
+    const candidate = { item, alias: aliasText, exact, caseMatch, distance, score };
+    if (!best || candidate.score > best.score || (candidate.score === best.score && candidate.distance < best.distance)) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+function roleSearchSummary(entry) {
+  return {
+    key: entry.item.key,
+    name: entry.item.name,
+    englishName: entry.item.englishName,
+    alias: entry.alias,
+    score: entry.score,
+    distance: entry.distance,
+  };
+}
+
+function searchRoles(query, limit = 3) {
+  const matches = roles
+    .map((item) => roleSearchEntry(item, query))
+    .filter(Boolean)
+    .sort((left, right) => right.score - left.score || left.distance - right.distance || left.item.key.localeCompare(right.item.key));
+  const selected = matches.find((entry) => entry.exact || entry.caseMatch) || null;
+  const relevant = matches.filter((entry) => entry.exact || entry.caseMatch || entry.score >= 5000);
+  return {
+    query: String(query || "").trim(),
+    selected: selected ? roleSearchSummary(selected) : null,
+    matches: relevant.slice(0, limit).map(roleSearchSummary),
+  };
+}
+
+function philosopherSearch(args) {
+  const json = args.includes("--json");
+  const query = args.filter((arg) => arg !== "--json").join(" ").trim();
+  const payload = searchRoles(query);
+  if (json) {
+    process.stdout.write(stableJson(payload));
+    return payload;
+  }
+  if (payload.selected) {
+    console.log(`${payload.selected.name} (${payload.selected.key})`);
+    return payload;
+  }
+  if (payload.matches.length === 0) {
+    console.log("No matching philosophers found.");
+    return payload;
+  }
+  for (const match of payload.matches) {
+    console.log(`${match.name} (${match.key})`);
+  }
+  return payload;
+}
+
+function parseRoleProposalArgs(args = []) {
+  const options = { json: false, limit: 4, mode: "balanced", noArchitects: false };
+  const textParts = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--json") options.json = true;
+    else if (arg === "--limit") {
+      options.limit = Math.max(1, Number(args[++index] || 4) || 4);
+    } else if (arg === "--mode") {
+      options.mode = normalizeMode(args[++index] || "balanced");
+    } else if (arg === "--no-architects") {
+      options.noArchitects = true;
+    } else {
+      textParts.push(arg);
+    }
+  }
+  return { ...options, topic: textParts.join(" ").trim() };
+}
+
+function roleProposal(args = []) {
+  const options = parseRoleProposalArgs(args);
+  if (!options.topic) throw new Error('Usage: node scripts/agora.mjs role-proposal [--json] [--limit N] "topic"');
+  const selected = selectPhilosophers(options.topic, options.mode, null, { noArchitects: options.noArchitects }).slice(0, options.limit);
+  const payload = {
+    topic: options.topic,
+    mode: options.mode,
+    roles: selected.map((role) => ({
+      key: role.key,
+      name: role.name,
+      englishName: role.englishName,
+      reason: role.title || role.centralIntuition || "",
+    })),
+  };
+  if (options.json) {
+    process.stdout.write(stableJson(payload));
+    return payload;
+  }
+  console.log(`По этой теме я бы собрал ${payload.roles.length} философов:\n`);
+  for (const role of payload.roles) console.log(`${role.name} — ${role.reason}`);
+  return payload;
+}
 
 function roleScoreInText(item, text) {
   const haystack = looseText(text);
@@ -2796,7 +2946,7 @@ function naturalNewTopicRequested(text) {
 
 function naturalNewSessionRequested(text) {
   const value = naturalWords(text);
-  return /спрос|задай|поставь|исслед|собери|создай|консилиум|совет|запуст|запуск|начать|хочу\s+запустить/.test(value);
+  return /спрос|задай|поставь|исслед|разобраться|собери|создай|консилиум|совет|запуст|запуск|начать|хочу\s+запустить/.test(value);
 }
 
 function naturalReadOnlyRequested(text) {
@@ -2905,7 +3055,14 @@ async function natural(args = []) {
     const payload =
       plan.action === "command"
         ? { action: "rewrite", text: plan.text, source: extracted.source, slots: extracted.slots, plan }
-        : { action: "message", text: plan.text || plan.question, source: extracted.source, slots: extracted.slots, plan };
+        : {
+            action: "message",
+            text: plan.text || plan.question,
+            reply_markup: plan.reply_markup,
+            source: extracted.source,
+            slots: extracted.slots,
+            plan,
+          };
     if (options.json) process.stdout.write(stableJson(payload));
     else console.log(payload.text);
     return payload;
@@ -2941,6 +3098,8 @@ async function main() {
   if (command === "synthesize" || command === "synth") return synthesize(args);
   if (command === "export-memory") return exportMemory(args);
   if (command === "philosophers" || command === "agents") return listPhilosophers(args);
+  if (command === "philosopher-search" || command === "role-search") return philosopherSearch(args);
+  if (command === "role-proposal" || command === "philosopher-proposal") return roleProposal(args);
   if (command === "status") return status(args);
   if (command === "recheck" || command === "verify" || command === "перепроверь" || command === "сверь") return recheck(args);
   if (command === "tasks") return tasks(args);

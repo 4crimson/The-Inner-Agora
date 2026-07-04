@@ -394,10 +394,10 @@ class InnerAgoraConversationCycleTests(unittest.TestCase):
                 self.assertEqual(operation["type"], "notify")
                 self.assertEqual(operation["synthesis"], synthesis["identifier"])
                 notification_output = operation["run"]["output"]
-                self.assertIn('"text": "Синтез"', notification_output)
+                self.assertIn('"text": "Полный итог"', notification_output)
                 self.assertIn(f'"callback_data": "pc:result:{synthesis["identifier"]}"', notification_output)
-                self.assertIn('"text": "Все голоса"', notification_output)
-                self.assertIn('"text": "Уточнить"', notification_output)
+                self.assertIn('"text": "Философы"', notification_output)
+                self.assertIn('"text": "Продолжить"', notification_output)
                 self.assertIn('"callback_data": "pc:voice:THE-901"', notification_output)
 
                 telegram_calls = []
@@ -420,7 +420,7 @@ class InnerAgoraConversationCycleTests(unittest.TestCase):
                 self.assertIn("Платон", telegram_calls[1][1]["text"])
                 self.assertEqual(
                     telegram_calls[1][1]["reply_markup"]["inline_keyboard"][0][0],
-                    {"text": "Синтез", "callback_data": f"pc:result:{synthesis['identifier']}"},
+                    {"text": "Полный итог", "callback_data": f"pc:result:{synthesis['identifier']}"},
                 )
         finally:
             server.shutdown()

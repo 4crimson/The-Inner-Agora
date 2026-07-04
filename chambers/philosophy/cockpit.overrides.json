@@ -26,33 +26,29 @@
     "language": "ru",
     "home": {
       "title": "The Inner Agora",
-      "intro": "Агора подключена к Paperclip.",
+      "intro": "Я могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
       "items": [
         {
-          "action": "status",
-          "text": "кратко показать состояние"
+          "action": "ask",
+          "text": "новый вопрос"
+        },
+        {
+          "action": "latest",
+          "text": "последняя сессия"
         },
         {
           "action": "result",
-          "text": "последний содержательный итог"
-        },
-        {
-          "action": "philosophers",
-          "text": "список философов"
-        },
-        {
-          "action": "tasks",
-          "text": "сессии и задачи"
+          "text": "итог"
         }
       ],
       "more": [
         {
-          "command": "help full",
-          "text": "полная справка"
+          "command": "help",
+          "text": "помощь"
         },
         {
-          "action": "guard",
-          "text": "проверка проекта"
+          "command": "help full",
+          "text": "полная справка"
         }
       ]
     },

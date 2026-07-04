@@ -87,13 +87,19 @@ Purpose: basic Telegram commands must feel like Agora UX, not raw Hermes UI.
 
 Expected:
 
-- `/help`, `/agora`, `/agora help` show a compact Agora home menu.
+- `/start`, `/help`, `/agora`, `/agora help`, and exact `Агора` show a compact Agora home menu.
 - `/agents` explains voices/sessions/progress/diagnostics, not generic Hermes agents.
+- `Агора статус` shows one compact last-session card without raw Paperclip/CLI details.
+- `Новый вопрос` explains that the user will enter the question after choosing a format.
+- `Глубокое исследование` asks for the question before showing a launchable philosopher composition.
+- `Выбрать философов` asks for the question before showing `Запустить`, `Добавить`, or `Убрать`.
+- Proposal cards and launch acknowledgements include `Вопрос:` with the parsed/launched question.
+- `Назад` sends a new bottom home message with the main menu buttons attached.
 - The menu shows the current routing mode and mode buttons.
 - `/agora help full` is technical but readable and grouped.
 - Buttons are present where expected.
 - No command creates a Paperclip issue.
-- No reply contains `<|channel>`, `Project action exited`, raw stderr, or `Active Agents & Tasks`.
+- No first-level reply contains `<|channel>`, `Project action exited`, raw stderr, `# Последняя Paperclip-сессия`, `wake=`, route/model details, local Paperclip URLs, or `Active Agents & Tasks`.
 
 Pass Telegram summary:
 
@@ -111,8 +117,10 @@ Purpose: Telegram buttons should make routing visible and controllable before th
 
 Expected:
 
-- `/help` shows `Текущий режим` and mode buttons, including `Codex`, `Свои голоса`, and `Все голоса`.
-- Default mode is local and visible to the user.
+- `/help` stays on the compact first screen and does not show raw mode buttons.
+- Any mode/recovery keyboard uses `Быстро`, `Сбаланс`, `Глубоко`, `Codex`, `Свои голоса`, and `Проверить`; it does not show `Быстро 2`, `Сбаланс. 5`, `Глубоко 10`, `Go/No-Go`, or `Все голоса`.
+- `Проверить` is explained as a practical "делать / не делать" decision mode, not as a philosophical advice mode.
+- Default mode is local and visible when a mode/recovery keyboard is open.
 - A normal council request creates a Paperclip session through the selected local route.
 - A request asking for a pair of philosophers stays local and selects two voices; the exact two voices are chosen by Inner Agora unless the user names them.
 - A request naming philosophers in ordinary language, for example "с Платоном и Сартром", keeps those named voices in the generated session.
@@ -120,7 +128,7 @@ Expected:
 
 Manual checkpoint until the QA runner grows callback-click support:
 
-- Press a mode button, for example `Глубоко 10`, `Codex`, or `Свои голоса`.
+- Press a mode button, for example `Глубоко`, `Codex`, `Свои голоса`, or `Проверить`.
 - Confirm Telegram replies with the new current mode.
 - Send a normal question without slash commands.
 - Confirm the created session uses the selected route.
@@ -225,11 +233,8 @@ Live run:
 node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite <suite> --cleanup hard --live-ok --json
 ```
 
-To retain a compact Telegram result summary after cleanup:
-
-```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite <suite> --cleanup hard --notify telegram --live-ok --json
-```
+Do not retain a compact Telegram result summary in the same bot being tested.
+`--notify telegram` is allowed only for a separate out-of-band notification target; otherwise it can be routed back as user text and create Paperclip work.
 
 Post-run:
 

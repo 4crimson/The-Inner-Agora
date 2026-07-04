@@ -172,7 +172,7 @@ node scripts/agora.mjs export-memory THE-3
 
 | Режим | Команда | Что делает |
 |-------|---------|------------|
-| `min` | `--min` | Быстрый разбор на 3 голоса |
+| `min` | `--min` | Быстрый разбор на 2-3 голоса |
 | `balanced` | по умолчанию | Обычно 5-7 релевантных голосов |
 | `max` | `--max` | Широкий совет, примерно до 12 голосов |
 | `all` | `--all` | Все философы из списка |
@@ -232,6 +232,18 @@ node scripts/inner-agora-guard.mjs --fix
 
 Telegram menu показывает одну команду проекта: `/agora`. Это универсальный `paperclip-cockpit`, настроенный через `paperclip-cockpit.json`; generic `/pc` в этом проекте не регистрируется.
 
+С 2026-07-04 первый Telegram-экран следует контракту `docs/superpowers/specs/2026-07-04-telegram-interface-contract-design.md`: `/help`, `/agora` и `/agora help` показывают `The Inner Agora`, короткое описание через философов и кнопки `Новый вопрос`, `Последняя сессия`, `Итог`, `История`, `Помощь`. Главный экран больше не показывает Paperclip, диагностику, режимы, каталог, `Синтез` или `Все голоса`.
+
+`Новый вопрос` открывает безопасный выбор формата, а не создает Paperclip-сессию: `Быстрый совет`, `Глубокое исследование`, `Спросить одного`, `Выбрать философов`, `Назад`. `Спросить одного` поддерживает локальный поиск по русскому/английскому имени и близким alias с максимум тремя вариантами; выбор философа сохраняется в per-chat pending state, и следующий обычный текст становится ask-one запросом к выбранному философу. Глубокий разбор предлагает 6 философов и требует отдельного подтверждения. Обычный свободный текст в Telegram-safe dry-run сначала возвращает подтверждение темы (`Я понял тему... Запустить?`) с кнопками выбора, чтобы Paperclip work не создавался молча; `Запустить`, `Сделать быстро` и `Сделать глубоко` используют сохраненную тему, а `Изменить тему`/`Отмена` очищают черновик. `Выбрать философов` по сохраненной теме показывает 4-философский proposal; `Добавить`/`Убрать` меняют сохраненный состав через короткий поиск, и только `Запустить` создает точный `--philosophers ...` состав.
+
+Режимные кнопки не показывают технический размер состава: `Быстро`, `Сбаланс`, `Глубоко`, `Codex`, `Свои голоса`, `Проверить`. `Все голоса` остается CLI/action-возможностью, но не предлагается как обычная Telegram-кнопка. `Проверить` означает режим практического выбора "делать / не делать": пользователь описывает конкретное решение, критерии, цену ошибки и дедлайн, а ответ должен дать решение, условия, риски и следующий шаг.
+
+Первичные payload-кнопки используют пользовательские слова: `Итог`, `Философы`, `Продолжить`, `Новый вопрос`, `Детали`. Верхнеуровневые `Последняя сессия`, `Итог`, `История`, `Философы` читают Paperclip read-only и возвращают compact Telegram payloads: последнюю root-сессию, последний готовый итог, первые 5 root-сессий из истории или философов текущей сессии. `История` нумерует видимые сессии и дает кнопки `1 THE-...`, `2 THE-...`, чтобы открыть выбранную compact session card одним нажатием. `Продолжить` и `Уточнить` сохраняют текущую root-сессию в per-chat pending state, поэтому следующий обычный текст становится `/agora follow-up` к этой сессии. Финальное авто-уведомление `send-result` отправляет короткое `Итог готов` с 3-6 строками, а полный материал открывается через `Полный итог`; кнопка `Разногласия` появляется только при явном marker-е конфликта в итоговом тексте. История поддерживает read-only пагинацию и фильтры `В работе`, `С итогом`, `Остановленные`. Технические поля, Paperclip, route/model и экспорт остаются вторым уровнем через `Детали`/полную справку. `Остановить` работает как двухшаговый flow: сначала confirmation, затем confirmed cleanup скрывает/cancel root и child-задачи этой сессии и пытается отменить active runs. Ошибки action-callbacks могут показывать recovery-кнопки, но фактический repair/retry остается отдельным явным шагом. QA-кнопки в `Помощь -> Состояние` читают последний существующий `artifacts/telegram-test-runs/*` (`manifest.json`, `REPORT.md`, `bugs.jsonl`) и не запускают live suite. QA launch и live acceptance остаются отдельными пакетами работ после non-live проверки и явного live-approval.
+
+`Полный итог` показывает форматированный Telegram-текст полного memo: заголовок `Полный итог: THE-...`, тему и содержательные секции. Служебные строки `# Результат`, `status`, `пакет`, `url`, `источник`, `примечание` и блок `Дальше: /agora ...` не выводятся в этот экран; такие детали остаются за кнопкой `Детали`.
+
+Если Paperclip agent output пришел как `review diff` для `synthesis_final.json`, Telegram formatter извлекает содержательное поле `comment` и показывает его как обычный итог. Diff-заголовки, `@@`, leading `+`, JSON wrapper и markdown `**` в пользовательский экран не попадают.
+
 В `paperclip-cockpit.json` включен `gateway.reset_on_gateway_shutdown`: если Hermes прислал `Gateway shutting down — Your current task will be interrupted` и пометил сессию как interrupted/resume-pending, следующий входящий Telegram-turn начнется с чистого Hermes-контекста, а не с автопродолжения старого.
 
 Также включены stale-context guards: `reset_session_age_minutes: 60` и `reset_idle_minutes: 15`. Если Telegram-сессия слишком старая или простаивала, cockpit сбросит Hermes-контекст до вызова модели, чтобы старые обещания про фоновых агентов не жили часами.
@@ -272,10 +284,17 @@ Telegram menu показывает одну команду проекта: `/ago
 
 Canonical QA harness lives in `hermes-plugins/paperclip-cockpit/qa-tool/`; `paperclip-qa-tool/bin/paperclip-qa.mjs` is a compatibility wrapper, and project binding lives in `telegram-testing.config.json`.
 Run artifacts are written to `artifacts/telegram-test-runs/` and are ignored by git.
+Telegram QA callbacks are read-only surfaces over those existing artifacts: `QA статус` summarizes latest manifest, `Последний QA отчет` clips `REPORT.md`, `Упавшие проверки` lists failed tests/bugs, and `Cleanup статус` reads manifest cleanup metadata. They do not create Telegram messages, Paperclip issues, or new QA runs by themselves.
+Live interface acceptance is gated by the saved operator checklist in [docs/telegram-testing/TELEGRAM_INTERFACE_LIVE_ACCEPTANCE_CHECKLIST.md](docs/telegram-testing/TELEGRAM_INTERFACE_LIVE_ACCEPTANCE_CHECKLIST.md).
 
 Safe non-live checks:
 
 ```bash
+python3 -m unittest tests.test_paperclip_cockpit_rewrites tests.test_paperclip_cockpit_telegram_callbacks tests.test_paperclip_cockpit_telegram_helper tests.test_phase4_intent_slots tests.test_inner_agora_ask_flow
+node --check scripts/agora.mjs
+node --check scripts/paperclip-cockpit-telegram.mjs
+python3 -m py_compile hermes-plugins/paperclip-cockpit/__init__.py
+node -e "JSON.parse(require('fs').readFileSync('paperclip-cockpit.json','utf8')); console.log('json ok')"
 [ -f .env ] && set -a && source .env && set +a
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json
@@ -316,7 +335,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.co
 
 When a live run or retest is started with `--cleanup hard|soft`, the same manifest-backed cleanup runs automatically after the suite and is written into `manifest.json`. Completed non-dry runs also write `REPORT.md`, `ACCEPTANCE.md`, and `bugs.jsonl` in the run directory.
 
-To keep a compact QA result in Telegram after cleanup, add `--notify telegram` to the live run or retest command.
+Do not add `--notify telegram` when the notification target is the same bot being tested. In live acceptance this can be interpreted as ordinary user text and create Paperclip follow-up work. Report QA results in Codex chat/artifacts or use a separate out-of-band notification target.
 
 Live Telegram runs require an explicit operator confirmation immediately before the run:
 
@@ -324,7 +343,7 @@ Live Telegram runs require an explicit operator confirmation immediately before 
 This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?
 ```
 
-After confirmation, pass `--live-ok` on the exact command being run.
+For the 2026-07-04 interface contract, do not run live Telegram or Paperclip suites from documentation alone. First run the non-live checks above, then QA readiness/live-plan, then ask the operator for an explicit `можно трогать живую систему`. After confirmation, pass `--live-ok` on the exact command being run.
 
 The canonical QA runner and Codex QA workflow plugin now live inside `hermes-plugins/paperclip-cockpit/`: `qa-tool/` contains the runtime, and `codex-plugin/telegram-paperclip-qa/` contains the tester/developer/retest/release discipline. The root `paperclip-qa-tool/bin/paperclip-qa.mjs` command is a compatibility wrapper.
 

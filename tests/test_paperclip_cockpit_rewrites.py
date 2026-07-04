@@ -205,13 +205,12 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
         self.assertTrue(selector["enabled"])
         self.assertEqual(selector["default_mode"], "balanced_local")
         self.assertEqual(selector["apply_to_actions"], ["ask"])
-        self.assertIn("home", selector["menus"])
+        self.assertEqual(selector["menus"], [])
         modes = {mode["id"]: mode for mode in selector["modes"]}
         for mode_id, args in {
             "quick_local": "--min",
             "balanced_local": "--balanced",
             "deep_local": "--max",
-            "all_local": "--all",
             "custom_voices": "--balanced",
         }.items():
             with self.subTest(mode=mode_id):
@@ -219,11 +218,18 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                 self.assertEqual(modes[mode_id]["args"], args)
                 self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "1")
                 self.assertEqual(modes[mode_id]["env"]["INNER_AGORA_MODE"], "local")
+        self.assertEqual(modes["quick_local"]["label"], "Быстро")
+        self.assertEqual(modes["balanced_local"]["label"], "Сбаланс")
+        self.assertEqual(modes["deep_local"]["label"], "Глубоко")
+        self.assertNotIn("all_local", modes)
         self.assertEqual(modes["codex_deep"]["action"], "ask")
         self.assertEqual(modes["codex_deep"]["args"], "--max")
         self.assertEqual(modes["codex_deep"]["env"]["INNER_AGORA_MODE"], "max")
         self.assertEqual(modes["codex_deep"]["env"]["INNER_AGORA_FORCE_LOCAL_ADAPTER"], "0")
         self.assertEqual(modes["go_no_go_local"]["action"], "go-no-go")
+        self.assertEqual(modes["go_no_go_local"]["label"], "Проверить")
+        self.assertIn("делать или не делать", modes["go_no_go_local"]["description"])
+        self.assertIn("практического выбора", modes["go_no_go_local"]["prompt"])
         self.assertEqual(modes["go_no_go_local"]["env"]["INNER_AGORA_ACTIVE_CHAMBER"], "board-directors")
         self.assertIn("choose_participants", config["telegram"]["mode_selector"])
 
@@ -324,6 +330,53 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             ],
         )
 
+    def test_telegram_natural_latest_rewrite_uses_payload_action(self):
+        calls = []
+        runs = []
+
+        def fake_send(chat_id, text, reply_markup=None):
+            calls.append((chat_id, text, reply_markup))
+
+        def fake_run_action(name, action, raw_args, **kwargs):
+            runs.append((name, raw_args, kwargs))
+            return json.dumps(
+                {
+                    "text": "Последняя сессия: THE-20\nСтатус: итог готов",
+                    "reply_markup": {
+                        "inline_keyboard": [[{"text": "Итог", "callback_data": "pc:result:THE-20"}]],
+                    },
+                },
+                ensure_ascii=False,
+            )
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-latest"
+
+        class Event:
+            source = Source()
+            text = "что там по последней сессии?"
+
+        with EnvPatch(
+            PAPERCLIP_COCKPIT_CONFIG=str(AGORA_CONFIG),
+            PAPERCLIP_COCKPIT_NL_REWRITE="1",
+            PAPERCLIP_COCKPIT_NL_WRITES="0",
+            PAPERCLIP_COCKPIT_COMMAND=None,
+            TELEGRAM_BOT_TOKEN="test-token",
+        ), mock.patch.object(self.plugin, "_rewrite_delegate", return_value="/agora latest"), mock.patch.object(
+            self.plugin, "_telegram_send_message", fake_send
+        ), mock.patch.object(self.plugin, "_run_action", fake_run_action):
+            result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(runs, [("telegram_last_session", "", {"chat_id": "chat-latest"})])
+        self.assertEqual(calls[0][0], "chat-latest")
+        self.assertIn("Последняя сессия", calls[0][1])
+        self.assertEqual(
+            calls[0][2]["inline_keyboard"],
+            [[{"text": "Итог", "callback_data": "pc:result:THE-20"}]],
+        )
+
     def test_telegram_command_boundary_intercepts_service_commands_with_buttons(self):
         config = {
             "command": {"name": "agora"},
@@ -420,6 +473,118 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                         {"text": "Прогресс", "callback_data": "pc:latest:help"},
                     ],
                 )
+
+    def test_real_agora_main_menu_matches_telegram_interface_contract(self):
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-contract"
+
+        class Event:
+            source = Source()
+
+        def run_case(text):
+            calls = []
+
+            def fake_telegram_api(method, payload, *, timeout=20):
+                calls.append((method, payload, timeout))
+                return {"ok": True}
+
+            event = Event()
+            event.text = text
+            with EnvPatch(
+                PAPERCLIP_COCKPIT_CONFIG=str(AGORA_CONFIG),
+                PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                PAPERCLIP_COCKPIT_NL_WRITES="0",
+                PAPERCLIP_COCKPIT_COMMAND=None,
+                PAPERCLIP_COCKPIT_ALLOWED_PLATFORMS=None,
+                PAPERCLIP_COCKPIT_ALLOWED_CHATS=None,
+            ), mock.patch.object(self.plugin, "_telegram_api", fake_telegram_api):
+                result = self.plugin._pre_gateway_dispatch(event)
+            return result, calls
+
+        for entry_text in ("/help", "/start", "/start@InnerAgoraBot", "Агора"):
+            with self.subTest(entry_text=entry_text):
+                result, calls = run_case(entry_text)
+                self.assertEqual(result, {"action": "skip"})
+                self.assertEqual([call[0] for call in calls], ["sendMessage"])
+                payload = calls[0][1]
+                self.assertEqual(payload["chat_id"], "chat-contract")
+                self.assertIn("The Inner Agora", payload["text"])
+                self.assertIn("философов", payload["text"])
+                for forbidden in ("Paperclip", "Диагностика", "Режимы", "Каталог", "Все голоса", "Синтез", "Codex"):
+                    self.assertNotIn(forbidden, payload["text"])
+
+                self.assertEqual(
+                    payload["reply_markup"]["inline_keyboard"],
+                    [
+                        [
+                            {"text": "Новый вопрос", "callback_data": "pc:new_question:help"},
+                            {"text": "Последняя сессия", "callback_data": "pc:last_session:help"},
+                        ],
+                        [
+                            {"text": "Итог", "callback_data": "pc:final_result:help"},
+                            {"text": "История", "callback_data": "pc:history:help"},
+                        ],
+                        [
+                            {"text": "Помощь", "callback_data": "pc:help_sections:help"},
+                        ],
+                    ],
+                )
+
+    def test_telegram_natural_status_uses_last_session_payload_without_raw_latest(self):
+        calls = []
+        runs = []
+
+        def fake_send(chat_id, text, reply_markup=None):
+            calls.append((chat_id, text, reply_markup))
+
+        def fake_run_action(name, action, raw_args, **kwargs):
+            runs.append((name, raw_args, kwargs))
+            self.assertNotEqual(name, "latest")
+            return json.dumps(
+                {
+                    "text": "Последняя сессия: THE-74\nСтатус: итог готов\nТема: забота и контроль",
+                    "reply_markup": {
+                        "inline_keyboard": [[{"text": "Итог", "callback_data": "pc:result:THE-74"}]],
+                    },
+                },
+                ensure_ascii=False,
+            )
+
+        class Source:
+            platform = "telegram"
+            chat_id = "chat-status"
+
+        class Event:
+            source = Source()
+            text = "Агора статус"
+
+        with EnvPatch(
+            PAPERCLIP_COCKPIT_CONFIG=str(AGORA_CONFIG),
+            PAPERCLIP_COCKPIT_CWD=str(ROOT),
+            PAPERCLIP_COCKPIT_NL_REWRITE="1",
+            PAPERCLIP_COCKPIT_NL_WRITES="0",
+            PAPERCLIP_COCKPIT_COMMAND=None,
+            TELEGRAM_BOT_TOKEN="test-token",
+        ), mock.patch.object(self.plugin, "_rewrite_delegate", return_value="/agora latest"), mock.patch.object(
+            self.plugin, "_telegram_send_message", fake_send
+        ), mock.patch.object(self.plugin, "_run_action", fake_run_action):
+            result = self.plugin._pre_gateway_dispatch(Event())
+
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(runs, [("telegram_last_session", "", {"chat_id": "chat-status"})])
+        self.assertEqual(len(calls), 1)
+        self.assertIn("Последняя сессия", calls[0][1])
+        self.assertNotIn("Последняя Paperclip-сессия", calls[0][1])
+        self.assertNotIn("http://127.0.0.1", calls[0][1])
+        self.assertEqual(
+            calls[0][2]["inline_keyboard"],
+            [
+                [
+                    {"text": "Итог", "callback_data": "pc:result:THE-74"},
+                ],
+            ],
+        )
 
     def test_command_boundary_home_menu_includes_configured_mode_buttons(self):
         with tempfile.TemporaryDirectory() as tmp:

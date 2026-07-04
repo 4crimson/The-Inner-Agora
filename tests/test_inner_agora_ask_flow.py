@@ -205,6 +205,26 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             check=True,
         )
 
+    def run_philosopher_search(self, query):
+        result = subprocess.run(
+            ["node", str(AGORA_SCRIPT), "philosopher-search", "--json", query],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+
+    def run_role_proposal(self, query):
+        result = subprocess.run(
+            ["node", str(AGORA_SCRIPT), "role-proposal", "--json", "--limit", "4", "--no-architects", query],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+
     def run_follow_up(self, root_ref, question):
         AskFlowHandler.reset()
         AskFlowHandler.created_issues.append(
@@ -556,6 +576,42 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         voices = [item.strip() for item in voices_line.removeprefix("voices=").split(",") if item.strip()]
 
         self.assertEqual(len(voices), 2)
+
+    def test_dry_fast_ask_stays_within_two_or_three_philosophers(self):
+        pair = self.run_dry_ask("--min", "пару философов про свободу")
+        pair_line = next(line for line in pair.stdout.splitlines() if line.startswith("voices="))
+        pair_voices = [item.strip() for item in pair_line.removeprefix("voices=").split(",") if item.strip()]
+        self.assertEqual(len(pair_voices), 2)
+
+        fast = self.run_dry_ask("--min", "быстрый совет про заботу и контроль")
+        fast_line = next(line for line in fast.stdout.splitlines() if line.startswith("voices="))
+        fast_voices = [item.strip() for item in fast_line.removeprefix("voices=").split(",") if item.strip()]
+        self.assertLessEqual(len(fast_voices), 3)
+
+    def test_philosopher_search_supports_russian_english_and_close_aliases(self):
+        english = self.run_philosopher_search("Aristotle")
+        self.assertEqual(english["selected"]["key"], "aristotle")
+        self.assertEqual(english["selected"]["name"], "Аристотель")
+
+        russian_case = self.run_philosopher_search("Аристотеля")
+        self.assertEqual(russian_case["selected"]["key"], "aristotle")
+
+    def test_philosopher_search_returns_up_to_three_closest_matches(self):
+        payload = self.run_philosopher_search("Аристотелл")
+        self.assertIsNone(payload["selected"])
+        self.assertLessEqual(len(payload["matches"]), 3)
+        self.assertEqual(payload["matches"][0]["key"], "aristotle")
+
+    def test_role_proposal_returns_four_structured_candidates(self):
+        payload = self.run_role_proposal("свобода взрослого ребенка")
+
+        self.assertEqual(payload["topic"], "свобода взрослого ребенка")
+        self.assertEqual(len(payload["roles"]), 4)
+        for role in payload["roles"]:
+            self.assertIn("key", role)
+            self.assertIn("name", role)
+            self.assertIn("reason", role)
+            self.assertTrue(role["reason"])
 
     def test_wizard_confirmation_creates_same_session_as_direct_ask(self):
         result = self.run_wizard_sequence()

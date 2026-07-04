@@ -215,8 +215,11 @@ function cleanTopic(text) {
     "можешь",
     "пожалуйста",
     "спросим",
+    "спросить",
     "спроси",
+    "запустить",
     "запусти",
+    "начать",
     "собери",
     "создай",
     "поставь",
@@ -226,6 +229,7 @@ function cleanTopic(text) {
     "консилиум",
     "совет директоров",
     "совет",
+    "агору",
     "агора",
     "агоре",
     "коротко",
@@ -239,7 +243,8 @@ function cleanTopic(text) {
     value = value.replace(new RegExp(fragment, "giu"), " ");
   }
   return value
-    .replace(/^\s*(про|по теме|о том|о)\s+/iu, "")
+    .replace(/^\s*(а\s+)?(про|по теме|о том|о)\s+/iu, "")
+    .replace(/^\s*а\s+/iu, "")
     .replace(/\s+/g, " ")
     .replace(/^[,.:;\s]+|[,.:;\s]+$/g, "")
     .trim();
@@ -400,6 +405,22 @@ export function regexFallbackSlots(userText, context = {}) {
     );
   }
 
+  const words = loose.split(/\s+/).filter(Boolean);
+  const plainTopic = cleanTopic(text);
+  if (words.length >= 3 && plainTopic.length >= 8) {
+    return normalizeIntentSlots(
+      baseSlots({
+        intent: "new_session",
+        chamber: chamber || DEFAULT_CHAMBER_ID,
+        mode: "balanced",
+        topic: plainTopic,
+        roles: roleKeys,
+        confidence: 0.66,
+      }),
+      { chamberId: chamber || DEFAULT_CHAMBER_ID },
+    );
+  }
+
   return normalizeIntentSlots(baseSlots({ intent: "other", chamber: chamberFromText(text), confidence: 0.4 }));
 }
 
@@ -529,6 +550,34 @@ function commandText(command) {
   return command.join(" ");
 }
 
+function pendingTopicKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        { text: "Запустить", callback_data: "pc:launch_balanced:pending" },
+        { text: "Сделать быстро", callback_data: "pc:fast_prompt:pending" },
+      ],
+      [
+        { text: "Сделать глубоко", callback_data: "pc:deep_prompt:pending" },
+        { text: "Выбрать философов", callback_data: "pc:choose_philosophers_prompt:pending" },
+      ],
+      [
+        { text: "Изменить тему", callback_data: "pc:edit_topic:pending" },
+        { text: "Отмена", callback_data: "pc:cancel_pending:pending" },
+      ],
+    ],
+  };
+}
+
+function newSessionNeedsConfirmation(slots) {
+  if (slots.confidence < 0.75) return true;
+  const topic = looseText(slots.topic || "");
+  const vagueSmallGroup =
+    !slots.roles.length &&
+    /(^|\s)(пару|пары|двух|нескольк[а-я]*)\s+(философ[а-я]*|голос[а-я]*)($|\s)/u.test(topic);
+  return vagueSmallGroup;
+}
+
 export function decideNextStep(slots, context = {}) {
   const normalized = normalizeIntentSlots(slots, { chamberId: slots?.chamber || context.activeChamber || DEFAULT_CHAMBER_ID });
   const criticalMissing = normalized.missingSlots.filter((slot) => ["topic", "chamber", "role", "taskRef"].includes(slot));
@@ -556,6 +605,26 @@ export function decideNextStep(slots, context = {}) {
   }
 
   if (normalized.intent === "new_session") {
+    if (newSessionNeedsConfirmation(normalized)) {
+      return {
+        action: "message",
+        text: [
+          "Я понял тему:",
+          `"${normalized.topic}"`,
+          "",
+          "Предлагаю обычный разбор: 4 философа.",
+          "Запустить?",
+        ].join("\n"),
+        reply_markup: pendingTopicKeyboard(),
+        plan: {
+          launch: {
+            action: "command",
+            command: ["/agora", "ask", normalized.topic],
+          },
+        },
+      };
+    }
+
     const command = ["/agora", "ask"];
     if (normalized.mode && normalized.mode !== "balanced") command.push("--mode", normalized.mode);
     if (normalized.roles.length) command.push("--voices", normalized.roles.join(","));

@@ -355,6 +355,46 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["action"], "rewrite")
         self.assertEqual(payload["text"], "/agora voice plato")
 
+    def test_plain_free_text_confirms_topic_instead_of_launching(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text("{}", encoding="utf-8")
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "что такое свобода взрослого ребенка",
+                env={**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)},
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "message")
+        self.assertIn("Я понял тему", payload["text"])
+        self.assertIn("что такое свобода взрослого ребенка", payload["text"])
+        self.assertIn("Предлагаю обычный разбор: 4 философа", payload["text"])
+        self.assertIn("Запустить?", payload["text"])
+        self.assertNotIn("/agora ask", payload["text"])
+        self.assertEqual(
+            payload["reply_markup"]["inline_keyboard"],
+            [
+                [
+                    {"text": "Запустить", "callback_data": "pc:launch_balanced:pending"},
+                    {"text": "Сделать быстро", "callback_data": "pc:fast_prompt:pending"},
+                ],
+                [
+                    {"text": "Сделать глубоко", "callback_data": "pc:deep_prompt:pending"},
+                    {"text": "Выбрать философов", "callback_data": "pc:choose_philosophers_prompt:pending"},
+                ],
+                [
+                    {"text": "Изменить тему", "callback_data": "pc:edit_topic:pending"},
+                    {"text": "Отмена", "callback_data": "pc:cancel_pending:pending"},
+                ],
+            ],
+        )
+
     def test_natural_missing_topic_rewrites_to_wizard_start(self):
         result = self.run_node(
             ROOT / "scripts" / "agora.mjs",
@@ -533,7 +573,7 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertGreaterEqual(payload["semanticCorrect"], 16)
         self.assertEqual(len(payload["results"]), 20)
 
-    def test_agora_natural_preserves_pair_philosopher_limit_words(self):
+    def test_agora_natural_pair_philosopher_limit_words_confirm_before_launch(self):
         result = self.run_node(
             ROOT / "scripts" / "agora.mjs",
             "natural",
@@ -546,8 +586,28 @@ class Phase4IntentSlotTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertEqual(payload["action"], "rewrite")
+        self.assertEqual(payload["action"], "message")
         self.assertIn("пары философов", payload["text"])
+        self.assertNotIn("/agora ask", payload["text"])
+
+    def test_agora_natural_pair_without_named_roles_confirms_before_launch(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "а можешь спросить пару философов про то, как отличить дисциплину от насилия над собой",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "message")
+        self.assertIn("Я понял тему", payload["text"])
+        self.assertIn("как отличить дисциплину", payload["text"])
+        self.assertNotIn("а ть", payload["text"])
+        self.assertNotIn("/agora ask", payload["text"])
 
     def test_agora_natural_follow_up_uses_last_root_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -598,6 +658,37 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["action"], "message")
         self.assertEqual(payload["slots"]["intent"], "help")
         self.assertIn("быстрый совет", payload["text"])
+
+    def test_agora_natural_new_session_phrase_is_not_implicit_follow_up(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "lastRootIssueRef": "THE-900",
+                        "lastSynthesisRef": "THE-999",
+                        "lastIssueSeenAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = {**os.environ, "INNER_AGORA_STATE_PATH": str(state_path)}
+            result = self.run_node(
+                ROOT / "scripts" / "agora.mjs",
+                "natural",
+                "--routing-mode",
+                "regex",
+                "--dry-run",
+                "--json",
+                "хочу разобраться: как заботиться о взрослом ребенке и не превратить это в контроль",
+                env=env,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "message")
+        self.assertEqual(payload["slots"]["intent"], "new_session")
+        self.assertIn("Я понял тему", payload["text"])
+        self.assertNotIn("/agora follow-up THE-900", payload["text"])
 
     def test_agora_natural_dialogue_with_role_uses_last_root_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:

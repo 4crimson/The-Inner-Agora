@@ -24,11 +24,11 @@
   },
   "reporting": {
     "telegram": {
-      "enabled": true,
+      "enabled": false,
       "transport": "userbot",
-      "sendStart": true,
-      "sendResult": true,
-      "retainResultMessage": true
+      "sendStart": false,
+      "sendResult": false,
+      "retainResultMessage": false
     }
   },
   "suites": {
@@ -74,50 +74,59 @@
         {
           "id": "service.help",
           "message": "/help",
+          "waitSeconds": 20,
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "replyContains": ["The Inner Agora", "философов", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
             "noRawTokens": true,
-            "buttonsPresent": true
+            "buttonsPresent": true,
+            "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
           }
         },
         {
           "id": "service.agora.home",
           "message": "/agora",
+          "waitSeconds": 20,
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "replyContains": ["The Inner Agora", "философов", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
             "noRawTokens": true,
-            "buttonsPresent": true
+            "buttonsPresent": true,
+            "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
           }
         },
         {
           "id": "service.agora.help",
           "message": "/agora help",
+          "waitSeconds": 20,
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Я могу помочь через Агору", "обычным языком", "Текущий режим"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "replyContains": ["The Inner Agora", "философов", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
             "noRawTokens": true,
-            "buttonsPresent": true
+            "buttonsPresent": true,
+            "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
           }
         },
         {
           "id": "service.agents",
           "message": "/agents",
+          "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["голоса и текущие сессии", "диагностику", "Текущий режим"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "replyContains": ["Философы", "последней сессии"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
             "noRawTokens": true,
-            "buttonsPresent": true
+            "buttonsPresent": true,
+            "buttonsContain": ["Последняя сессия", "Новый вопрос", "Итог", "Назад"]
           }
         },
         {
           "id": "service.agora.help.full",
           "message": "/agora help full",
+          "waitSeconds": 20,
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["Обычный вход", "Обычные команды", "Работа с сессиями", "Админ/диагностика"],
@@ -130,15 +139,15 @@
     "mode-routing": {
       "tests": [
         {
-          "id": "mode.menu.current",
+          "id": "mode.menu.hidden-on-help",
           "message": "/help",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyContains": ["Текущий режим", "Сбаланс"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "replyContains": ["The Inner Agora", "философов"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Быстро 2", "Сбаланс. 5", "Глубоко 10", "Go/No-Go", "Все голоса"],
             "noRawTokens": true,
             "buttonsPresent": true,
-            "buttonsContain": ["Codex", "Свои голоса", "Все голоса"]
+            "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
           }
         },
         {
@@ -212,25 +221,94 @@
         }
       ]
     },
-    "council-create": {
+    "interface-contract-topics": {
       "tests": [
         {
-          "id": "council.quick-advice",
-          "message": "быстрый совет: что такое свобода ребенка когда ему 18-20 лет [qa:<runId>]",
+      "id": "interface.home-menu",
+      "message": "/agora",
+      "waitSeconds": 35,
           "expect": {
-            "paperclipRootsCreatedAtLeast": 1,
-            "localRouteContains": "local",
-            "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+            "paperclipRootsCreated": 0,
+            "replyContains": ["The Inner Agora", "философов", "обычным языком"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noRawTokens": true,
+            "buttonsPresent": true,
+            "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
+          }
+        },
+        {
+      "id": "interface.ambiguous-care-control-confirmation",
+      "message": "хочу разобраться: как заботиться о взрослом ребенке и не превратить это в контроль",
+      "waitSeconds": 35,
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyContains": ["Я понял тему", "Запустить"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true,
+            "buttonsContain": ["Запустить", "Сделать быстро", "Сделать глубоко", "Выбрать философов"]
+          }
+        },
+    {
+      "id": "interface.ask-two-discipline",
+      "message": "а можешь спросить пару философов про то, как отличить дисциплину от насилия над собой",
+      "waitSeconds": 35,
+      "expect": {
+            "replyContains": ["Я понял тему"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
             "noRawTokens": true,
             "buttonsPresent": true
           }
         },
         {
-          "id": "council.deep-care-control",
-          "message": "глубокое исследование: как заботу не превратить в контроль [qa:<runId>]",
+      "id": "interface.latest-after-clean-chat",
+      "message": "что там по последней сессии?",
+      "waitSeconds": 35,
+          "expect": {
+            "paperclipRootsCreated": 0,
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noRawTokens": true,
+            "buttonsPresent": true
+          }
+        }
+      ]
+    },
+    "council-create": {
+      "tests": [
+    {
+      "id": "council.quick-advice",
+      "message": "коротко спроси Аристотеля и Фуко: как поддерживать взрослого ребенка, не присваивая его жизнь [qa:<runId>]",
+      "waitSeconds": 40,
+      "expect": {
+        "paperclipRootsCreatedAtLeast": 1,
+        "localRouteContains": "local",
+        "replyContains": ["Аристотель", "Фуко"],
+        "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+        "noRawTokens": true,
+        "buttonsPresent": true
+      }
+    },
+    {
+      "id": "council.deep-care-control",
+      "message": "собери совет с Джудит Батлер и Мартой Нуссбаум: как отличить дисциплину от насилия над собой [qa:<runId>]",
+      "waitSeconds": 40,
+      "expect": {
+        "paperclipRootsCreatedAtLeast": 1,
+        "localRouteContains": "local",
+        "replyContains": ["Батлер", "Нуссбаум"],
+        "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited"],
+        "noRawTokens": true,
+        "buttonsPresent": true
+      }
+        },
+        {
+          "id": "council.custom-friendship-change",
+          "message": "собери совет с Аристотелем и Фуко: можно ли дружить с человеком, которого хочешь изменить [qa:<runId>]",
+          "waitSeconds": 40,
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "localRouteContains": "local",
+            "replyContains": ["Аристотель", "Фуко"],
             "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited"],
             "noRawTokens": true,
             "buttonsPresent": true

@@ -47,7 +47,7 @@ Expected behavior:
 Targeted live retest command:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --notify telegram --live-ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --live-ok --json
 ```
 
 Run this suite after syncing the Hermes profile and restarting the gateway. If cleanup reports residuals, keep the run artifacts and file a cleanup bug before broader release review.
@@ -66,13 +66,13 @@ Covered behavior:
 Automated live retest:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite mode-routing --cleanup hard --notify telegram --live-ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite mode-routing --cleanup hard --live-ok --json
 ```
 
 Manual callback checkpoint:
 
 1. Send `/help`.
-2. Press `Глубоко 10` or another mode button.
+2. Press `Глубоко`, `Codex`, `Свои голоса`, or `Проверить`.
 3. Confirm Telegram reports the new current mode.
 4. Send a normal question without slash commands.
 5. Confirm the route and Paperclip session match that selected mode.
@@ -510,7 +510,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs cleanup --config telegram-testing.co
 
 When `run` or `retest` is invoked with `--cleanup hard|soft`, cleanup runs automatically after suite execution and the cleanup result is written into `manifest.json`. Completed non-dry runs also write `REPORT.md`, `ACCEPTANCE.md`, and `bugs.jsonl` in the run directory.
 
-When a live `run` or `retest` is invoked with `--notify telegram`, the runner sends a compact retained result summary after cleanup and records that notification under `manifest.reporting.telegram[]`.
+Do not use `--notify telegram` when the notification target is the same bot being tested. The retained summary can be routed back as ordinary user text and create Paperclip work. Use Codex chat/artifacts or a separate out-of-band notification target instead.
 
 Live suites require explicit operator confirmation immediately before the run:
 
@@ -540,7 +540,7 @@ Useful safety flags:
 ```bash
 --dry-run
 --cleanup hard|soft|none
---notify telegram
+--notify telegram   # only for a separate out-of-band notification target, not the bot under test
 --allow-known-guard-error <name>
 --max-paperclip-roots <n>
 --timeout <seconds>

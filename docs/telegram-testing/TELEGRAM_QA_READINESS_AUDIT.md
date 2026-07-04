@@ -92,7 +92,7 @@ This will send Telegram messages and may create Paperclip issues. Cleanup will r
 3. If approved, run the controlled live help suite:
 
 ```bash
-node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --notify telegram --live-ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json
 ```
 
 4. Inspect the resulting manifest and report:

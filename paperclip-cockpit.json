@@ -76,28 +76,60 @@
     "profile": "inneragora",
     "callback_prefix": "pc",
     "home_chat_env": "TELEGRAM_HOME_CHANNEL",
+    "history": {
+      "defaultLimit": 5
+    },
+    "progress": {
+      "contract_buttons": true
+    },
+    "error_recovery": {
+      "enabled": true,
+      "buttons": [
+        {
+          "label": "Восстановить и повторить",
+          "callback": "recover_retry",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Попробовать без него",
+          "callback": "recover_without_philosopher",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Показать детали",
+          "callback": "show_error_details",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Назад",
+          "callback": "back_home",
+          "arg": "help"
+        }
+      ]
+    },
     "buttons": {
       "enabled": true,
       "voice_limit": 6,
+      "show_export": false,
       "quick_actions": [
-        {
-          "label": "Разногласия",
-          "callback": "disagreements"
-        },
-        {
-          "label": "Углубить",
-          "callback": "deepen"
-        },
         {
           "label": "Новый вопрос",
           "callback": "new_question"
+        },
+        {
+          "label": "Детали",
+          "callback": "details"
         }
       ],
       "labels": {
-        "synthesis": "Синтез",
-        "all_voices": "Все голоса",
-        "export": "Экспорт",
-        "clarify": "Уточнить"
+        "synthesis": "Итог",
+        "full_result": "Полный итог",
+        "all_voices": "Философы",
+        "clarify": "Продолжить",
+        "details": "Детали"
+      },
+      "callbacks": {
+        "all_voices": "philosophers"
       }
     },
     "help_buttons": [
@@ -106,25 +138,32 @@
         "callback": "new_question"
       },
       {
-        "label": "Уточнить",
-        "callback": "clarify"
+        "label": "Последняя сессия",
+        "callback": "last_session"
       },
       {
-        "label": "Разногласия",
-        "callback": "disagreements"
+        "label": "Итог",
+        "callback": "final_result"
       },
       {
-        "label": "Углубить",
-        "callback": "deepen"
+        "label": "История",
+        "callback": "history"
+      },
+      {
+        "label": "Помощь",
+        "callback": "help_sections"
       }
     ],
     "command_boundary": {
       "enabled": true,
       "commands": {
         "home": [
+          "/start",
           "/help",
           "/agora",
-          "/agora help"
+          "/agora help",
+          "Агора",
+          "The Inner Agora"
         ],
         "agents": [
           "/agents"
@@ -137,58 +176,48 @@
       },
       "menus": {
         "home": {
-          "text": "Я могу помочь через Агору: быстрый совет, глубокое исследование, разбор голосов и итоговый синтез.\n\nНапиши обычным языком, что хочешь понять. Если тема широкая, я уточню.",
+          "text": "The Inner Agora\n\nЯ могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
           "buttons": [
             {
-              "label": "Быстрый совет",
-              "callback": "quick_prompt"
+              "label": "Новый вопрос",
+              "callback": "new_question"
             },
             {
-              "label": "Глубокое исследование",
-              "callback": "deep_prompt"
+              "label": "Последняя сессия",
+              "callback": "last_session"
             },
             {
-              "label": "Codex",
-              "callback": "ask_with_mode",
-              "arg": "codex_deep"
+              "label": "Итог",
+              "callback": "final_result"
             },
             {
-              "label": "Выбрать философов",
-              "callback": "choose_participants",
-              "arg": "custom_voices"
+              "label": "История",
+              "callback": "history"
             },
             {
-              "label": "Философы",
-              "callback": "philosophers_prompt"
-            },
-            {
-              "label": "Помощь full",
-              "callback": "full_help_prompt"
+              "label": "Помощь",
+              "callback": "help_sections"
             }
           ]
         },
         "agents": {
-          "text": "В Агоре \"агенты\" - это голоса и текущие сессии.\n\nМогу показать философов, последние сессии, прогресс или диагностику.",
+          "text": "Философы показываются внутри активной или последней сессии.\n\nОткрой последнюю сессию или начни новый вопрос.",
           "buttons": [
             {
-              "label": "Философы",
-              "callback": "philosophers_prompt"
+              "label": "Последняя сессия",
+              "callback": "last_session"
             },
             {
-              "label": "Последние сессии",
-              "callback": "latest_prompt"
+              "label": "Новый вопрос",
+              "callback": "new_question"
             },
             {
-              "label": "Прогресс",
-              "callback": "progress_prompt"
+              "label": "Итог",
+              "callback": "final_result"
             },
             {
-              "label": "Диагностика",
-              "callback": "diagnostics_prompt"
-            },
-            {
-              "label": "Помощь",
-              "callback": "full_help_prompt"
+              "label": "Назад",
+              "callback": "back_home"
             }
           ]
         }
@@ -198,10 +227,7 @@
       "enabled": true,
       "state_path": ".paperclip-cockpit-telegram-mode-state.json",
       "default_mode": "balanced_local",
-      "menus": [
-        "home",
-        "agents"
-      ],
+      "menus": [],
       "apply_to_actions": [
         "ask"
       ],
@@ -214,7 +240,7 @@
       "modes": [
         {
           "id": "quick_local",
-          "label": "Быстро 2",
+          "label": "Быстро",
           "description": "короткий локальный совет",
           "action": "ask",
           "args": "--min",
@@ -225,7 +251,7 @@
         },
         {
           "id": "balanced_local",
-          "label": "Сбаланс. 5",
+          "label": "Сбаланс",
           "description": "локальный совет по умолчанию",
           "action": "ask",
           "args": "--balanced",
@@ -236,7 +262,7 @@
         },
         {
           "id": "deep_local",
-          "label": "Глубоко 10",
+          "label": "Глубоко",
           "description": "расширенный локальный совет",
           "action": "ask",
           "args": "--max",
@@ -257,17 +283,6 @@
           }
         },
         {
-          "id": "all_local",
-          "label": "Все голоса",
-          "description": "локальный проход по всему roster",
-          "action": "ask",
-          "args": "--all",
-          "env": {
-            "INNER_AGORA_MODE": "local",
-            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
-          }
-        },
-        {
           "id": "custom_voices",
           "label": "Свои голоса",
           "description": "укажи философов в тексте вопроса",
@@ -281,9 +296,10 @@
         },
         {
           "id": "go_no_go_local",
-          "label": "Go/No-Go",
-          "description": "локальная управленческая палата",
+          "label": "Проверить",
+          "description": "режим решения: делать или не делать, не философский совет",
           "action": "go-no-go",
+          "prompt": "Напиши ситуацию практического выбора: что на столе, критерии успеха, цена ошибки и дедлайн. Ответ будет: делать, не делать или делать при условиях; с рисками и следующим шагом.",
           "env": {
             "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
             "INNER_AGORA_MODE": "local",
@@ -299,7 +315,15 @@
       },
       "deep_prompt": {
         "answer": "Ок",
-        "message": "Напиши обычным сообщением: глубокое исследование: <твой вопрос>."
+        "message": "Глубокое исследование.\n\nНапиши вопрос одним сообщением.\nПосле темы я предложу 5-6 философов и спрошу, запускать ли.",
+        "pending_question_action": "telegram_deep_proposal",
+        "telegram_payload": true,
+        "buttons": [
+          {
+            "label": "Назад",
+            "callback": "back_home"
+          }
+        ]
       },
       "philosophers_prompt": {
         "answer": "Ок",
@@ -346,7 +370,46 @@
       },
       "clarify": {
         "answer": "Можно уточнять",
-        "message": "Напиши уточнение обычным сообщением по сессии {arg}. Я подхвачу его как новый conversational запрос."
+        "message": "Продолжаем по этой сессии.\nНапиши уточнение обычным текстом.",
+        "pending_question": {
+          "type": "follow_up",
+          "root": "{arg}"
+        },
+        "buttons": [
+          {
+            "label": "Уточнить",
+            "callback": "clarify_text"
+          },
+          {
+            "label": "Углубить",
+            "callback": "deepen"
+          },
+          {
+            "label": "Спросить философа",
+            "callback": "ask_one_prompt"
+          },
+          {
+            "label": "Новый совет по теме",
+            "callback": "new_question"
+          },
+          {
+            "label": "Завершить",
+            "callback": "finish_session"
+          },
+          {
+            "label": "Назад",
+            "callback": "last_session",
+            "arg": "help"
+          }
+        ]
+      },
+      "clarify_text": {
+        "answer": "Ок",
+        "message": "Напиши уточнение обычным текстом.\nЯ сохраню его в контексте текущей сессии {arg}.",
+        "pending_question": {
+          "type": "follow_up",
+          "root": "{arg}"
+        }
       },
       "disagreements": {
         "answer": "Ок",
@@ -356,9 +419,381 @@
         "answer": "Ок",
         "message": "Напиши обычным сообщением, что именно углубить по сессии {arg}."
       },
+      "philosophers": {
+        "answer": "Ок",
+        "action": "telegram_philosophers",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "philosophers_ready": {
+        "answer": "Ок",
+        "action": "telegram_philosophers",
+        "args": "{arg} --ready",
+        "telegram_payload": true
+      },
+      "details": {
+        "answer": "Ок",
+        "action": "telegram_details",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "stop_confirm": {
+        "answer": "Ок",
+        "action": "telegram_stop_confirm",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "stop_cleanup": {
+        "answer": "Останавливаю",
+        "action": "telegram_stop_cleanup",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "open_paperclip": {
+        "answer": "Ок",
+        "message": "Ссылка Paperclip доступна в сообщении «Детали» для сессии {arg}."
+      },
+      "finish_session": {
+        "answer": "Ок",
+        "message": "Сессия {arg} остается доступной в истории.\nНовый вопрос можно начать отдельной кнопкой.",
+        "clear_pending_question": true
+      },
       "new_question": {
         "answer": "Ок",
-        "message": "Напиши новый вопрос обычным сообщением. Если это новая тема, начни с: новый вопрос:"
+        "message": "Как разберем вопрос?\n\nВыбери формат. После этого я попрошу сам вопрос.",
+        "buttons": [
+          {
+            "label": "Быстрый совет",
+            "callback": "fast_prompt"
+          },
+          {
+            "label": "Глубокое исследование",
+            "callback": "deep_prompt"
+          },
+          {
+            "label": "Спросить одного",
+            "callback": "ask_one_prompt"
+          },
+          {
+            "label": "Выбрать философов",
+            "callback": "choose_philosophers_prompt"
+          },
+          {
+            "label": "Назад",
+            "callback": "back_home"
+          }
+        ]
+      },
+      "fast_prompt": {
+        "answer": "Ок",
+        "message": "Быстрый совет — 2-3 философа, коротко и по делу.\n\nНапиши тему обычным текстом.",
+        "pending_question_action": "min",
+        "telegram_launch_summary": true
+      },
+      "ask_one_prompt": {
+        "answer": "Ок",
+        "message": "Кого спросим?\n\nМожно написать имя или выбрать:\nАристотель — практическая мера\nСократ — вопросы и прояснение\nНицше — конфликт и воля\nФуко — власть и контроль",
+        "buttons": [
+          {
+            "label": "Аристотель",
+            "callback": "choose_aristotle"
+          },
+          {
+            "label": "Сократ",
+            "callback": "choose_socrates"
+          },
+          {
+            "label": "Ницше",
+            "callback": "choose_nietzsche"
+          },
+          {
+            "label": "Фуко",
+            "callback": "choose_foucault"
+          },
+          {
+            "label": "Поиск",
+            "callback": "search_philosopher"
+          },
+          {
+            "label": "Назад",
+            "callback": "back_home"
+          }
+        ]
+      },
+      "choose_philosophers_prompt": {
+        "answer": "Ок",
+        "message": "Напиши тему.\nЯ предложу состав философов, а ты сможешь изменить состав перед запуском.",
+        "pending_question_action": "telegram_custom_proposal",
+        "telegram_payload": true,
+        "buttons": [
+          {
+            "label": "Назад",
+            "callback": "back_home"
+          }
+        ]
+      },
+      "launch_deep": {
+        "answer": "Нужна тема",
+        "message": "Сначала напиши тему глубокого исследования.\nПосле темы я покажу состав и попрошу подтвердить запуск.",
+        "pending_question_action": "max",
+        "telegram_launch_summary": true
+      },
+      "launch_custom": {
+        "answer": "Нужна тема",
+        "message": "Сначала напиши тему.\nПотом я покажу точный состав и попрошу подтвердить запуск.",
+        "pending_question_action": "ask",
+        "telegram_launch_summary": true
+      },
+      "launch_balanced": {
+        "answer": "Нужна тема",
+        "message": "Нужна сохраненная тема перед запуском.\nНапиши тему еще раз или нажми «Изменить тему».",
+        "pending_question_action": "ask",
+        "telegram_launch_summary": true
+      },
+      "edit_topic": {
+        "answer": "Ок",
+        "message": "Напиши тему еще раз обычным текстом.\nЯ покажу новый состав перед запуском.",
+        "clear_pending_question": true
+      },
+      "cancel_pending": {
+        "answer": "Отменено",
+        "message": "Отменил черновик вопроса.\nМожно начать заново через «Новый вопрос».",
+        "clear_pending_question": true
+      },
+      "add_philosopher": {
+        "answer": "Ок",
+        "message": "Сначала выбери состав философов.\nПотом можно будет добавить философа.",
+        "pending_question_action": "telegram_custom_add_prompt",
+        "telegram_payload": true
+      },
+      "remove_philosopher": {
+        "answer": "Ок",
+        "message": "Сначала выбери состав философов.\nПотом можно будет убрать философа.",
+        "pending_question_action": "telegram_custom_remove_prompt",
+        "telegram_payload": true
+      },
+      "choose_aristotle": {
+        "answer": "Ок",
+        "message": "Аристотель выбран.\nТеперь напиши тему обычным текстом.",
+        "pending_question": {
+          "type": "ask_one",
+          "philosopher": "aristotle"
+        }
+      },
+      "choose_socrates": {
+        "answer": "Ок",
+        "message": "Сократ выбран.\nТеперь напиши тему обычным текстом.",
+        "pending_question": {
+          "type": "ask_one",
+          "philosopher": "socrates"
+        }
+      },
+      "choose_nietzsche": {
+        "answer": "Ок",
+        "message": "Ницше выбран.\nТеперь напиши тему обычным текстом.",
+        "pending_question": {
+          "type": "ask_one",
+          "philosopher": "nietzsche"
+        }
+      },
+      "choose_foucault": {
+        "answer": "Ок",
+        "message": "Фуко выбран.\nТеперь напиши тему обычным текстом.",
+        "pending_question": {
+          "type": "ask_one",
+          "philosopher": "foucault"
+        }
+      },
+      "search_philosopher": {
+        "answer": "Ок",
+        "message": "Напиши имя философа или близкое описание.\nЯ покажу до трех подходящих вариантов."
+      },
+      "philosopher_search": {
+        "answer": "Ок",
+        "action": "telegram_philosopher_search",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "choose_philosopher": {
+        "answer": "Ок",
+        "action": "telegram_philosopher_choice",
+        "args": "{arg}",
+        "telegram_payload": true,
+        "pending_question": {
+          "type": "ask_one",
+          "philosopher": "{arg}"
+        }
+      },
+      "last_session": {
+        "answer": "Ок",
+        "action": "telegram_last_session",
+        "args": "",
+        "telegram_payload": true
+      },
+      "session": {
+        "answer": "Ок",
+        "action": "telegram_last_session",
+        "args": "{arg}",
+        "telegram_payload": true
+      },
+      "final_result": {
+        "answer": "Ок",
+        "action": "telegram_final_result",
+        "args": "",
+        "telegram_payload": true
+      },
+      "history": {
+        "answer": "Ок",
+        "action": "telegram_history",
+        "args": "",
+        "telegram_payload": true
+      },
+      "help_sections": {
+        "answer": "Ок",
+        "message": "Помощь по The Inner Agora.\n\nМожно писать обычным языком или пользоваться кнопками.\nЧто открыть?",
+        "buttons": [
+          {
+            "label": "Как пользоваться",
+            "callback": "how_to"
+          },
+          {
+            "label": "Примеры фраз",
+            "callback": "examples"
+          },
+          {
+            "label": "Полная справка",
+            "callback": "full_help"
+          },
+          {
+            "label": "Состояние",
+            "callback": "status_help"
+          },
+          {
+            "label": "Назад",
+            "callback": "back_home"
+          }
+        ]
+      },
+      "how_to": {
+        "answer": "Ок",
+        "message": "Как пользоваться:\n1. Нажми «Новый вопрос» или напиши тему.\n2. Выбери короткий или глубокий разбор.\n3. Жди итог и продолжай вопросом."
+      },
+      "examples": {
+        "answer": "Ок",
+        "message": "Примеры фраз:\nчто такое свобода взрослого ребенка\nпару философов про заботу и контроль\nглубокое исследование про выбор профессии"
+      },
+      "full_help": {
+        "answer": "Ок",
+        "message": "Полная справка доступна через /agora help full.\nОна техническая и сгруппирована отдельно от главного меню."
+      },
+      "status_help": {
+        "answer": "Ок",
+        "message": "Состояние The Inner Agora\n\nМожно посмотреть QA-статус и последние отчеты.\nLive QA отсюда не запускается.",
+        "buttons": [
+          {
+            "label": "QA статус",
+            "callback": "qa_status"
+          },
+          {
+            "label": "Последний QA отчет",
+            "callback": "qa_report"
+          },
+          {
+            "label": "Упавшие проверки",
+            "callback": "qa_failures"
+          },
+          {
+            "label": "Cleanup статус",
+            "callback": "qa_cleanup"
+          },
+          {
+            "label": "Назад",
+            "callback": "help_sections"
+          }
+        ]
+      },
+      "qa_status": {
+        "answer": "Ок",
+        "action": "telegram_qa_status",
+        "telegram_payload": true
+      },
+      "qa_report": {
+        "answer": "Ок",
+        "action": "telegram_qa_report",
+        "telegram_payload": true
+      },
+      "qa_failures": {
+        "answer": "Ок",
+        "action": "telegram_qa_failures",
+        "telegram_payload": true
+      },
+      "qa_cleanup": {
+        "answer": "Ок",
+        "action": "telegram_qa_cleanup",
+        "telegram_payload": true
+      },
+      "recover_retry": {
+        "answer": "Ок",
+        "message": "Восстановление и повторный запуск требуют отдельного repair/live шага.\nСначала открой детали или запусти локальный guard."
+      },
+      "recover_without_philosopher": {
+        "answer": "Ок",
+        "message": "Продолжение без философа пока не запускаю из Telegram.\nНужен явный recovery шаг, чтобы итог честно отметил пропущенный голос."
+      },
+      "show_error_details": {
+        "answer": "Ок",
+        "message": "Технические детали ошибки сохранены в локальных логах.\nЕсли есть сессия, открой «Детали»."
+      },
+      "history_more": {
+        "answer": "Ок",
+        "action": "telegram_history",
+        "args": "--page {arg}",
+        "telegram_payload": true
+      },
+      "history_active": {
+        "answer": "Ок",
+        "action": "telegram_history",
+        "args": "--filter active",
+        "telegram_payload": true
+      },
+      "history_done": {
+        "answer": "Ок",
+        "action": "telegram_history",
+        "args": "--filter done",
+        "telegram_payload": true
+      },
+      "history_stopped": {
+        "answer": "Ок",
+        "action": "telegram_history",
+        "args": "--filter stopped",
+        "telegram_payload": true
+      },
+      "back_home": {
+        "answer": "Ок",
+        "message": "The Inner Agora\n\nЯ могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
+        "buttons": [
+          {
+            "label": "Новый вопрос",
+            "callback": "new_question"
+          },
+          {
+            "label": "Последняя сессия",
+            "callback": "last_session"
+          },
+          {
+            "label": "Итог",
+            "callback": "final_result"
+          },
+          {
+            "label": "История",
+            "callback": "history"
+          },
+          {
+            "label": "Помощь",
+            "callback": "help_sections"
+          }
+        ],
+        "clear_pending_question": true
       }
     }
   },
@@ -395,33 +830,29 @@
     "language": "ru",
     "home": {
       "title": "The Inner Agora",
-      "intro": "Агора подключена к Paperclip.",
+      "intro": "Я могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
       "items": [
         {
-          "action": "status",
-          "text": "кратко показать состояние"
+          "action": "ask",
+          "text": "новый вопрос"
+        },
+        {
+          "action": "latest",
+          "text": "последняя сессия"
         },
         {
           "action": "result",
-          "text": "последний содержательный итог"
-        },
-        {
-          "action": "philosophers",
-          "text": "список философов"
-        },
-        {
-          "action": "tasks",
-          "text": "сессии и задачи"
+          "text": "итог"
         }
       ],
       "more": [
         {
-          "command": "help full",
-          "text": "полная справка"
+          "command": "help",
+          "text": "помощь"
         },
         {
-          "action": "guard",
-          "text": "проверка проекта"
+          "command": "help full",
+          "text": "полная справка"
         }
       ]
     },
@@ -866,6 +1297,265 @@
         "clip": 30000
       }
     },
+    "telegram_last_session": {
+      "usage": "telegram_last_session [ISSUE]",
+      "description": "служебный Telegram payload для последней сессии без raw Paperclip деталей",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-last-session"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_final_result": {
+      "usage": "telegram_final_result",
+      "description": "служебный Telegram payload для последнего готового итога",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-final-result"
+      ],
+      "append_args": false,
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_history": {
+      "usage": "telegram_history",
+      "description": "служебный Telegram payload для истории корневых сессий",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-history"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosophers": {
+      "usage": "telegram_philosophers [ISSUE]",
+      "description": "служебный Telegram payload для философов текущей сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosophers"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosopher_search": {
+      "usage": "telegram_philosopher_search QUERY",
+      "description": "служебный Telegram payload для поиска философа без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosopher-search"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosopher_choice": {
+      "usage": "telegram_philosopher_choice PHILOSOPHER",
+      "description": "служебный Telegram payload для выбора одного философа без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosopher-choice"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_proposal": {
+      "usage": "telegram_custom_proposal TOPIC",
+      "description": "служебный Telegram payload для предложения редактируемого состава философов",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-proposal"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_deep_proposal": {
+      "usage": "telegram_deep_proposal TOPIC",
+      "description": "служебный Telegram payload для предложения глубокого состава после ввода темы",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-deep-proposal"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_add_prompt": {
+      "usage": "telegram_custom_add_prompt --philosophers KEYS TOPIC",
+      "description": "служебный Telegram payload для добавления философа в сохраненный custom-состав",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit-prompt",
+        "add"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_remove_prompt": {
+      "usage": "telegram_custom_remove_prompt --philosophers KEYS TOPIC",
+      "description": "служебный Telegram payload для удаления философа из сохраненного custom-состава",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit-prompt",
+        "remove"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_edit": {
+      "usage": "telegram_custom_edit add|remove --philosophers KEYS --topic TOPIC --query QUERY",
+      "description": "служебный Telegram payload для обновления custom-состава без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_details": {
+      "usage": "telegram_details [ISSUE]",
+      "description": "служебный Telegram payload для второго уровня деталей сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-details"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_stop_confirm": {
+      "usage": "telegram_stop_confirm ISSUE",
+      "description": "служебный Telegram payload для подтверждения остановки сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-stop-confirm"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_stop_cleanup": {
+      "usage": "telegram_stop_cleanup ISSUE",
+      "description": "служебный Telegram payload для подтвержденной остановки и скрытия сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-stop-cleanup"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_status": {
+      "usage": "telegram_qa_status",
+      "description": "служебный Telegram payload со статусом последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-status"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_report": {
+      "usage": "telegram_qa_report",
+      "description": "служебный Telegram payload с последним QA-отчетом без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-report"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_failures": {
+      "usage": "telegram_qa_failures",
+      "description": "служебный Telegram payload с падениями последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-failures"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_cleanup": {
+      "usage": "telegram_qa_cleanup",
+      "description": "служебный Telegram payload с cleanup-статусом последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-cleanup"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
     "mode": {
       "usage": "mode [get|set MODE]",
       "aliases": [
@@ -915,6 +1605,20 @@
         "node",
         "scripts/agora.mjs",
         "ask"
+      ],
+      "timeout": 900
+    },
+    "follow-up": {
+      "usage": "follow-up ROOT QUESTION",
+      "aliases": [
+        "followup",
+        "продолжить"
+      ],
+      "description": "продолжить существующую Agora-сессию",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "follow-up"
       ],
       "timeout": 900
     },
@@ -1038,7 +1742,7 @@
         "go/no-go",
         "совет директоров go/no-go"
       ],
-      "description": "быстрый go/no-go разбор в палате совета директоров",
+      "description": "быстрая проверка практического решения: делать или не делать",
       "exec": [
         "node",
         "scripts/agora.mjs",

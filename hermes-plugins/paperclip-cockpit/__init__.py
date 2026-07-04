@@ -570,6 +570,150 @@ def _telegram_set_selected_mode(chat_id: Any, mode_id: str, platform: str = "tel
     return mode
 
 
+def _telegram_pending_question(chat_id: Any, platform: str = "telegram") -> dict[str, Any]:
+    if not str(chat_id or "").strip():
+        return {}
+    state = _telegram_read_mode_state()
+    entry = state.get("chats", {}).get(_telegram_mode_state_key(chat_id, platform), {})
+    pending = entry.get("pendingQuestion") if isinstance(entry, dict) else None
+    return pending if isinstance(pending, dict) else {}
+
+
+def _telegram_set_pending_question(chat_id: Any, pending: dict[str, Any], platform: str = "telegram") -> None:
+    if not str(chat_id or "").strip() or not pending:
+        return
+    state = _telegram_read_mode_state()
+    chats = state.setdefault("chats", {})
+    if not isinstance(chats, dict):
+        chats = {}
+        state["chats"] = chats
+    key = _telegram_mode_state_key(chat_id, platform)
+    entry = chats.get(key)
+    if not isinstance(entry, dict):
+        entry = {}
+    entry["pendingQuestion"] = {**pending, "updatedAt": datetime.now(timezone.utc).isoformat()}
+    entry["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    chats[key] = entry
+    _telegram_write_mode_state(state)
+
+
+def _telegram_clear_pending_question(chat_id: Any, platform: str = "telegram") -> None:
+    if not str(chat_id or "").strip():
+        return
+    state = _telegram_read_mode_state()
+    chats = state.get("chats", {})
+    entry = chats.get(_telegram_mode_state_key(chat_id, platform), {}) if isinstance(chats, dict) else {}
+    if not isinstance(entry, dict) or "pendingQuestion" not in entry:
+        return
+    entry.pop("pendingQuestion", None)
+    entry["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    _telegram_write_mode_state(state)
+
+
+def _telegram_store_pending_question_from_spec(chat_id: Any, spec: dict[str, Any], callback_arg: str) -> None:
+    raw = spec.get("pending_question") or spec.get("pendingQuestion")
+    if not isinstance(raw, dict):
+        return
+    pending: dict[str, Any] = {}
+    for key, value in raw.items():
+        pending[str(key)] = _format_callback_args(str(value), callback_arg)
+    _telegram_set_pending_question(chat_id, pending)
+
+
+def _pending_question_from_delegate_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    plan = payload.get("plan") if isinstance(payload.get("plan"), dict) else {}
+    nested_plan = plan.get("plan") if isinstance(plan.get("plan"), dict) else {}
+    launch = nested_plan.get("launch") or plan.get("launch")
+    command = launch.get("command") if isinstance(launch, dict) else None
+    if isinstance(command, list) and len(command) >= 2:
+        parts = [str(part).strip() for part in command if str(part).strip()]
+        if len(parts) >= 2 and parts[0].casefold() == _slash().casefold():
+            return {
+                "type": "launch",
+                "action": parts[1],
+                "args": " ".join(parts[2:]).strip(),
+            }
+    slots = payload.get("slots") if isinstance(payload.get("slots"), dict) else {}
+    topic = str(slots.get("topic") or "").strip()
+    if topic and str(slots.get("intent") or "").strip() == "new_session":
+        return {"type": "launch", "action": _term("ask"), "args": topic}
+    return {}
+
+
+def _telegram_pending_action_spec(spec: dict[str, Any]) -> str:
+    for key in ("pending_question_action", "pendingQuestionAction", "pending_action", "pendingAction"):
+        value = str(spec.get(key) or "").strip()
+        if value:
+            return value
+    if _as_bool(spec.get("use_pending_question") or spec.get("usePendingQuestion"), False):
+        return "__pending__"
+    return ""
+
+
+def _telegram_run_pending_question_action(
+    spec: dict[str, Any],
+    callback_arg: str,
+    chat_id: Any,
+) -> bool:
+    requested = _telegram_pending_action_spec(spec)
+    if not requested or str(callback_arg or "").strip().casefold() != "pending":
+        return False
+    pending = _telegram_pending_question(chat_id)
+    if str(pending.get("type") or "").strip() != "launch":
+        return False
+    action_name = str(pending.get("action") or "").strip() if requested == "__pending__" else requested
+    raw_args = str(pending.get("args") or "").strip()
+    if not action_name or not raw_args:
+        _telegram_clear_pending_question(chat_id)
+        return False
+    action = _actions().get(action_name)
+    if not action:
+        _telegram_send_message(str(chat_id or ""), f"Action is not configured: {action_name}")
+        _telegram_clear_pending_question(chat_id)
+        return True
+    output = _run_action(action_name, action, raw_args, chat_id=chat_id)
+    recovery_markup = (
+        _telegram_error_recovery_keyboard(callback_arg)
+        if _telegram_error_recovery_enabled(spec) and _telegram_output_needs_recovery(output)
+        else None
+    )
+    if _as_bool(spec.get("telegram_payload") or spec.get("payload"), False):
+        message_text, reply_markup = _telegram_payload_from_output(output)
+        if recovery_markup and not _telegram_reply_markup_has_buttons(reply_markup):
+            reply_markup = recovery_markup
+        _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
+    else:
+        launch_payload = (
+            _telegram_launch_payload_from_output(output, raw_args, pending)
+            if _as_bool(spec.get("telegram_launch_summary") or spec.get("launch_summary"), False)
+            else None
+        )
+        if launch_payload:
+            message_text, reply_markup = launch_payload
+            if recovery_markup and not _telegram_reply_markup_has_buttons(reply_markup):
+                reply_markup = recovery_markup
+            _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
+        else:
+            _telegram_send_message(str(chat_id or ""), output, recovery_markup)
+    next_pending = _pending_question_from_action_output(output)
+    if next_pending:
+        _telegram_set_pending_question(chat_id, next_pending)
+    else:
+        _telegram_clear_pending_question(chat_id)
+    return True
+
+
+def _pending_question_from_action_output(output: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(str(output or "").strip())
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    pending = payload.get("pending_question") or payload.get("pendingQuestion")
+    return pending if isinstance(pending, dict) else {}
+
+
 def _telegram_enabled() -> bool:
     telegram = _telegram_config()
     if "enabled" in telegram:
@@ -681,6 +825,85 @@ def _telegram_reply_markup_has_buttons(reply_markup: dict[str, Any] | None) -> b
     return isinstance(rows, list) and any(isinstance(row, list) and row for row in rows)
 
 
+def _telegram_launch_question(raw_args: str, pending: dict[str, Any] | None = None) -> str:
+    if isinstance(pending, dict):
+        topic = str(pending.get("topic") or "").strip()
+        if topic:
+            return topic
+    try:
+        parts = shlex.split(str(raw_args or ""))
+    except Exception:
+        parts = str(raw_args or "").split()
+    question: list[str] = []
+    skip_next = False
+    value_flags = {"--philosophers", "--voices", "--roles"}
+    flag_only = {"--min", "--balanced", "--max", "--all", "--no-architects"}
+    for part in parts:
+        if skip_next:
+            skip_next = False
+            continue
+        if part in value_flags:
+            skip_next = True
+            continue
+        if part in flag_only:
+            continue
+        question.append(part)
+    return " ".join(question).strip()
+
+
+def _telegram_launch_keyboard(issue_ref: str) -> dict[str, Any] | None:
+    ref = str(issue_ref or "").strip()
+    if not ref:
+        return None
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "Последняя сессия", "callback_data": _telegram_callback_data("session", ref)},
+                {"text": "Философы", "callback_data": _telegram_callback_data("philosophers", ref)},
+            ],
+            [
+                {"text": "Итог", "callback_data": _telegram_callback_data("result", ref)},
+                {"text": "Детали", "callback_data": _telegram_callback_data("details", ref)},
+            ],
+        ]
+    }
+
+
+def _telegram_launch_payload_from_output(
+    output: str,
+    raw_args: str,
+    pending: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any] | None] | None:
+    text = str(output or "")
+    if "Поставил вопрос в Агору" not in text and "Сессия:" not in text:
+        return None
+
+    issue_match = re.search(r"Поставил вопрос в Агору:\s*([0-9A-Za-z_-]+)", text)
+    if not issue_match:
+        issue_match = re.search(r"Сессия:\s*([0-9A-Za-z_-]+)", text)
+    issue_ref = issue_match.group(1).strip() if issue_match else ""
+
+    voices: list[str] = []
+    voices_match = re.search(r"Выбрал\s+\d+\s+голос(?:ов|а)?\s*:\s*([^\n]+)", text)
+    if voices_match:
+        raw_voices = voices_match.group(1).strip().rstrip(".")
+        voices = [item.strip() for item in raw_voices.split(",") if item.strip()]
+    if not voices:
+        for line in text.splitlines():
+            match = re.match(r"\s*-\s*([^:]+):\s*[0-9A-Za-z_-]+", line)
+            if match:
+                voices.append(match.group(1).strip())
+
+    question = _telegram_launch_question(raw_args, pending)
+    lines = [f"Запустил совет{f': {issue_ref}' if issue_ref else ''}", ""]
+    if question:
+        lines.extend(["Вопрос:", question, ""])
+    if voices:
+        lines.extend(["Философы:", ", ".join(voices), ""])
+    lines.extend(["Статус:", "Жду ответы философов. Пришлю итог, когда все будут готовы."])
+    return "\n".join(lines).strip(), _telegram_launch_keyboard(issue_ref)
+
+
 def _telegram_callback_data(name: str, arg: str = "help") -> str:
     callback = re.sub(r"[^0-9a-z_]+", "_", str(name or "").strip().casefold()).strip("_")
     if not callback:
@@ -765,7 +988,13 @@ def _telegram_mode_prompt_text(mode: dict[str, Any], selector: dict[str, Any]) -
     ).strip()
 
 
-def _telegram_menu_keyboard(menu: dict[str, Any], *, chat_id: Any = None, menu_name: str = "") -> dict[str, Any] | None:
+def _telegram_menu_keyboard(
+    menu: dict[str, Any],
+    *,
+    chat_id: Any = None,
+    menu_name: str = "",
+    default_arg: str = "help",
+) -> dict[str, Any] | None:
     raw_buttons = menu.get("buttons")
     if not isinstance(raw_buttons, list):
         raw_buttons = []
@@ -775,7 +1004,7 @@ def _telegram_menu_keyboard(menu: dict[str, Any], *, chat_id: Any = None, menu_n
             continue
         label = str(item.get("label") or item.get("text") or "").strip()
         callback = str(item.get("callback") or item.get("name") or "").strip()
-        arg = str(item.get("arg") or "help").strip()
+        arg = str(item.get("arg") or default_arg or "help").strip()
         if not label or not callback:
             continue
         buttons.append({"text": label[:32], "callback_data": _telegram_callback_data(callback, arg)})
@@ -789,6 +1018,54 @@ def _telegram_menu_keyboard(menu: dict[str, Any], *, chat_id: Any = None, menu_n
         rows.extend(_telegram_mode_keyboard_rows(chat_id))
 
     return {"inline_keyboard": rows} if rows else None
+
+
+def _telegram_error_recovery_config() -> dict[str, Any]:
+    raw = _telegram_config().get("error_recovery")
+    return raw if isinstance(raw, dict) else {}
+
+
+def _telegram_error_recovery_enabled(spec: dict[str, Any]) -> bool:
+    config = _telegram_error_recovery_config()
+    if "error_recovery" in spec:
+        return _as_bool(spec.get("error_recovery"), False)
+    return _as_bool(config.get("enabled"), False)
+
+
+def _telegram_output_needs_recovery(output: str) -> bool:
+    lowered = str(output or "").casefold()
+    return any(
+        marker in lowered
+        for marker in (
+            "не получилось",
+            "не смог",
+            "не удалось",
+            "i could not",
+            "could not complete",
+            "project action exited",
+        )
+    )
+
+
+def _telegram_error_recovery_keyboard(callback_arg: str) -> dict[str, Any] | None:
+    config = _telegram_error_recovery_config()
+    raw_buttons = config.get("buttons")
+    if not isinstance(raw_buttons, list):
+        raw_buttons = [
+            {"label": "Восстановить и повторить", "callback": "recover_retry", "arg": "{arg}"},
+            {"label": "Попробовать без него", "callback": "recover_without_philosopher", "arg": "{arg}"},
+            {"label": "Показать детали", "callback": "show_error_details", "arg": "{arg}"},
+            {"label": "Назад", "callback": "back_home", "arg": "help"},
+        ]
+    buttons: list[dict[str, Any]] = []
+    for item in raw_buttons:
+        if not isinstance(item, dict):
+            continue
+        next_item = dict(item)
+        if "arg" in next_item:
+            next_item["arg"] = _format_callback_args(str(next_item.get("arg") or ""), callback_arg)
+        buttons.append(next_item)
+    return _telegram_menu_keyboard({"buttons": buttons}, default_arg=callback_arg or "help")
 
 
 def _telegram_command_boundary_config() -> dict[str, Any]:
@@ -858,7 +1135,7 @@ def _telegram_command_boundary_errors() -> list[str]:
 def _normalize_telegram_command_text(text: str) -> str:
     raw = re.sub(r"\s+", " ", str(text or "").strip())
     if not raw.startswith("/"):
-        return ""
+        return raw.casefold()
     parts = raw.split(" ", 1)
     head = re.sub(r"@\w+$", "", parts[0], flags=re.I)
     tail = parts[1] if len(parts) > 1 else ""
@@ -2606,6 +2883,7 @@ def _rewrite_delegate(raw: str, *, chat_id: Any = None) -> str | dict[str, Any] 
             "action": "message",
             "text": text,
             "reply_markup": payload.get("reply_markup") if isinstance(payload.get("reply_markup"), dict) else None,
+            "pending_question": _pending_question_from_delegate_payload(payload),
         }
     if payload.get("action") != "rewrite":
         return None
@@ -2627,6 +2905,74 @@ def _rewrite_start_command(raw: str) -> str | None:
     return _slash(str(start.get("action") or "start"))
 
 
+def _rewrite_pending_question(raw: str, chat_id: Any = None) -> str | dict[str, Any] | None:
+    pending = _telegram_pending_question(chat_id)
+    if not pending:
+        return None
+    pending_type = str(pending.get("type") or "").strip()
+    if pending_type == "ask_one":
+        philosopher = str(pending.get("philosopher") or pending.get("role") or "").strip()
+        if not re.match(r"^[0-9A-Za-z_-]+$", philosopher):
+            _telegram_clear_pending_question(chat_id)
+            return None
+        _telegram_clear_pending_question(chat_id)
+        return _slash(_term("ask"), "--philosophers", philosopher, raw)
+    if pending_type in {"follow_up", "follow-up", "followup"}:
+        root = str(pending.get("root") or pending.get("issue") or pending.get("session") or "").strip()
+        if not re.match(r"^[0-9A-Za-z_-]+$", root):
+            _telegram_clear_pending_question(chat_id)
+            return None
+        _telegram_clear_pending_question(chat_id)
+        return _slash("follow-up", root, raw)
+    if pending_type in {"custom_edit", "custom-edit", "customedit"}:
+        operation = str(pending.get("operation") or "").strip().casefold()
+        philosophers = [
+            item.strip()
+            for item in str(pending.get("philosophers") or "").split(",")
+            if re.match(r"^[0-9A-Za-z_-]+$", item.strip())
+        ]
+        topic = str(pending.get("topic") or "").strip()
+        action = _actions().get("telegram_custom_edit")
+        if operation not in {"add", "remove"} or not philosophers or not topic or not action:
+            _telegram_clear_pending_question(chat_id)
+            return None
+        raw_args = " ".join(
+            [
+                shlex.quote(operation),
+                "--philosophers",
+                shlex.quote(",".join(philosophers)),
+                "--topic",
+                shlex.quote(topic),
+                "--query",
+                shlex.quote(raw),
+            ]
+        )
+        output = _run_action("telegram_custom_edit", action, raw_args, chat_id=chat_id)
+        try:
+            payload = json.loads(str(output or "").strip())
+        except Exception:
+            _telegram_clear_pending_question(chat_id)
+            return {"action": "message", "text": output}
+        if not isinstance(payload, dict):
+            _telegram_clear_pending_question(chat_id)
+            return {"action": "message", "text": str(output or "").strip()}
+        text = str(payload.get("text") or payload.get("message") or "").strip()
+        if not text:
+            _telegram_clear_pending_question(chat_id)
+            return None
+        next_pending = payload.get("pending_question") or payload.get("pendingQuestion")
+        if not isinstance(next_pending, dict) or not next_pending:
+            _telegram_clear_pending_question(chat_id)
+            next_pending = {}
+        return {
+            "action": "message",
+            "text": text,
+            "reply_markup": payload.get("reply_markup") if isinstance(payload.get("reply_markup"), dict) else None,
+            "pending_question": next_pending,
+        }
+    return None
+
+
 def _rewrite_text(text: str, *, chat_id: Any = None) -> str | dict[str, Any] | None:
     if not _env_bool("PAPERCLIP_COCKPIT_NL_REWRITE", True):
         return None
@@ -2643,6 +2989,10 @@ def _rewrite_text(text: str, *, chat_id: Any = None) -> str | dict[str, Any] | N
         return start_rewrite
     if raw.startswith("/"):
         return None
+
+    pending_rewrite = _rewrite_pending_question(raw, chat_id)
+    if pending_rewrite:
+        return pending_rewrite
 
     delegated = _rewrite_delegate(raw, chat_id=chat_id)
     if delegated:
@@ -2777,6 +3127,34 @@ def _maybe_execute_selected_mode_rewrite(original_text: str, rewritten: str, cha
         _telegram_send_message(str(chat_id or ""), message_text, keyboard)
     else:
         _telegram_send_message(str(chat_id or ""), output, _telegram_mode_keyboard(chat_id))
+    return {"action": "skip"}
+
+
+def _maybe_execute_telegram_payload_rewrite(original_text: str, rewritten: str, chat_id: Any) -> dict[str, str] | None:
+    if not _telegram_enabled() or not str(chat_id or "").strip():
+        return None
+    if not _telegram_bot_token():
+        return None
+    if str(original_text or "").strip().startswith("/"):
+        return None
+
+    head, raw_args = _command_action_from_rewrite(rewritten)
+    source_action_name = _resolve_configured_action_name(head)
+    payload_action_by_source = {
+        "latest": "telegram_last_session",
+        "result": "telegram_final_result",
+    }
+    target_action_name = payload_action_by_source.get(source_action_name) or payload_action_by_source.get(head)
+    if not target_action_name:
+        return None
+
+    target_action = _actions().get(target_action_name)
+    if not isinstance(target_action, dict):
+        return None
+
+    output = _run_action(target_action_name, target_action, raw_args, chat_id=chat_id)
+    message_text, reply_markup = _telegram_payload_from_output(output)
+    _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
     return {"action": "skip"}
 
 
@@ -2966,10 +3344,16 @@ def _pre_gateway_dispatch(event: Any, **kwargs: Any) -> dict[str, str] | None:
                     str(rewritten.get("text") or ""),
                     reply_markup or _telegram_help_keyboard(),
                 )
+                pending = rewritten.get("pending_question")
+                if isinstance(pending, dict) and pending:
+                    _telegram_set_pending_question(chat_id, pending)
             except Exception as exc:
                 logger.info("Paperclip Cockpit Telegram delegate message failed: %s", exc)
             return {"action": "skip"}
         return None
+    payload_result = _maybe_execute_telegram_payload_rewrite(getattr(event, "text", "") or "", rewritten, chat_id)
+    if payload_result:
+        return payload_result
     mode_result = _maybe_execute_selected_mode_rewrite(getattr(event, "text", "") or "", rewritten, chat_id)
     if mode_result:
         return mode_result
@@ -3086,10 +3470,16 @@ def _telegram_callback_query(
 
     answer = str(spec.get("answer") or "Открываю...")
     _telegram_answer_callback(callback_id, answer)
+    if _as_bool(spec.get("clear_pending_question") or spec.get("clearPendingQuestion"), False):
+        _telegram_clear_pending_question(chat_id)
+    if _telegram_run_pending_question_action(spec, callback_arg, chat_id):
+        return {"action": "handled"}
 
     message = spec.get("message")
     if message:
-        _telegram_send_message(str(chat_id or ""), _format_callback_args(str(message), callback_arg))
+        reply_markup = _telegram_menu_keyboard(spec, chat_id=chat_id, default_arg=callback_arg)
+        _telegram_send_message(str(chat_id or ""), _format_callback_args(str(message), callback_arg), reply_markup)
+        _telegram_store_pending_question_from_spec(chat_id, spec, callback_arg)
         return {"action": "handled"}
 
     action_name = str(spec.get("action") or "").strip()
@@ -3100,13 +3490,25 @@ def _telegram_callback_query(
         _telegram_send_message(str(chat_id or ""), f"Action is not configured: {action_name}")
         return {"action": "handled"}
 
-    raw_args = _format_callback_args(str(spec.get("args") or "{arg}"), callback_arg).strip()
+    if "args" in spec:
+        args_template = "" if spec.get("args") is None else str(spec.get("args"))
+    else:
+        args_template = "{arg}"
+    raw_args = _format_callback_args(args_template, callback_arg).strip()
     output = _run_action(action_name, action, raw_args, chat_id=chat_id)
+    recovery_markup = (
+        _telegram_error_recovery_keyboard(callback_arg)
+        if _telegram_error_recovery_enabled(spec) and _telegram_output_needs_recovery(output)
+        else None
+    )
     if _as_bool(spec.get("telegram_payload") or spec.get("payload"), False):
         message_text, reply_markup = _telegram_payload_from_output(output)
+        if recovery_markup and not _telegram_reply_markup_has_buttons(reply_markup):
+            reply_markup = recovery_markup
         _telegram_send_message(str(chat_id or ""), message_text, reply_markup)
     else:
-        _telegram_send_message(str(chat_id or ""), output)
+        _telegram_send_message(str(chat_id or ""), output, recovery_markup)
+    _telegram_store_pending_question_from_spec(chat_id, spec, callback_arg)
     return {"action": "handled"}
 
 

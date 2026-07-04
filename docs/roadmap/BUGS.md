@@ -2,6 +2,45 @@
 
 This file tracks live Telegram acceptance failures separately from roadmap phases. A phase can be code-complete while live behavior still fails acceptance because runtime state, Hermes profile text, provider streaming, or Paperclip agents are out of sync.
 
+## BUG-2026-07-04-004 — Telegram launch flow hides the question and leaks wake details
+
+**Status:** fixed locally, pending live retest
+**Severity:** P1 for Telegram launch UX
+**Reported:** 2026-07-04
+**Surface:** Telegram → New question → proposal/launch cards
+
+### Evidence
+
+Live Telegram screenshots showed:
+
+- `Глубокое исследование` displayed a launchable 6-philosopher composition before asking the user to enter the question.
+- The editable philosopher composition card showed selected philosophers but did not show the question text.
+- The launch acknowledgement leaked route/model, local Paperclip URL, child issue rows, and `wake=queued:...` ids.
+
+### Root Cause
+
+The Telegram callback config mixed format selection with launch confirmation. `deep_prompt` was a static composition card rather than a topic prompt. The launch callback sent raw `scripts/agora.mjs ask` stdout directly to Telegram, which is useful for CLI debugging but too technical for the first-level chat UI.
+
+### Fix
+
+- `Новый вопрос` now says the user will enter the question after choosing a format.
+- `Глубокое исследование` asks for the question first; after a topic is known it uses a Telegram payload proposal with `Вопрос:`.
+- `Выбрать философов` only shows edit/launch buttons after a topic is known.
+- Proposal cards include `Вопрос:` with the parsed question.
+- Telegram launch callbacks can render a clean launch summary with session id, question, philosophers, status, and buttons to session/philosophers/итог/details.
+- First-level launch acknowledgement hides `wake=`, route/model details, local URLs, and child issue internals.
+- `Назад` sends the home screen with a fresh inline keyboard attached to the new bottom message.
+
+### Acceptance Criteria
+
+- No `Запустить` button appears before the topic/question is known.
+- Proposal cards show `Вопрос:` before philosopher lists.
+- Launch acknowledgements show `Запустил совет: THE-...`, `Вопрос:`, `Философы:`, and a short waiting status.
+- First-level launch acknowledgements do not show `wake=`, local URLs, route/model details, or raw child task rows.
+- Pressing `Назад` shows the main menu buttons on the new bottom message, not only in older messages above.
+- Technical details remain available through `Детали`.
+- Live retest covers deep and custom launch flows without leaving residual QA artifacts.
+
 ## BUG-2026-07-03-003 — Telegram has no visible mode routing control
 
 **Status:** fixed locally after first live failure, pending live retest
@@ -23,7 +62,7 @@ Telegram buttons were action callbacks only. There was no generic per-chat mode 
 - Mode buttons are rendered from config in selected command-boundary menus.
 - `set_mode` stores selected mode per Telegram chat.
 - Natural `ask` rewrites can execute through the selected mode action/env/args and skip the raw Hermes command path.
-- Inner Agora config defines route modes: `quick_local`, `balanced_local`, `deep_local`, `codex_deep`, `all_local`, `custom_voices`, and `go_no_go_local`.
+- Inner Agora config defines visible route modes: `quick_local`, `balanced_local`, `deep_local`, `codex_deep`, `custom_voices`, and `go_no_go_local`; the `all` action remains CLI-only.
 - `codex_deep` routes through `--max` with `INNER_AGORA_FORCE_LOCAL_ADAPTER=0`, letting `model-routing.mjs` choose `codex_local`.
 - `custom_voices` is a local route that prompts the user to name participants in ordinary language; role resolution stays in Inner Agora scripts/config.
 - Live failure root causes found on first `mode-routing` run: action replies with empty keyboards lost mode buttons; QA evaluator did not read local route from reply text; regex participant parsing kept only the first named philosopher.
@@ -55,9 +94,16 @@ Live Telegram history showed:
 - `/agora` and `/agora help` returned Agora help text without buttons.
 - `/agora help full` was technically useful but too flat and hard to read.
 
+Additional 2026-07-04 live transcript showed:
+
+- `/start` and the plain text `Агора` still returned the old `Агора подключена к Paperclip` command card.
+- `Агора статус` produced a compact last-session card, then still leaked raw `# Последняя Paperclip-сессия` details from the CLI path.
+
 ### Root Cause
 
 Telegram slash commands bypassed the natural-language rewrite path and fell through to the generic Hermes command router. The command-handler stage does not have the same Telegram side-channel keyboard context as `pre_gateway_dispatch`.
+
+The 2026-07-04 follow-up root cause was narrower: `/start` and exact text aliases such as `Агора` were not part of the Telegram command boundary, so they fell through to `/agora start` or natural follow-up routing. The fallback `presentation.home` text also still contained the old Paperclip command-card copy.
 
 ### Fix
 
@@ -66,12 +112,16 @@ Telegram slash commands bypassed the natural-language rewrite path and fell thro
 - Preserved explicit full/admin paths such as `/agora help full`.
 - Reworked full help into grouped readable sections: ordinary entry, ordinary commands, sessions, voices, admin/diagnostics, safety.
 - Added `service-commands` QA suite expectations.
+- Added `/start`, bot-addressed `/start@...`, and exact `Агора` / `The Inner Agora` home aliases to the same Telegram boundary.
+- Updated the fallback human home text in the root config and philosophy chamber override so stale Paperclip command-card copy no longer appears if the button path is bypassed.
+- Added regression coverage that `Агора статус` uses the compact `telegram_last_session` payload and skips raw `latest` output.
 
 ### Acceptance Criteria
 
-- `/help`, `/agora`, `/agora help`, and `/agents` return Agora-oriented Telegram messages with buttons.
+- `/start`, `/help`, `/agora`, `/agora help`, exact `Агора`, and `/agents` return Agora-oriented Telegram messages with buttons.
 - These commands do not create Paperclip issues.
 - `/agents` does not expose "Active Agents & Tasks".
+- `Агора статус` sends only the compact last-session card and does not leak `# Последняя Paperclip-сессия`, local URLs, child task dumps, or raw CLI output.
 - `/agora help full` remains technical but is grouped and readable.
 - Live retest suite `service-commands` passes and cleanup leaves no residual QA artifacts.
 

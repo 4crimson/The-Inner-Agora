@@ -102,9 +102,25 @@ Acceptance criteria:
 
 `Глубокое исследование` proposes 5-6 strong philosophers and requires confirmation.
 
+Before the topic is known, it asks for the question instead of showing a launchable composition:
+
+```text
+Глубокое исследование.
+
+Напиши вопрос одним сообщением.
+После темы я предложу 5-6 философов и спрошу, запускать ли.
+```
+
+Buttons before the topic is known:
+
+- `Назад`
+
 Example:
 
 ```text
+Вопрос:
+как заботу не превратить в контроль
+
 Предлагаю глубокий состав: 6 философов.
 
 Платон — рамка смысла
@@ -126,8 +142,10 @@ Buttons:
 
 Acceptance criteria:
 
+- Deep mode does not show `Запустить` before the topic is known.
 - Deep mode does not start without confirmation.
 - Default deep composition is 5-6 philosophers, not all philosophers.
+- The proposal card includes `Вопрос:` with the parsed user question.
 - Each philosopher has a short reason.
 - The user can switch to fast mode before launch.
 
@@ -169,6 +187,9 @@ Acceptance criteria:
 Example:
 
 ```text
+Вопрос:
+свобода взрослого ребенка
+
 По этой теме я бы собрал 4 философов:
 
 Аристотель — мера и практика
@@ -191,6 +212,8 @@ Buttons:
 Acceptance criteria:
 
 - The system does not show the full catalog first.
+- The initial prompt does not show `Запустить`, `Добавить`, or `Убрать` until the topic is known.
+- The editable proposal card includes `Вопрос:` with the parsed user question.
 - The user can add or remove philosophers before launch.
 - Final confirmation shows the exact number of philosophers.
 
@@ -241,18 +264,23 @@ After launch, reply with a short human acknowledgement.
 Example:
 
 ```text
-Запустил совет.
-Выбрал 3 философов: Аристотель, Сократ, Фуко.
-Пришлю итог, когда ответы будут готовы.
+Запустил совет: THE-123
 
-Сессия: THE-123
+Вопрос:
+что такое свобода взрослого ребенка
+
+Философы:
+Аристотель, Сократ, Фуко
+
+Статус:
+Жду ответы философов. Пришлю итог, когда все будут готовы.
 ```
 
 Buttons:
 
-- `Статус`
+- `Последняя сессия`
 - `Философы`
-- `Остановить`
+- `Итог`
 - `Детали`
 
 Do not show:
@@ -265,6 +293,7 @@ Do not show:
 
 Acceptance criteria:
 
+- The acknowledgement includes `Вопрос:` with the launched question.
 - The user understands that the council is running and that the итог will arrive later.
 - Technical information is available through `Детали`, not in the primary message.
 - The acknowledgement fits on one phone screen.
