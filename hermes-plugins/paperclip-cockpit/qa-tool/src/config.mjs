@@ -145,6 +145,12 @@ export function validateConfig(config) {
   if (cleanup !== undefined && !["hard", "soft", "none"].includes(cleanup)) {
     errors.push("paperclip.cleanup");
   }
+  if (config.paperclip?.cleanupRunWaitAttempts !== undefined && (!Number.isFinite(Number(config.paperclip.cleanupRunWaitAttempts)) || Number(config.paperclip.cleanupRunWaitAttempts) < 1)) {
+    errors.push("paperclip.cleanupRunWaitAttempts");
+  }
+  if (config.paperclip?.cleanupRunWaitDelayMs !== undefined && (!Number.isFinite(Number(config.paperclip.cleanupRunWaitDelayMs)) || Number(config.paperclip.cleanupRunWaitDelayMs) < 0)) {
+    errors.push("paperclip.cleanupRunWaitDelayMs");
+  }
   if (!config.suites || typeof config.suites !== "object" || Array.isArray(config.suites)) {
     errors.push("suites");
   }
@@ -189,6 +195,8 @@ export function normalizeConfig(config) {
     paperclip: {
       apiBase: "http://127.0.0.1:3100/api",
       cleanup: "hard",
+      cleanupRunWaitAttempts: 4,
+      cleanupRunWaitDelayMs: 1000,
       ...(config.paperclip || {}),
     },
     artifacts: {

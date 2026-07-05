@@ -586,17 +586,17 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 
 ### 2026-07-06 RL-3 Implementation Note
 
-The first active-run-safe cleanup slice is implemented locally in
-`paperclip-qa`: before hard delete, cleanup queries `/issues/:id/live-runs`.
-If any run is non-terminal, the tool records `activeRunsBeforeCleanup`, leaves
-`cancelledRuns` present for the later cancel/wait slice, skips delete/patch for
-that issue, and returns a blocked cleanup result through residual
-`active-runs-before-cleanup`. This covers the dangerous part of the
-cleanup/finalize race: QA can no longer hard-delete a manifest issue while the
-associated Paperclip run is still running or finalizing.
+The active-run-safe cleanup slice is implemented locally in `paperclip-qa`:
+before hard delete, cleanup queries `/issues/:id/live-runs`. If any run is
+non-terminal, the tool records `activeRunsBeforeCleanup`, calls
+`/heartbeat-runs/:id/cancel`, waits for terminal state within
+`cleanupRunWaitAttempts` / `cleanupRunWaitDelayMs`, and only then deletes the
+issue. If the run remains active, cleanup returns a blocked result through
+residual `active-runs-before-cleanup` and does not delete the issue. Manifest
+evidence includes `cancelledRuns`.
 
-Still open: auto-cancel active heartbeat runs, wait for terminal state within a
-budget, and run/write post-suite `inner-agora-guard` in manifest and acceptance.
+Still open: automated repair backup, repair command, and repeat guard evidence
+inside the release workflow.
 
 ### 2026-07-06 RL-2 Implementation Note
 

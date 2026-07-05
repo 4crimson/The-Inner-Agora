@@ -91,13 +91,16 @@ active-run safety и post-suite guard не доказывает live health.
 5. В acceptance считать suite `accepted_with_repair` или `blocked`, но не чистым
    PASS, если cleanup оставил running/finalizing runs или guard red.
 
-Статус 2026-07-06: первый кодовый срез RL-3 реализован в `paperclip-qa`.
-`cleanup hard` теперь перед `DELETE` читает `/issues/:id/live-runs`; если есть
-active run, delete/patch для этого issue не выполняется, cleanup возвращает
-blocked result через residual `active-runs-before-cleanup`, а manifest пишет
-`activeRunsBeforeCleanup` и `cancelledRuns`. Покрыто регрессией
-`test_cleanup_hard_blocks_issue_delete_when_live_run_is_active`. Следующий срез:
-auto-cancel/wait terminal state и post-suite `inner-agora-guard`.
+Статус 2026-07-06: RL-3 реализован локально в `paperclip-qa`.
+`cleanup hard` перед `DELETE` читает `/issues/:id/live-runs`; если есть active
+run, cleanup вызывает `/heartbeat-runs/:id/cancel`, poll'ит terminal state в
+настроенном budget (`cleanupRunWaitAttempts` / `cleanupRunWaitDelayMs`) и только
+после этого удаляет issue. Если run остается active, cleanup возвращает blocked
+result через residual `active-runs-before-cleanup` и не удаляет issue. Manifest
+пишет `activeRunsBeforeCleanup` и `cancelledRuns`. Покрыто регрессиями
+`test_cleanup_hard_blocks_issue_delete_when_live_run_is_active`,
+`test_cleanup_hard_cancels_active_run_then_deletes_after_terminal_poll` и
+`test_cleanup_hard_blocks_delete_when_cancelled_run_stays_active`.
 
 Статус 2026-07-06: первый кодовый срез RL-2 реализован в `paperclip-qa`.
 Для work-creating suites `run --live-ok` запускает configurable

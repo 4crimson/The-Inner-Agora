@@ -25,7 +25,9 @@
       "properties": {
         "apiBase": { "type": "string", "minLength": 1 },
         "company": { "type": "string", "minLength": 1 },
-        "cleanup": { "enum": ["hard", "soft", "none"] }
+        "cleanup": { "enum": ["hard", "soft", "none"] },
+        "cleanupRunWaitAttempts": { "type": "number", "minimum": 1 },
+        "cleanupRunWaitDelayMs": { "type": "number", "minimum": 0 }
       }
     },
     "artifacts": {

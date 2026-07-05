@@ -78,10 +78,10 @@ stay separate from cleanup commits.
   now records `guardBefore` and `guardAfter` in the manifest and acceptance
   report; red before-guard blocks live side effects, and red after-guard rejects
   acceptance. Repair backup/command and repeat guard remain next.
-- `cleanup-active-run-guard`: implemented first slice in `paperclip-qa`; hard
-  cleanup now blocks issue delete when `/issues/:id/live-runs` reports active
-  runs and records `activeRunsBeforeCleanup` in the manifest. Auto-cancel/wait
-  remains next.
+- `cleanup-active-run-guard`: implemented in `paperclip-qa`; hard cleanup now
+  blocks issue delete when `/issues/:id/live-runs` reports active runs, cancels
+  active heartbeat runs, waits for terminal state, and records
+  `activeRunsBeforeCleanup` plus `cancelledRuns` in the manifest.
 - `visible-output-sanitizer`: a shared first-level Telegram leak policy for
   route/model/local URL/wake/raw child rows/CLI flags, replacing duplicated
   `replyNotContains` lists.

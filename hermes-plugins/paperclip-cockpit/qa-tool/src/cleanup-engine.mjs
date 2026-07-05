@@ -57,11 +57,99 @@ async function activeRunsBeforeCleanup({ client, issue }) {
   return runs.filter(isActivePaperclipRun).map(compactRun);
 }
 
-export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", now = new Date(), dryRun = false }) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function cancelActiveRuns({ client, issue, activeRuns, actions }) {
+  const cancelledRuns = [];
+  if (typeof client.cancelHeartbeatRun !== "function") return cancelledRuns;
+  for (const run of activeRuns) {
+    const runId = run.id;
+    if (!runId) continue;
+    const action = {
+      type: "paperclip",
+      method: "CANCEL_RUN",
+      issueId: issue.id,
+      ref: issue.identifier || issue.id,
+      runId,
+      runStatus: run.status,
+    };
+    actions.push(action);
+    try {
+      const result = await client.cancelHeartbeatRun(runId);
+      action.ok = true;
+      action.resultStatus = result?.status || "";
+      cancelledRuns.push({
+        issueId: issue.id,
+        ref: issue.identifier || issue.id,
+        runId,
+        statusBefore: run.status,
+        statusAfter: result?.status || "",
+      });
+    } catch (error) {
+      action.ok = false;
+      action.error = error instanceof PaperclipApiError ? error.message : String(error?.message || error);
+      cancelledRuns.push({
+        issueId: issue.id,
+        ref: issue.identifier || issue.id,
+        runId,
+        statusBefore: run.status,
+        error: action.error,
+      });
+    }
+  }
+  return cancelledRuns;
+}
+
+async function waitForTerminalRuns({ client, issue, attempts, delayMs }) {
+  let activeRuns = [];
+  const totalAttempts = Math.max(1, Number(attempts) || 1);
+  for (let attempt = 0; attempt < totalAttempts; attempt += 1) {
+    activeRuns = await activeRunsBeforeCleanup({ client, issue });
+    if (!activeRuns.length) return { ok: true, activeRuns: [], attempts: attempt + 1 };
+    if (delayMs > 0 && attempt < totalAttempts - 1) await sleep(delayMs);
+  }
+  return { ok: false, activeRuns, attempts: totalAttempts };
+}
+
+function pushActiveRunBlocked({ issue, activeRuns, actions, residuals, waitAttempts = 0 }) {
+  actions.push({
+    type: "paperclip",
+    method: "SKIP_DELETE_ACTIVE_RUNS",
+    issueId: issue.id,
+    ref: issue.identifier || issue.id,
+    activeRuns,
+    ok: false,
+    blocked: true,
+    waitAttempts,
+  });
+  residuals.push({
+    type: "paperclip",
+    kind: "paperclip",
+    issueId: issue.id,
+    id: issue.identifier || issue.id,
+    ref: issue.identifier || issue.id,
+    reason: "active-runs-before-cleanup",
+    activeRuns,
+    waitAttempts,
+  });
+}
+
+export async function cleanupPaperclipIssues({
+  client,
+  manifest,
+  mode = "hard",
+  now = new Date(),
+  dryRun = false,
+  runWaitAttempts = 4,
+  runWaitDelayMs = 1000,
+}) {
   const actions = [];
   const residuals = [];
   const activeRunsBeforeCleanupRecords = [];
-  if (mode === "none") return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords };
+  const cancelledRuns = [];
+  if (mode === "none") return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords, cancelledRuns };
 
   for (const issue of paperclipCleanupOrder(manifest.paperclip?.issues || [])) {
     if (!issue?.id) continue;
@@ -96,25 +184,18 @@ export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", 
         if (activeRuns.length) {
           const record = { issueId: issue.id, ref: issue.identifier || issue.id, runs: activeRuns };
           activeRunsBeforeCleanupRecords.push(record);
-          actions.push({
-            type: "paperclip",
-            method: "SKIP_DELETE_ACTIVE_RUNS",
-            issueId: issue.id,
-            ref: issue.identifier || issue.id,
-            activeRuns,
-            ok: false,
-            blocked: true,
+          const cancelled = await cancelActiveRuns({ client, issue, activeRuns, actions });
+          cancelledRuns.push(...cancelled);
+          const wait = await waitForTerminalRuns({
+            client,
+            issue,
+            attempts: runWaitAttempts,
+            delayMs: Math.max(0, Number(runWaitDelayMs) || 0),
           });
-          residuals.push({
-            type: "paperclip",
-            kind: "paperclip",
-            issueId: issue.id,
-            id: issue.identifier || issue.id,
-            ref: issue.identifier || issue.id,
-            reason: "active-runs-before-cleanup",
-            activeRuns,
-          });
-          continue;
+          if (!wait.ok) {
+            pushActiveRunBlocked({ issue, activeRuns: wait.activeRuns, actions, residuals, waitAttempts: wait.attempts });
+            continue;
+          }
         }
       }
       const deleteAction = { type: "paperclip", method: "DELETE", issueId: issue.id, ref: issue.identifier || issue.id };
@@ -145,7 +226,7 @@ export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", 
       }
     }
   }
-  return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords };
+  return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords, cancelledRuns };
 }
 
 export function telegramMessageIds(manifest) {

@@ -98,6 +98,8 @@ function configSummary(config) {
         apiBase: config.paperclip.apiBase,
         company: config.paperclip.company,
         cleanup: config.paperclip.cleanup,
+        cleanupRunWaitAttempts: config.paperclip.cleanupRunWaitAttempts,
+        cleanupRunWaitDelayMs: config.paperclip.cleanupRunWaitDelayMs,
       },
       artifacts: {
         dir: config.artifacts.dir,
@@ -279,6 +281,8 @@ async function runCleanupForManifest({ config, manifestPath, mode, dryRun = fals
     manifestPath,
     mode,
     dryRun,
+    runWaitAttempts: config.paperclip.cleanupRunWaitAttempts,
+    runWaitDelayMs: config.paperclip.cleanupRunWaitDelayMs,
     client: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
     userbot: new TelegramUserbot({ config }),
   });

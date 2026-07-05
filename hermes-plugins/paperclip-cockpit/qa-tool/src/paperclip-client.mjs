@@ -50,6 +50,10 @@ export class PaperclipClient {
     return this.request("GET", `/issues/${issueId}/live-runs`);
   }
 
+  async cancelHeartbeatRun(runId) {
+    return this.request("POST", `/heartbeat-runs/${runId}/cancel`, {});
+  }
+
   async deleteIssue(issueId) {
     return this.request("DELETE", `/issues/${issueId}`);
   }
