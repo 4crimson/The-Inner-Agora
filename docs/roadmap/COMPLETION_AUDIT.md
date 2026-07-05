@@ -126,6 +126,13 @@ Current audit blockers:
   writes `guardBefore`/`guardAfter`, blocks live side effects on red before
   guard, and rejects acceptance on red after guard. Automated repair backup,
   repair command, and guard repeat remain open.
+- 2026-07-06 profile/plugin sync preflight is now locally implemented and was
+  exercised against the live `inneragora` profile. It first blocked on stale
+  plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
+  restored `profilePluginSync=ok`. A follow-up backup
+  `backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json` plus
+  `prepare local` restored guard to `ok=true`, and a 15-second repeat guard
+  stayed green.
 - A related Paperclip lifecycle race was observed in run
   `20b5a4ed-9021-4830-9654-718e2c10534b`: `hard cleanup` deleted the issue
   before `workspace_finalize` wrote its `workspace_operations` row, causing a

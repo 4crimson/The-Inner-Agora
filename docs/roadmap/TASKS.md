@@ -82,6 +82,11 @@ repo plugin tree и установленного Hermes profile plugin tree, и�
 `.DS_Store`, `__pycache__` и pyc/pyo. При `telegram.profile` в QA config
 `release-plan` добавляет эту проверку в preflight; mismatch возвращает
 `profilePluginSync=blocked` и reason `profile-plugin-digest-mismatch`.
+Live evidence 2026-07-06: preflight сначала заблокировал stale `inneragora`
+profile plugin; после `scripts/setup-hermes-profile.mjs` и `inneragora gateway
+restart` вернулся `profilePluginSync=ok`. Guard repair был выполнен с backup
+`backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json`, `prepare local`
+и repeat guard `ok=true`.
 
 Тестовую стратегию упростить:
 

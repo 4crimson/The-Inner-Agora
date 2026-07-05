@@ -464,6 +464,19 @@ again found transient agent errors (`Фуко`, `Аристотель`), and bac
 `ok=true`. This is an operational live-health gap, not a Telegram UX acceptance
 failure.
 
+Live profile-sync recovery 2026-07-06: new read-only
+`paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
+first reported `profilePluginSync=blocked` because the live `inneragora`
+profile plugin tree was stale: missing `qa-tool/src/guard-runner.mjs`,
+`qa-tool/src/release-gate.mjs`, and `qa-tool/src/profile-plugin-sync.mjs`, with
+additional changed QA/runtime files. After `node scripts/setup-hermes-profile.mjs`
+and `inneragora gateway restart`, the same check returned `profilePluginSync=ok`
+with matching sha/file count. Guard then found one transient error agent
+(`Джудит Батлер`), so a read-only backup was written to
+`backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json` (85 agents, 77
+issues, 821 comments), `node scripts/agora.mjs prepare local` restored agent
+health, and a repeat guard 15 seconds later stayed `ok=true`.
+
 **Batch H — Per-Chat State Propagation**
 
 - Ensure Telegram natural text actions inject the chat id into Agora command/action execution.
