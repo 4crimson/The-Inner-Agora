@@ -46,6 +46,10 @@ export class PaperclipClient {
     return this.request("GET", `/issues/${issueId}`);
   }
 
+  async listIssueRuns(issueId) {
+    return this.request("GET", `/issues/${issueId}/live-runs`);
+  }
+
   async deleteIssue(issueId) {
     return this.request("DELETE", `/issues/${issueId}`);
   }

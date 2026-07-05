@@ -91,6 +91,14 @@ active-run safety и post-suite guard не доказывает live health.
 5. В acceptance считать suite `accepted_with_repair` или `blocked`, но не чистым
    PASS, если cleanup оставил running/finalizing runs или guard red.
 
+Статус 2026-07-06: первый кодовый срез RL-3 реализован в `paperclip-qa`.
+`cleanup hard` теперь перед `DELETE` читает `/issues/:id/live-runs`; если есть
+active run, delete/patch для этого issue не выполняется, cleanup возвращает
+blocked result через residual `active-runs-before-cleanup`, а manifest пишет
+`activeRunsBeforeCleanup` и `cancelledRuns`. Покрыто регрессией
+`test_cleanup_hard_blocks_issue_delete_when_live_run_is_active`. Следующий срез:
+auto-cancel/wait terminal state и post-suite `inner-agora-guard`.
+
 Рекомендуемый порядок:
 
 1. **Release Gate First:** RL-1, RL-2, RL-3.

@@ -13,6 +13,11 @@ export async function cleanupRun({ manifestPath, client, userbot, mode = "hard",
     attemptedAt: now.toISOString(),
     telegram: [...(manifest.cleanup?.telegram || []), ...telegramResult.actions],
     paperclip: [...(manifest.cleanup?.paperclip || []), ...paperclipResult.actions],
+    activeRunsBeforeCleanup: [
+      ...(manifest.cleanup?.activeRunsBeforeCleanup || []),
+      ...(paperclipResult.activeRunsBeforeCleanup || []),
+    ],
+    cancelledRuns: [...(manifest.cleanup?.cancelledRuns || []), ...(paperclipResult.cancelledRuns || [])],
     residuals: [...(manifest.cleanup?.residuals || []), ...residuals],
   };
   writeManifest(manifestPath, manifest);

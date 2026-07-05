@@ -2,6 +2,18 @@ import { PaperclipApiError } from "./paperclip-client.mjs";
 import { TelegramUserbotError } from "./telegram-userbot.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "cancelled"]);
+const TERMINAL_RUN_STATUSES = new Set([
+  "cancelled",
+  "canceled",
+  "completed",
+  "done",
+  "error",
+  "failed",
+  "success",
+  "succeeded",
+  "timed_out",
+  "timeout",
+]);
 
 function issueDepth(issue, byId, seen = new Set()) {
   if (!issue?.parentId || seen.has(issue.id)) return 0;
@@ -25,14 +37,86 @@ function fallbackPatchBody(issue, now) {
   return body;
 }
 
+export function isActivePaperclipRun(run) {
+  return !TERMINAL_RUN_STATUSES.has(String(run?.status || "").toLowerCase());
+}
+
+function compactRun(run) {
+  return {
+    id: run?.id || run?.runId || run?.heartbeatRunId || "",
+    status: run?.status || "",
+    phase: run?.phase || "",
+    startedAt: run?.startedAt || run?.started_at || "",
+  };
+}
+
+async function activeRunsBeforeCleanup({ client, issue }) {
+  if (typeof client.listIssueRuns !== "function") return [];
+  const runs = await client.listIssueRuns(issue.id);
+  if (!Array.isArray(runs)) return [];
+  return runs.filter(isActivePaperclipRun).map(compactRun);
+}
+
 export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", now = new Date(), dryRun = false }) {
   const actions = [];
   const residuals = [];
-  if (mode === "none") return { actions, residuals };
+  const activeRunsBeforeCleanupRecords = [];
+  if (mode === "none") return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords };
 
   for (const issue of paperclipCleanupOrder(manifest.paperclip?.issues || [])) {
     if (!issue?.id) continue;
     if (mode === "hard") {
+      if (!dryRun) {
+        let activeRuns = [];
+        try {
+          activeRuns = await activeRunsBeforeCleanup({ client, issue });
+        } catch (error) {
+          const message = error instanceof PaperclipApiError ? error.message : String(error?.message || error);
+          const action = {
+            type: "paperclip",
+            method: "SKIP_DELETE_RUN_CHECK_FAILED",
+            issueId: issue.id,
+            ref: issue.identifier || issue.id,
+            ok: false,
+            blocked: true,
+            error: message,
+          };
+          actions.push(action);
+          residuals.push({
+            type: "paperclip",
+            kind: "paperclip",
+            issueId: issue.id,
+            id: issue.identifier || issue.id,
+            ref: issue.identifier || issue.id,
+            reason: "live-run-check-failed",
+            error: message,
+          });
+          continue;
+        }
+        if (activeRuns.length) {
+          const record = { issueId: issue.id, ref: issue.identifier || issue.id, runs: activeRuns };
+          activeRunsBeforeCleanupRecords.push(record);
+          actions.push({
+            type: "paperclip",
+            method: "SKIP_DELETE_ACTIVE_RUNS",
+            issueId: issue.id,
+            ref: issue.identifier || issue.id,
+            activeRuns,
+            ok: false,
+            blocked: true,
+          });
+          residuals.push({
+            type: "paperclip",
+            kind: "paperclip",
+            issueId: issue.id,
+            id: issue.identifier || issue.id,
+            ref: issue.identifier || issue.id,
+            reason: "active-runs-before-cleanup",
+            activeRuns,
+          });
+          continue;
+        }
+      }
       const deleteAction = { type: "paperclip", method: "DELETE", issueId: issue.id, ref: issue.identifier || issue.id };
       actions.push(deleteAction);
       if (!dryRun) {
@@ -61,7 +145,7 @@ export async function cleanupPaperclipIssues({ client, manifest, mode = "hard", 
       }
     }
   }
-  return { actions, residuals };
+  return { actions, residuals, activeRunsBeforeCleanup: activeRunsBeforeCleanupRecords };
 }
 
 export function telegramMessageIds(manifest) {

@@ -127,7 +127,11 @@ Current audit blockers:
   before `workspace_finalize` wrote its `workspace_operations` row, causing a
   `workspace_operations_issue_id_issues_id_fk` failure and an `adapter_failed`
   surface even though Hermes exited successfully. Cleanup must become
-  active-run-safe before it can be treated as release evidence.
+  active-run-safe before it can be treated as release evidence. First local
+  guard slice is now present: `paperclip-qa cleanup hard` blocks delete when
+  `/issues/:id/live-runs` reports active runs and records
+  `activeRunsBeforeCleanup`; auto-cancel/wait and post-suite guard are still
+  open.
 - Quick/deep and council live inbound verification through the actual Telegram
   gateway now have accepted release-suite evidence; future work should focus on
   making the post-suite guard/repair gate explicit and less manual.

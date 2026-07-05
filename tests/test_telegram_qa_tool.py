@@ -57,7 +57,14 @@ class FakePaperclipHandler(BaseHTTPRequestHandler):
             else:
                 self.send_json(200, [])
             return
-        status, body = self.__class__.routes.get(("GET", self.path), (404, {"error": "not found"}))
+        if ("GET", self.path) in self.__class__.routes:
+            status, body = self.__class__.routes[("GET", self.path)]
+            self.send_json(status, body)
+            return
+        if self.path.startswith("/api/issues/") and self.path.endswith("/live-runs"):
+            self.send_json(200, [])
+            return
+        status, body = (404, {"error": "not found"})
         self.send_json(status, body)
 
     def do_PATCH(self):
@@ -717,6 +724,46 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(delete_paths, ["/api/issues/child-1", "/api/issues/root-1"])
             manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual([item["method"] for item in manifest["cleanup"]["paperclip"]], ["DELETE", "DELETE"])
+
+    def test_cleanup_hard_blocks_issue_delete_when_live_run_is_active(self):
+        routes = {
+            ("GET", "/api/issues/root-1/live-runs"): (
+                200,
+                [
+                    {
+                        "id": "run-active-1",
+                        "status": "running",
+                        "phase": "workspace_finalize",
+                        "startedAt": "2026-07-05T21:06:32.000Z",
+                    }
+                ],
+            ),
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(routes) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260705-cleanup-active-run-a1b2c3"
+            self.write_manifest(
+                artifacts_dir,
+                run_id,
+                [{"id": "root-1", "identifier": "THE-1", "parentId": None, "status": "todo", "matchedBy": "manifest"}],
+            )
+
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--live-ok", "--json")
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertIn(("GET", "/api/issues/root-1/live-runs", None), server.calls)
+            self.assertNotIn(("DELETE", "/api/issues/root-1", None), server.calls)
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["activeRunsBeforeCleanup"][0]["issueId"], "root-1")
+            self.assertEqual(manifest["cleanup"]["activeRunsBeforeCleanup"][0]["runs"][0]["id"], "run-active-1")
+            self.assertEqual(manifest["cleanup"]["paperclip"][0]["method"], "SKIP_DELETE_ACTIVE_RUNS")
+            self.assertTrue(manifest["cleanup"]["paperclip"][0]["blocked"])
+            self.assertEqual(manifest["cleanup"]["residuals"][0]["reason"], "active-runs-before-cleanup")
 
     def test_cleanup_hard_delete_failure_falls_back_to_hidden_cancelled_patch(self):
         routes = {
