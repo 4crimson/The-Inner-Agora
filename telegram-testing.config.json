@@ -60,7 +60,7 @@
           "message": "агора помощь",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -70,7 +70,7 @@
           "message": "что ты умеешь в агоре?",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -86,7 +86,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "replyNotContains": ["Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
@@ -99,7 +100,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "replyNotContains": ["Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
@@ -112,7 +114,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "replyNotContains": ["Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
@@ -125,7 +128,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["Философы", "последней сессии"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "replyNotContains": ["Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Последняя сессия", "Новый вопрос", "Итог", "Назад"]
@@ -138,7 +142,7 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["Обычный вход", "Обычные команды", "Работа с сессиями", "Админ/диагностика"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true
           }
         }
@@ -152,7 +156,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Быстро 2", "Сбаланс. 5", "Глубоко 10", "Go/No-Go", "Все голоса"],
+            "replyNotContains": ["Текущий режим", "Быстро 2", "Сбаланс. 5", "Глубоко 10", "Go/No-Go", "Все голоса"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
@@ -165,7 +170,7 @@
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "replyContains": ["Запустил совет", "Вопрос", "Философы"],
-            "replyNotContains": ["command not found", "<|channel>", "Project action exited", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -177,7 +182,7 @@
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "replyContains": ["Запустил совет", "Вопрос", "Философы", "Платон", "Декарт"],
-            "replyNotContains": ["command not found", "<|channel>", "Project action exited", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -189,7 +194,7 @@
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "replyContains": ["Запустил совет", "Вопрос", "Философы", "Платон", "Сартр"],
-            "replyNotContains": ["command not found", "<|channel>", "Project action exited", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -203,7 +208,7 @@
           "message": "хочу разобраться с вопросом свободы взрослого ребенка",
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true
           }
         },
@@ -211,7 +216,7 @@
           "id": "dialogue.ask-two-philosophers",
           "message": "а можешь спросить пару философов, но не слишком глубоко",
           "expect": {
-            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -220,7 +225,7 @@
           "id": "dialogue.latest-session",
           "message": "что там по последней сессии?",
           "expect": {
-            "replyNotContains": ["<|channel>", "Project action exited"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -236,7 +241,8 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "replyNotContains": ["Текущий режим", "Режимы", "Каталог", "Все голоса", "Синтез"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Новый вопрос", "Последняя сессия", "Итог", "История", "Помощь"]
@@ -249,7 +255,7 @@
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["Я понял тему", "Запустить"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true,
             "buttonsContain": ["Запустить", "Сделать быстро", "Сделать глубоко", "Выбрать философов"]
@@ -262,7 +268,7 @@
       "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "replyContains": ["Запустил совет", "Философы", "Платон", "Декарт"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -273,7 +279,7 @@
       "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -289,7 +295,7 @@
       "expect": {
         "paperclipRootsCreatedAtLeast": 1,
         "replyContains": ["Запустил совет", "Вопрос", "Философы", "Аристотель", "Фуко"],
-        "replyNotContains": ["command not found", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+        "noTechnicalFirstLevelLeak": true,
         "noRawTokens": true,
         "buttonsPresent": true
       }
@@ -301,7 +307,7 @@
       "expect": {
         "paperclipRootsCreatedAtLeast": 1,
         "replyContains": ["Запустил совет", "Вопрос", "Философы", "Батлер", "Нуссбаум"],
-        "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+        "noTechnicalFirstLevelLeak": true,
         "noRawTokens": true,
         "buttonsPresent": true
       }
@@ -313,7 +319,7 @@
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
             "replyContains": ["Запустил совет", "Вопрос", "Философы", "Аристотель", "Фуко"],
-            "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
+            "noTechnicalFirstLevelLeak": true,
             "noRawTokens": true,
             "buttonsPresent": true
           }

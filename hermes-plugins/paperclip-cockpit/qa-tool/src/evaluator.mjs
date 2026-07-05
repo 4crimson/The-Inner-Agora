@@ -19,6 +19,33 @@ function hasRawTokens(text) {
   ].some((needle) => text.includes(needle));
 }
 
+export const noTechnicalFirstLevelLeakNeedles = [
+  "command not found",
+  "<|channel>",
+  "Project action exited",
+  "stderr:",
+  "--mode",
+  "--min",
+  "--max",
+  "--all",
+  "Маршрут:",
+  "model=",
+  "http://127.0.0.1",
+  "http://localhost",
+  "Открыть:",
+  "wake=queued",
+  "wake=failed",
+  "wake=",
+  "Голоса:",
+  "Active Agents & Tasks",
+  "terminated ancestor",
+  "reports through",
+];
+
+function technicalFirstLevelLeaks(text) {
+  return noTechnicalFirstLevelLeakNeedles.filter((needle) => text.includes(needle));
+}
+
 function rootsCreated(observed) {
   if (typeof observed.paperclipRootsCreated === "number") return observed.paperclipRootsCreated;
   if (Array.isArray(observed.paperclip?.rootsCreated)) return observed.paperclip.rootsCreated.length;
@@ -85,6 +112,15 @@ export function evaluateTest({ test, observed = {} }) {
 
   if (expect.noRawTokens) {
     addCheck(checks, "noRawTokens", !hasRawTokens(replyText), {
+      actual: replyText,
+    });
+  }
+
+  if (expect.noTechnicalFirstLevelLeak) {
+    const actualLeaks = technicalFirstLevelLeaks(replyText);
+    addCheck(checks, "noTechnicalFirstLevelLeak", actualLeaks.length === 0, {
+      expected: noTechnicalFirstLevelLeakNeedles,
+      actualLeaks,
       actual: replyText,
     });
   }

@@ -1332,6 +1332,29 @@ console.log(JSON.stringify(result));
         self.assertIn("buttonsContain", [check["name"] for check in payload["checks"]])
         self.assertEqual(len(payload["checks"]), 8)
 
+    def test_evaluator_checks_no_technical_first_level_leak_macro(self):
+        expression = json.dumps(
+            {
+                "test": {"id": "eval.no-leak", "expect": {"noTechnicalFirstLevelLeak": True}},
+                "observed": {
+                    "replyText": "Запустил совет.\nМаршрут: hermes_local model=test\nОткрыть: http://127.0.0.1/issues/root\nwake=queued",
+                },
+            },
+            ensure_ascii=False,
+        )
+
+        result = self.run_node_eval(expression)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "fail")
+        failed = [check for check in payload["checks"] if not check["ok"]]
+        self.assertEqual([check["name"] for check in failed], ["noTechnicalFirstLevelLeak"])
+        self.assertIn("Маршрут:", failed[0]["actualLeaks"])
+        self.assertIn("model=", failed[0]["actualLeaks"])
+        self.assertIn("http://127.0.0.1", failed[0]["actualLeaks"])
+        self.assertIn("wake=queued", failed[0]["actualLeaks"])
+
     def test_evaluator_checks_button_labels(self):
         expression = json.dumps(
             {
@@ -2098,7 +2121,18 @@ console.log(JSON.stringify(result));
             artifacts_dir = Path(temp_dir) / "runs"
             config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
             run_id = "QA-20260703-bugs-d4e5f6"
-            self.write_report_manifest(artifacts_dir, run_id)
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"].append(
+                {
+                    "id": "help.technical-leak",
+                    "message": "агора помощь",
+                    "status": "fail",
+                    "observed": {"replyText": "Маршрут: hermes_local model=test"},
+                    "checks": [{"name": "noTechnicalFirstLevelLeak", "ok": False, "actualLeaks": ["Маршрут:", "model="]}],
+                }
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             append_doc = Path(temp_dir) / "BUGS.md"
 
             result = self.run_cli(
@@ -2117,10 +2151,13 @@ console.log(JSON.stringify(result));
             payload = json.loads(result.stdout)
             bugs_path = Path(payload["bugsPath"])
             rows = [json.loads(line) for line in bugs_path.read_text(encoding="utf-8").splitlines()]
-            self.assertEqual(len(rows), 1)
+            self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["testId"], "help.raw-token")
             self.assertEqual(rows[0]["severity"], "P1")
             self.assertEqual(rows[0]["area"], "telegram-ui")
+            self.assertEqual(rows[1]["testId"], "help.technical-leak")
+            self.assertEqual(rows[1]["severity"], "P1")
+            self.assertEqual(rows[1]["area"], "telegram-ui")
             self.assertIn("<|channel>", rows[0]["evidence"]["transcript"])
             self.assertIn("help.raw-token passes on retest", rows[0]["acceptanceCriteria"])
             self.assertIn("preview", payload["appendDoc"])

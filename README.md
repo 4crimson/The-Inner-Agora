@@ -290,6 +290,13 @@ Run artifacts are written to `artifacts/telegram-test-runs/` and are ignored by 
 Telegram QA callbacks are read-only surfaces over those existing artifacts: `QA статус` summarizes latest manifest, `Последний QA отчет` clips `REPORT.md`, `Упавшие проверки` lists failed tests/bugs, and `Cleanup статус` reads manifest cleanup metadata. They do not create Telegram messages, Paperclip issues, or new QA runs by themselves.
 Live interface acceptance is gated by the saved operator checklist in [docs/telegram-testing/TELEGRAM_INTERFACE_LIVE_ACCEPTANCE_CHECKLIST.md](docs/telegram-testing/TELEGRAM_INTERFACE_LIVE_ACCEPTANCE_CHECKLIST.md).
 
+First-level Telegram UX leak checks use the shared QA expectation
+`noTechnicalFirstLevelLeak`. Prefer it over copying `replyNotContains` lists for
+route/model/local URL/open-link/wake/raw child rows/CLI flag leaks. Scenario
+specific visible-copy assertions can still use `replyContains` or
+`replyNotContains`. A failure of this macro is classified as `telegram-ui`/`P1`
+in generated QA bugs.
+
 Safe non-live checks:
 
 ```bash

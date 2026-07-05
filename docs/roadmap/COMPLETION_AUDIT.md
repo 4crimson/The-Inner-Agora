@@ -151,6 +151,11 @@ Current audit blockers:
   manual.
 - Project-action error UX handles the terminated-ancestor 409 path locally, but
   command-not-found and provider timeout/error formatting remain open.
+- First-level Telegram leak expectations now use the shared
+  `noTechnicalFirstLevelLeak` QA macro. It covers route/model/local URL/open
+  link/wake/raw child rows/CLI flags and is classified as `telegram-ui`/`P1`
+  when it fails. Live replay remains part of the normal release lane, not this
+  local contract slice.
 
 Operator approval to touch the live system was granted on 2026-07-05. Live
 retests still remain a separate workstream with their own QA commands and
@@ -161,10 +166,10 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 1. Implement the release live gate first: post-suite guard fields in QA
    manifests/acceptance, active-run-safe cleanup, and explicit
    accepted/accepted-with-repair/blocked decisions.
-2. Centralize first-level Telegram leak expectations into a reusable
-   `noTechnicalFirstLevelLeak` contract.
-3. Centralize operational-intent expectations for `проверить что вышло`,
+2. Centralize operational-intent expectations for `проверить что вышло`,
    `финал проверяем`, and `давай acceptance`.
+3. Add remaining project-action error UX tests for command-not-found and
+   provider timeout/error formatting.
 4. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 5. Extend Phase 9 only where usage data is actually available; keep unknown

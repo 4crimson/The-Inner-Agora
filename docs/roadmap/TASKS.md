@@ -95,6 +95,15 @@ ancestor, команда останавливается коротким recover
 `node scripts/agora.mjs prepare local`, а Paperclip work/wakeup не создаются.
 Покрытие: `tests.test_inner_agora_ask_flow.InnerAgoraAskFlowTests.test_ask_blocks_selected_voice_with_terminated_ancestor_before_writes`.
 
+Статус 2026-07-06: RL-5 закрыт локально как shared evaluator macro
+`noTechnicalFirstLevelLeak`. `telegram-testing.config.json` использует его для
+first-level Telegram replies вместо копирования route/model/local URL/open-link/
+wake/raw child row/CLI flag запретов; сценарные UX-лейблы остаются отдельными
+`replyNotContains`. QA bug generation классифицирует macro failures как
+`telegram-ui`/`P1`. Покрытие:
+`tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_evaluator_checks_no_technical_first_level_leak_macro`
+и `test_bugs_writes_jsonl_and_append_doc_dry_run_preview`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

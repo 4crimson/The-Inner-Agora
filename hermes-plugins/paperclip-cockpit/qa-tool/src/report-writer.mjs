@@ -181,7 +181,13 @@ function inferArea(test) {
   if (String(test.id || "").includes("cleanup") || test.kind === "cleanup") return "cleanup";
   if (checks.has("localRouteContains")) return "local-model";
   if (checks.has("paperclipRootsCreated") || checks.has("paperclipRootsCreatedAtLeast")) return "paperclip-recovery";
-  if (checks.has("buttonsPresent") || checks.has("replyContains") || checks.has("replyNotContains") || checks.has("noRawTokens")) {
+  if (
+    checks.has("buttonsPresent")
+    || checks.has("replyContains")
+    || checks.has("replyNotContains")
+    || checks.has("noRawTokens")
+    || checks.has("noTechnicalFirstLevelLeak")
+  ) {
     return "telegram-ui";
   }
   return "unknown";
@@ -189,7 +195,7 @@ function inferArea(test) {
 
 function inferSeverity(test) {
   const checks = new Set(failedCheckNames(test));
-  if (checks.has("noRawTokens") || checks.has("replyNotContains")) return "P1";
+  if (checks.has("noRawTokens") || checks.has("replyNotContains") || checks.has("noTechnicalFirstLevelLeak")) return "P1";
   if (checks.has("paperclipRootsCreated") || checks.has("paperclipRootsCreatedAtLeast")) return "P1";
   if (checks.has("buttonsPresent") || checks.has("replyContains") || checks.has("localRouteContains")) return "P2";
   return "P3";
