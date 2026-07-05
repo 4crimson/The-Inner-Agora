@@ -284,6 +284,29 @@ function helpRequested(text) {
   );
 }
 
+function latestCheckRequested(text) {
+  return hasAny(text, [
+    "проверить что вышло",
+    "проверь что вышло",
+    "проверим что вышло",
+    "что вышло",
+    "что получилось",
+    "покажи что вышло",
+    "давай acceptance",
+    "acceptance",
+  ]);
+}
+
+function finalResultCheckRequested(text) {
+  return hasAny(text, [
+    "финал проверяем",
+    "проверь финал",
+    "проверить финал",
+    "финальный итог",
+    "final result",
+  ]);
+}
+
 export function regexFallbackSlots(userText, context = {}) {
   const text = String(userText || "").trim();
   const loose = looseText(text);
@@ -291,6 +314,14 @@ export function regexFallbackSlots(userText, context = {}) {
 
   if (helpRequested(loose)) {
     return normalizeIntentSlots(baseSlots({ intent: "help", chamber: chamberFromText(text), confidence: 0.9 }));
+  }
+
+  if (latestCheckRequested(loose)) {
+    return normalizeIntentSlots(baseSlots({ intent: "status", confidence: 0.9 }));
+  }
+
+  if (finalResultCheckRequested(loose)) {
+    return normalizeIntentSlots(baseSlots({ intent: "status", topic: "synthesis", confidence: 0.9 }));
   }
 
   if (hasAny(loose, ["готов"]) && hasAny(loose, ["синтез", "результат"])) {
@@ -459,6 +490,9 @@ lastRootIssueRef: ${lastRoot}
 Мини-примеры:
 - "готов ли синтез по последней задаче?" => intent=status
 - "дай выжимку по последней таске" => intent=result
+- "проверить что вышло" => intent=status
+- "финал проверяем" => intent=status, topic=synthesis
+- "давай acceptance" => intent=status
 - "а что сказал Платон?" => intent=role_detail
 - "давай спросим агору про отцов и детей" => intent=new_session
 

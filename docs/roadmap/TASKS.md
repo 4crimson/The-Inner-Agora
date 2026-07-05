@@ -104,6 +104,13 @@ wake/raw child row/CLI flag запретов; сценарные UX-лейблы
 `tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_evaluator_checks_no_technical_first_level_leak_macro`
 и `test_bugs_writes_jsonl_and_append_doc_dry_run_preview`.
 
+Статус 2026-07-06: RL-6 закрыт локально в natural/intent routing.
+`проверить что вышло` и `давай acceptance` переписываются в `/agora latest`,
+`финал проверяем` — в `/agora result`; ни одна из этих фраз не ведет в
+`/agora ask`, wizard confirmation или roadmap/persona discussion. Покрытие:
+`tests.test_phase4_intent_slots.Phase4IntentSlotTests.test_agora_natural_operational_check_phrases_do_not_launch_council`
+и `tests.test_paperclip_cockpit_rewrites.PaperclipCockpitRewriteTests.test_natural_agora_research_roundtrip_phrases`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

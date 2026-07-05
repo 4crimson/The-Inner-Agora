@@ -115,7 +115,10 @@ Current audit blockers:
   Telegram. The Paperclip hierarchy repair path was recovered on 2026-07-05,
   and local selected-voice ancestry guard coverage was added on 2026-07-06:
   red `reportsTo` ancestry now blocks `ask` before any Paperclip issue write.
-  Live replay of a deliberately red hierarchy was not run in this slice.
+  Local operational-intent routing was also added on 2026-07-06:
+  `проверить что вышло` and `давай acceptance` route to `/agora latest`, while
+  `финал проверяем` routes to `/agora result`. Live replay of these slices was
+  not run here.
 - `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and `BUG-2026-07-04-004` have
   live accepted suites on 2026-07-05: `help`, `service-commands`,
   strengthened `mode-routing`, `natural-dialogue`, `interface-contract-topics`,
@@ -166,11 +169,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 1. Implement the release live gate first: post-suite guard fields in QA
    manifests/acceptance, active-run-safe cleanup, and explicit
    accepted/accepted-with-repair/blocked decisions.
-2. Centralize operational-intent expectations for `проверить что вышло`,
-   `финал проверяем`, and `давай acceptance`.
-3. Add remaining project-action error UX tests for command-not-found and
+2. Add remaining project-action error UX tests for command-not-found and
    provider timeout/error formatting.
-4. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
+3. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
-5. Extend Phase 9 only where usage data is actually available; keep unknown
+4. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.

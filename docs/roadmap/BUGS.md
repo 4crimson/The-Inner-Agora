@@ -390,6 +390,16 @@ These are hypotheses only; do not fix before evidence is gathered.
 - Route to an acceptance checklist response or command.
 - Prevent roadmap-phase discussion unless the user explicitly asks about roadmap.
 
+Status 2026-07-06: local routing slice implemented. `scripts/agora.mjs natural
+--routing-mode regex --dry-run --json` now rewrites `проверить что вышло` and
+`давай acceptance` to `/agora latest`, and `финал проверяем` to `/agora result`.
+The Paperclip Cockpit natural delegate inherits the same behavior, so these
+phrases no longer produce `/agora ask`, wizard confirmation, or roadmap-persona
+discussion in local tests. Covered by
+`tests.test_phase4_intent_slots.Phase4IntentSlotTests.test_agora_natural_operational_check_phrases_do_not_launch_council`
+and `tests.test_paperclip_cockpit_rewrites.PaperclipCockpitRewriteTests.test_natural_agora_research_roundtrip_phrases`.
+Live Telegram replay remains open for the broader BUG-001 acceptance.
+
 **Batch C2 — Local Help/Menu Intent**
 
 - Route `агора помощь`, `помощь агора`, and close variants to a local Telegram help/menu response.

@@ -670,6 +670,30 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertIn("Я понял тему", payload["text"])
         self.assertNotIn("/agora ask", payload["text"])
 
+    def test_agora_natural_operational_check_phrases_do_not_launch_council(self):
+        cases = {
+            "проверить что вышло": "/agora latest",
+            "финал проверяем": "/agora result",
+            "давай acceptance": "/agora latest",
+        }
+        for phrase, expected in cases.items():
+            with self.subTest(phrase=phrase):
+                result = self.run_node(
+                    ROOT / "scripts" / "agora.mjs",
+                    "natural",
+                    "--routing-mode",
+                    "regex",
+                    "--dry-run",
+                    "--json",
+                    phrase,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertEqual(payload["action"], "rewrite")
+                self.assertEqual(payload["text"], expected)
+                self.assertNotIn("/agora ask", payload["text"])
+
     def test_agora_natural_follow_up_uses_last_root_state(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             state_path = Path(temp_dir) / "state.json"
