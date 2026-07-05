@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { slotExtractorConfig } from "./model-routing.mjs";
 import { tokenCostEntry } from "./agora/cost-utils.mjs";
+import { requestedVoiceLimit } from "./agora/mode-utils.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
@@ -619,9 +620,11 @@ function pendingTopicKeyboard() {
 function newSessionNeedsConfirmation(slots) {
   if (slots.confidence < 0.75) return true;
   const topic = looseText(slots.topic || "");
+  const exactVoiceLimit = requestedVoiceLimit(topic);
   const vagueSmallGroup =
     !slots.roles.length &&
-    /(^|\s)(пару|пары|двух|нескольк[а-я]*)\s+(философ[а-я]*|голос[а-я]*)($|\s)/u.test(topic);
+    !exactVoiceLimit &&
+    /(^|\s)(нескольк[а-я]*)\s+(философ[а-я]*|голос[а-я]*)($|\s)/u.test(topic);
   return vagueSmallGroup;
 }
 

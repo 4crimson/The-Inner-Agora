@@ -618,7 +618,7 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertGreaterEqual(payload["semanticCorrect"], 16)
         self.assertEqual(len(payload["results"]), 20)
 
-    def test_agora_natural_pair_philosopher_limit_words_confirm_before_launch(self):
+    def test_agora_natural_pair_philosopher_limit_words_launch_two_voice_ask(self):
         result = self.run_node(
             ROOT / "scripts" / "agora.mjs",
             "natural",
@@ -631,11 +631,11 @@ class Phase4IntentSlotTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertEqual(payload["action"], "message")
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertTrue(payload["text"].startswith("/agora ask "))
         self.assertIn("пары философов", payload["text"])
-        self.assertNotIn("/agora ask", payload["text"])
 
-    def test_agora_natural_pair_without_named_roles_confirms_before_launch(self):
+    def test_agora_natural_pair_without_named_roles_launches_ask(self):
         result = self.run_node(
             ROOT / "scripts" / "agora.mjs",
             "natural",
@@ -648,10 +648,26 @@ class Phase4IntentSlotTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
-        self.assertEqual(payload["action"], "message")
-        self.assertIn("Я понял тему", payload["text"])
+        self.assertEqual(payload["action"], "rewrite")
+        self.assertTrue(payload["text"].startswith("/agora ask "))
         self.assertIn("как отличить дисциплину", payload["text"])
         self.assertNotIn("а ть", payload["text"])
+
+    def test_agora_natural_vague_small_group_still_confirms_before_launch(self):
+        result = self.run_node(
+            ROOT / "scripts" / "agora.mjs",
+            "natural",
+            "--routing-mode",
+            "regex",
+            "--dry-run",
+            "--json",
+            "собери совет у нескольких философов: как поддерживать взрослого ребенка",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["action"], "message")
+        self.assertIn("Я понял тему", payload["text"])
         self.assertNotIn("/agora ask", payload["text"])
 
     def test_agora_natural_follow_up_uses_last_root_state(self):
