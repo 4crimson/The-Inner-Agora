@@ -501,7 +501,16 @@ health, and a repeat guard 15 seconds later stayed `ok=true`.
 - Preserve full technical details in logs, but show the user a short Russian recovery explanation.
 - Add tests for Paperclip 409, command-not-found, and provider timeout/error formatting.
 
-Status 2026-07-03: partially implemented for Paperclip `409 terminated ancestor` failures. Default project actions now show a short human recovery message and hide raw `stderr`/JSON unless the action explicitly uses `presentation.mode=raw`. Remaining: add cases for command-not-found and provider timeout/error formatting.
+Status 2026-07-06: locally covered for Paperclip `409 terminated ancestor`,
+command-not-found, subprocess timeout, and provider timeout/error formatting.
+Default project actions now show a short Russian recovery message and hide raw
+`Project action...`, `stderr:` and JSON unless the action explicitly uses
+`presentation.mode=raw` or global debug details. Covered by
+`test_run_action_humanizes_paperclip_terminated_ancestor_error`,
+`test_run_action_humanizes_missing_command_error`,
+`test_run_action_humanizes_project_action_timeout`, and
+`test_run_action_humanizes_provider_timeout_error`. Live Telegram replay remains
+part of the release lane.
 
 ### Non-Goals
 

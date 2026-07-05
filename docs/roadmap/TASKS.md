@@ -111,6 +111,16 @@ wake/raw child row/CLI flag запретов; сценарные UX-лейблы
 `tests.test_phase4_intent_slots.Phase4IntentSlotTests.test_agora_natural_operational_check_phrases_do_not_launch_council`
 и `tests.test_paperclip_cockpit_rewrites.PaperclipCockpitRewriteTests.test_natural_agora_research_roundtrip_phrases`.
 
+Статус 2026-07-06: RL-8 закрыт локально для project-action failure UX.
+`command not found`, subprocess timeout, provider timeout stderr/JSON и
+Paperclip `409 terminated ancestor` проходят через короткий русский recovery;
+raw `Project action...`, `stderr:` и JSON не попадают в first-level output, пока
+action не просит `presentation.mode=raw` или global debug details. Покрытие:
+`tests.test_paperclip_cockpit_telegram_callbacks.PaperclipCockpitTelegramCallbackTests.test_run_action_humanizes_missing_command_error`,
+`test_run_action_humanizes_project_action_timeout`,
+`test_run_action_humanizes_provider_timeout_error` и
+`test_run_action_humanizes_paperclip_terminated_ancestor_error`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

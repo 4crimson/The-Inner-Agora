@@ -152,8 +152,11 @@ Current audit blockers:
   gateway now have accepted release-suite evidence; future work should focus on
   making the repair/repeat part of the post-suite guard explicit and less
   manual.
-- Project-action error UX handles the terminated-ancestor 409 path locally, but
-  command-not-found and provider timeout/error formatting remain open.
+- Project-action error UX now handles terminated-ancestor 409,
+  command-not-found, subprocess timeout, and provider timeout/error formatting
+  locally. Raw stderr/JSON stays out of first-level output unless raw/debug
+  presentation is explicitly enabled. Live replay remains part of the release
+  lane, not this local contract slice.
 - First-level Telegram leak expectations now use the shared
   `noTechnicalFirstLevelLeak` QA macro. It covers route/model/local URL/open
   link/wake/raw child rows/CLI flags and is classified as `telegram-ui`/`P1`
@@ -169,9 +172,7 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 1. Implement the release live gate first: post-suite guard fields in QA
    manifests/acceptance, active-run-safe cleanup, and explicit
    accepted/accepted-with-repair/blocked decisions.
-2. Add remaining project-action error UX tests for command-not-found and
-   provider timeout/error formatting.
-3. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
+2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
-4. Extend Phase 9 only where usage data is actually available; keep unknown
+3. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.

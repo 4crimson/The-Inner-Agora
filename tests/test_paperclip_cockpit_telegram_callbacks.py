@@ -285,6 +285,82 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
 
         self.with_config(config, assertions)
 
+    def test_run_action_humanizes_missing_command_error(self):
+        config = {
+            "presentation": {"language": "ru"},
+            "actions": {
+                "broken": {
+                    "exec": ["__inner_agora_missing_command__"],
+                    "append_args": False,
+                }
+            },
+        }
+
+        def assertions():
+            output = self.plugin._run_action("broken", config["actions"]["broken"], "")
+
+            self.assertIn("Не смог выполнить действие проекта `broken`", output)
+            self.assertIn("Команда не найдена", output)
+            self.assertIn("Технические детали сохранены в логах", output)
+            self.assertNotIn("Project action failed before execution", output)
+            self.assertNotIn("__inner_agora_missing_command__", output)
+            self.assertNotIn("No such file", output)
+
+        self.with_config(config, assertions)
+
+    def test_run_action_humanizes_project_action_timeout(self):
+        config = {
+            "presentation": {"language": "ru"},
+            "actions": {
+                "slow": {
+                    "exec": ["node", "-e", "setTimeout(() => {}, 10000)"],
+                    "append_args": False,
+                    "timeout": 7,
+                }
+            },
+        }
+
+        def fake_run(args, cwd=None, text=None, capture_output=None, timeout=None, check=None, env=None):
+            raise subprocess.TimeoutExpired(cmd=args, timeout=timeout)
+
+        def assertions():
+            with MonkeyPatch(subprocess, run=fake_run):
+                output = self.plugin._run_action("slow", config["actions"]["slow"], "")
+
+            self.assertIn("Не смог выполнить действие проекта `slow`", output)
+            self.assertIn("Таймаут", output)
+            self.assertIn("Технические детали сохранены в логах", output)
+            self.assertNotIn("Project action timed out", output)
+            self.assertNotIn("node -e", output)
+            self.assertNotIn("setTimeout", output)
+
+        self.with_config(config, assertions)
+
+    def test_run_action_humanizes_provider_timeout_error(self):
+        config = {
+            "presentation": {"language": "ru"},
+            "actions": {"provider": {"exec": ["node", "scripts/agora.mjs", "ask"]}},
+        }
+        stderr = 'Provider timeout after 60000ms\n{"error":"upstream provider timeout","route":"local"}'
+
+        def fake_run(args, cwd=None, text=None, capture_output=None, timeout=None, check=None, env=None):
+            return type("Result", (), {"stdout": "", "stderr": stderr, "returncode": 1})()
+
+        def assertions():
+            with MonkeyPatch(subprocess, run=fake_run):
+                output = self.plugin._run_action("provider", config["actions"]["provider"], "коротко проверь")
+
+            self.assertIn("Не смог выполнить действие проекта `provider`", output)
+            self.assertIn("Таймаут", output)
+            self.assertIn("Технические детали сохранены в логах", output)
+            self.assertNotIn("Project action exited", output)
+            self.assertNotIn("stderr:", output)
+            self.assertNotIn("Provider timeout after", output)
+            self.assertNotIn('{"error"', output)
+            self.assertNotIn("route", output)
+
+        self.with_config(config, assertions)
+
     def test_pre_gateway_dispatch_passes_chat_id_to_natural_delegate(self):
         config = {
             "command": {"name": "agora"},

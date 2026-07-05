@@ -2415,6 +2415,27 @@ def _humanize_action_error(name: str, returncode: int, output: str, error: str) 
         lines.extend(["", "Run repair/prepare, then try the request again."])
         return "\n".join(lines).strip()
 
+    if "timeout" in lowered or "timed out" in lowered or "таймаут" in lowered:
+        if language == "ru":
+            return "\n".join(
+                [
+                    f"Не смог выполнить действие проекта `{name}`.",
+                    "",
+                    "Таймаут провайдера или локального выполнения.",
+                    "",
+                    "Технические детали сохранены в логах. Проверь локальный Paperclip/guard и повтори запрос.",
+                ]
+            )
+        return "\n".join(
+            [
+                f"I could not complete project action `{name}`.",
+                "",
+                "Provider or local execution timed out.",
+                "",
+                "Technical details were kept in logs. Check local Paperclip/guard, then try again.",
+            ]
+        )
+
     if language == "ru":
         return "\n".join(
             [
@@ -2426,6 +2447,43 @@ def _humanize_action_error(name: str, returncode: int, output: str, error: str) 
     return "\n".join(
         [
             f"I could not complete project action `{name}`.",
+            "",
+            "Technical details were kept in logs. Check local Paperclip/guard, then try again.",
+        ]
+    )
+
+
+def _humanize_action_execution_error(name: str, reason: str, raw_message: str) -> str:
+    errors = _presentation_config().get("errors", {})
+    show_details = _as_bool(errors.get("show_details") if isinstance(errors, dict) else None, False)
+    if not _human_enabled() or show_details:
+        return raw_message
+
+    language = _presentation_language()
+    reason = str(reason or "").strip()
+    if language == "ru":
+        reason_line = {
+            "missing_command": "Команда не найдена.",
+            "timeout": "Таймаут выполнения.",
+        }.get(reason, "Действие не удалось запустить.")
+        return "\n".join(
+            [
+                f"Не смог выполнить действие проекта `{name}`.",
+                "",
+                reason_line,
+                "",
+                "Технические детали сохранены в логах. Проверь локальный Paperclip/guard и повтори запрос.",
+            ]
+        )
+    reason_line = {
+        "missing_command": "Command not found.",
+        "timeout": "Execution timed out.",
+    }.get(reason, "The action could not be started.")
+    return "\n".join(
+        [
+            f"I could not complete project action `{name}`.",
+            "",
+            reason_line,
             "",
             "Technical details were kept in logs. Check local Paperclip/guard, then try again.",
         ]
@@ -2479,24 +2537,6 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str, *, chat_id: An
 
     cwd = str(action.get("cwd") or os.environ.get("PAPERCLIP_COCKPIT_CWD") or _config().get("cwd") or _terminal_cwd() or os.getcwd())
     timeout = int(action.get("timeout", 180))
-    try:
-        result = subprocess.run(
-            args,
-            cwd=cwd,
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-            env=_subprocess_env(chat_id, action.get("env")),
-        )
-    except subprocess.TimeoutExpired:
-        return f"Project action timed out after {timeout}s: `{shlex.join(args)}`"
-    except Exception as exc:
-        logger.warning("project action failed before execution: %s", exc)
-        return f"Project action failed before execution: {exc}"
-
-    output = result.stdout.strip()
-    error = result.stderr.strip()
     presentation = action.get("presentation")
     action_mode = "passthrough"
     action_clip = None
@@ -2515,6 +2555,34 @@ def _run_action(name: str, action: dict[str, Any], raw_args: str, *, chat_id: An
             return _clip(_humanize_action_output(text), limit)
         return _clip(text, limit)
 
+    def present_execution_error(reason: str, raw_message: str) -> str:
+        if action_mode == "raw":
+            return present(raw_message)
+        return _clip(_humanize_action_execution_error(name, reason, raw_message), limit)
+
+    try:
+        result = subprocess.run(
+            args,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            env=_subprocess_env(chat_id, action.get("env")),
+        )
+    except subprocess.TimeoutExpired:
+        raw = f"Project action timed out after {timeout}s: `{shlex.join(args)}`"
+        logger.info("project action timed out after %ss: %s", timeout, shlex.join(args))
+        return present_execution_error("timeout", raw)
+    except FileNotFoundError as exc:
+        logger.info("project action command not found: %s", exc)
+        return present_execution_error("missing_command", f"Project action failed before execution: {exc}")
+    except Exception as exc:
+        logger.warning("project action failed before execution: %s", exc)
+        return present_execution_error("start_failed", f"Project action failed before execution: {exc}")
+
+    output = result.stdout.strip()
+    error = result.stderr.strip()
     if result.returncode == 0:
         return present(output or "OK")
     if action_mode != "raw":
