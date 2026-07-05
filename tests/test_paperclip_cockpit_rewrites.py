@@ -832,6 +832,26 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             flat_buttons = [button for row in calls[0][2]["inline_keyboard"] for button in row]
             self.assertIn({"text": "Сессия", "callback_data": "pc:session:THE-42"}, flat_buttons)
 
+    def test_real_launch_summary_hides_mode_value_flags_from_question(self):
+        raw_output = "\n".join(
+            [
+                "# Поставил вопрос в Агору: THE-42",
+                "Выбрал 2 голоса: Аристотель, Фуко.",
+                "Сессия: THE-42",
+            ]
+        )
+        with EnvPatch(PAPERCLIP_COCKPIT_CONFIG=str(AGORA_CONFIG)):
+            payload = self.plugin._telegram_launch_payload_from_output(
+                raw_output,
+                "--mode min Аристотеля и Фуко: как поддерживать взрослого ребенка",
+            )
+
+        self.assertIsNotNone(payload)
+        text, _ = payload
+        self.assertIn("Вопрос:\nАристотеля и Фуко: как поддерживать взрослого ребенка", text)
+        self.assertNotIn("--mode", text)
+        self.assertNotIn(" min ", text)
+
     def test_telegram_command_boundary_allows_full_help_path(self):
         config = {
             "command": {"name": "agora"},

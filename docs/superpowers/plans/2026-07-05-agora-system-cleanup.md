@@ -489,6 +489,21 @@ Progress 2026-07-05:
   and strengthened live run `QA-20260705-2106-mode-routing-475f2b` passed 4/4
   while forbidding route/model, local URL, `Открыть:`, `wake=queued`, and raw
   child `Голоса:` rows. Post-suite guard returned `ok=true`.
+- Ran the remaining release suites after the clean-summary fix:
+  `QA-20260705-2111-natural-dialogue-053534` passed 3/3,
+  `QA-20260705-2116-interface-contract-topics-3de3a6` passed 4/4, and
+  `QA-20260705-2123-council-create-adfe3b` passed 3/3.
+- The `interface-contract-topics` suite exposed stale QA expectations: it
+  expected the old "Я понял тему" flow while live behavior correctly launched a
+  clean summary. The contract now accepts the clean launch summary instead.
+- The first `council-create` run exposed a launch-summary parser gap: `--mode`
+  was not classified as a value flag, so `--mode min` could leak into
+  `Вопрос:`. Added `--mode` to `telegram.launch_summary.value_flags`,
+  regenerated `paperclip-cockpit.json`, and covered it with a regression test.
+- Work-creating suites still need an explicit post-suite guard step. Latest
+  live recovery backup before commit:
+  `backups/2026-07-05T21-31-39-714Z-the-inner-agora/backup.json`; final guard
+  returned `ok=true` and stayed green on a 15-second repeat check.
 
 ## Completion Checklist
 
@@ -497,7 +512,9 @@ Progress 2026-07-05:
 - [x] Live/Paperclip/Telegram gates are explicit.
 - [x] Phase 1 legacy role runtime removal is handled as its own T1.6 slice.
 - [x] Approved live backup/recovery was run before live Paperclip repair.
-- [x] `help`, `service-commands`, and `mode-routing` live QA suites have accepted runs.
+- [x] `help`, `service-commands`, `mode-routing`, `natural-dialogue`,
+  `interface-contract-topics`, and `council-create` live QA suites have
+  accepted runs.
 - [x] Post-suite guard was rerun and live agent health was restored with
   `prepare local`.
 - [x] Each later cleanup pass has acceptance criteria.

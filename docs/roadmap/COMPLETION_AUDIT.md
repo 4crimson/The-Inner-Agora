@@ -52,7 +52,7 @@ evidence that Telegram live UX is accepted.
 | Phase 5 model routing | `models.config.json`, `scripts/model-routing.mjs`, routing tests | Locally implemented | Cloud/provider route is not part of this phase |
 | Phase 6 per-chat state | `scripts/state-manager.mjs`, `data/schema/state.schema.json`, per-chat tests | Locally implemented | Live Telegram must prove chat id propagation in actual gateway |
 | Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill | Locally implemented | Runtime ancestry health before live ask still needs explicit guard coverage |
-| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Partially live-proven | `help`, `service-commands`, and strengthened `mode-routing` are accepted; post-suite agent-health drift and BUG-2026-07-03-001 remain open |
+| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Live-proven for release suites | `help`, `service-commands`, `mode-routing`, `natural-dialogue`, `interface-contract-topics`, and `council-create` are accepted; post-suite agent-health drift and BUG-2026-07-03-001 remain open |
 | Phase 9 observability/cost | `scripts/agora/cost-utils.mjs`, `costs.config.json`, `/agora costs`, all-mode volume preflight | Partial | Paperclip agent usage, unknown pricing, and monetary preflight remain open |
 | Config source split | `config/cockpit/*.json`, build/check tooling, matching runtime sha | Locally proven | Humans should edit fragments, runtime keeps `paperclip-cockpit.json` |
 | Generic plugin boundary | `paperclip-cockpit` no longer owns Agora launch copy; `PLUGIN_BOUNDARIES.md` defines gates | Locally improved | No install/publish/profile copy without explicit approval |
@@ -98,9 +98,9 @@ all Paperclip write paths.
 | Roadmap ideal | Current result |
 | --- | --- |
 | New chamber by config without editing `agora.mjs` | Mostly true for current board-directors chamber; some selection/runtime policy still passes through `agora.mjs`, so do not call the core fully pluginized yet |
-| New user can start in Telegram without README | Locally implemented with compact menus and `/start` aliases; live acceptance still pending |
-| Maximum one clarification question, no silent incomplete session | Locally implemented through slot/wizard planning and pending question flow; live profile drift remains a risk |
-| Follow-up after synthesis stays in session context | Locally implemented via follow-up and dialogue-context paths; live gateway state propagation still must be proven |
+| New user can start in Telegram without README | Locally implemented with compact menus and `/start` aliases; `help`, `natural-dialogue`, `interface-contract-topics`, and `council-create` have accepted live runs |
+| Maximum one clarification question, no silent incomplete session | Locally implemented through slot/wizard planning and pending question flow; accepted live suites now cover natural dialogue and interface-topic launches |
+| Follow-up after synthesis stays in session context | Locally implemented via follow-up and dialogue-context paths; live gateway state propagation remains a future focused proof |
 | No hardcoded absolute path or duplicated en/ru dictionary outside manifest/config | Runtime config no longer shows `/Users/admin` paths; generic plugin is cleaner, but Agora-facing philosopher labels remain intentionally product config |
 | Regression runs before release | Harness exists and current non-live checks pass; release discipline must keep using it |
 | Per-chat state isolation | Locally implemented; live Telegram must still prove actual chat id propagation |
@@ -115,13 +115,16 @@ Current audit blockers:
   Telegram. The Paperclip hierarchy part was recovered on 2026-07-05, but an
   explicit selected-voice ancestry guard remains future hardening.
 - `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and `BUG-2026-07-04-004` have
-  live accepted suites on 2026-07-05: `service-commands` and strengthened
-  `mode-routing`.
+  live accepted suites on 2026-07-05: `help`, `service-commands`,
+  strengthened `mode-routing`, `natural-dialogue`, `interface-contract-topics`,
+  and `council-create`.
 - Accepted work-creating live suites can still leave Paperclip agents in
-  `error` after issue cleanup. 2026-07-05 `mode-routing` required a second
-  backup plus `prepare local` before guard returned to `ok=true`.
-- Quick/deep live inbound verification through the actual Telegram gateway is
-  still separate from CLI/plugin diagnostics.
+  `error` after issue cleanup. 2026-07-05 `mode-routing`,
+  `interface-contract-topics`, and `council-create` required backup plus
+  `prepare local` before guard returned to `ok=true`.
+- Quick/deep and council live inbound verification through the actual Telegram
+  gateway now have accepted release-suite evidence; future work should focus on
+  making the post-suite guard/repair gate explicit and less manual.
 - Project-action error UX handles the terminated-ancestor 409 path locally, but
   command-not-found and provider timeout/error formatting remain open.
 

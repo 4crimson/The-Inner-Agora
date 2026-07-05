@@ -95,7 +95,8 @@
       "value_flags": [
         "--philosophers",
         "--voices",
-        "--roles"
+        "--roles",
+        "--mode"
       ],
       "flag_only": [
         "--no-architects",

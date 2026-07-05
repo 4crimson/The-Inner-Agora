@@ -4,7 +4,7 @@ This file tracks live Telegram acceptance failures separately from roadmap phase
 
 ## BUG-2026-07-04-004 — Telegram launch flow hides the question and leaks wake details
 
-**Status:** live accepted for strengthened `mode-routing` on 2026-07-05
+**Status:** live accepted for release-suite launch summaries on 2026-07-05
 **Severity:** P1 for Telegram launch UX
 **Reported:** 2026-07-04
 **Surface:** Telegram → New question → proposal/launch cards
@@ -32,9 +32,22 @@ the `inneragora` gateway was restarted, and
 `Открыть:`, `wake=queued`, and child `Голоса:` rows. Post-suite guard returned
 `ok=true` with no `errorAgents`.
 
+Additional follow-up 2026-07-05: launch-summary parsing now treats `--mode` as
+a value flag, so council/quick/deep launch questions do not leak `--mode min`
+or similar CLI control flags into `Вопрос:`. Live accepted suites after this
+cleanup:
+
+- `QA-20260705-2111-natural-dialogue-053534` passed 3/3.
+- `QA-20260705-2116-interface-contract-topics-3de3a6` passed 4/4.
+- `QA-20260705-2123-council-create-adfe3b` passed 3/3.
+
 ### Root Cause
 
 The Telegram callback config mixed format selection with launch confirmation. `deep_prompt` was a static composition card rather than a topic prompt. The launch callback sent raw `scripts/agora.mjs ask` stdout directly to Telegram, which is useful for CLI debugging but too technical for the first-level chat UI.
+
+The selected-mode natural launcher had a second parser gap: `--mode` takes a
+value, but the launch-summary cleanup did not classify it as a value flag, so
+the flag value could remain in the visible question text.
 
 ### Fix
 
@@ -46,6 +59,7 @@ The Telegram callback config mixed format selection with launch confirmation. `d
 - Selected-mode natural launches use the same clean launch summary instead of
   raw `scripts/agora.mjs ask` stdout.
 - First-level launch acknowledgement hides `wake=`, route/model details, local URLs, and child issue internals.
+- Launch-summary question cleanup strips value flags such as `--mode min`.
 - `Назад` sends the home screen with a fresh inline keyboard attached to the new bottom message.
 
 ### Acceptance Criteria
@@ -56,7 +70,7 @@ The Telegram callback config mixed format selection with launch confirmation. `d
 - First-level launch acknowledgements do not show `wake=`, local URLs, route/model details, or raw child task rows.
 - Pressing `Назад` shows the main menu buttons on the new bottom message, not only in older messages above.
 - Technical details remain available through `Детали`.
-- Live retest covers deep and custom launch flows without leaving residual QA artifacts.
+- Live retest covers mode-routing, natural dialogue, interface topics, and council creation without first-level technical leakage.
 
 ## BUG-2026-07-03-003 — Telegram has no visible mode routing control
 
@@ -434,6 +448,21 @@ was in `error`. A second backup
 (85 agents, 77 issues, 821 comments), then `prepare local` restored guard to
 `ok=true`. Treat post-work-suite guard/repair as a release gate; QA cleanup can
 remove test artifacts without restoring Paperclip agent health.
+
+Later release-suite evidence confirmed the same live-health pattern. The
+accepted `natural-dialogue` suite left guard green. The accepted
+`interface-contract-topics` suite left no QA artifacts, but guard later showed
+`Диоген` and `Ницше` in `error`; backup
+`backups/2026-07-05T21-19-08-665Z-the-inner-agora/backup.json` plus
+`prepare local` restored guard. The accepted `council-create` suite also left no
+QA artifacts, but guard later showed `Платон` and `Жан-Поль Сартр` in `error`;
+backup `backups/2026-07-05T21-27-54-564Z-the-inner-agora/backup.json` plus
+`prepare local` restored guard to `ok=true`. A final pre-commit guard check
+again found transient agent errors (`Фуко`, `Аристотель`), and backup
+`backups/2026-07-05T21-31-39-714Z-the-inner-agora/backup.json` plus
+`prepare local` restored guard; a repeat guard 15 seconds later stayed
+`ok=true`. This is an operational live-health gap, not a Telegram UX acceptance
+failure.
 
 **Batch H — Per-Chat State Propagation**
 

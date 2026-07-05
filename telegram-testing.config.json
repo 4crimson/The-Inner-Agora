@@ -252,8 +252,9 @@
       "message": "а можешь спросить пару философов про то, как отличить дисциплину от насилия над собой",
       "waitSeconds": 35,
       "expect": {
-            "replyContains": ["Я понял тему"],
-            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks"],
+            "paperclipRootsCreatedAtLeast": 1,
+            "replyContains": ["Запустил совет", "Философы", "Платон", "Декарт"],
+            "replyNotContains": ["<|channel>", "Project action exited", "Active Agents & Tasks", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
             "noRawTokens": true,
             "buttonsPresent": true
           }
@@ -279,9 +280,8 @@
       "waitSeconds": 40,
       "expect": {
         "paperclipRootsCreatedAtLeast": 1,
-        "localRouteContains": "local",
-        "replyContains": ["Аристотель", "Фуко"],
-        "replyNotContains": ["command not found", "<|channel>", "Project action exited"],
+        "replyContains": ["Запустил совет", "Вопрос", "Философы", "Аристотель", "Фуко"],
+        "replyNotContains": ["command not found", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
         "noRawTokens": true,
         "buttonsPresent": true
       }
@@ -292,9 +292,8 @@
       "waitSeconds": 40,
       "expect": {
         "paperclipRootsCreatedAtLeast": 1,
-        "localRouteContains": "local",
-        "replyContains": ["Батлер", "Нуссбаум"],
-        "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited"],
+        "replyContains": ["Запустил совет", "Вопрос", "Философы", "Батлер", "Нуссбаум"],
+        "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
         "noRawTokens": true,
         "buttonsPresent": true
       }
@@ -305,9 +304,8 @@
           "waitSeconds": 40,
           "expect": {
             "paperclipRootsCreatedAtLeast": 1,
-            "localRouteContains": "local",
-            "replyContains": ["Аристотель", "Фуко"],
-            "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited"],
+            "replyContains": ["Запустил совет", "Вопрос", "Философы", "Аристотель", "Фуко"],
+            "replyNotContains": ["terminated ancestor", "<|channel>", "Project action exited", "--mode", "Маршрут:", "model=", "http://127.0.0.1", "Открыть:", "wake=queued", "Голоса:"],
             "noRawTokens": true,
             "buttonsPresent": true
           }
