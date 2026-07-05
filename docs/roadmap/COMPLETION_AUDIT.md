@@ -52,7 +52,7 @@ evidence that Telegram live UX is accepted.
 | Phase 5 model routing | `models.config.json`, `scripts/model-routing.mjs`, routing tests | Locally implemented | Cloud/provider route is not part of this phase |
 | Phase 6 per-chat state | `scripts/state-manager.mjs`, `data/schema/state.schema.json`, per-chat tests | Locally implemented | Live Telegram must prove chat id propagation in actual gateway |
 | Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill | Locally implemented | Runtime ancestry health before live ask still needs explicit guard coverage |
-| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Partially live-proven | `help`, `service-commands`, and `mode-routing` are accepted; BUG-2026-07-04-004 launch-summary leakage, post-suite agent-health drift, and BUG-2026-07-03-001 remain open |
+| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Partially live-proven | `help`, `service-commands`, and strengthened `mode-routing` are accepted; post-suite agent-health drift and BUG-2026-07-03-001 remain open |
 | Phase 9 observability/cost | `scripts/agora/cost-utils.mjs`, `costs.config.json`, `/agora costs`, all-mode volume preflight | Partial | Paperclip agent usage, unknown pricing, and monetary preflight remain open |
 | Config source split | `config/cockpit/*.json`, build/check tooling, matching runtime sha | Locally proven | Humans should edit fragments, runtime keeps `paperclip-cockpit.json` |
 | Generic plugin boundary | `paperclip-cockpit` no longer owns Agora launch copy; `PLUGIN_BOUNDARIES.md` defines gates | Locally improved | No install/publish/profile copy without explicit approval |
@@ -114,10 +114,9 @@ Current audit blockers:
   wrong operational persona, and mode/status continuation were observed in live
   Telegram. The Paperclip hierarchy part was recovered on 2026-07-05, but an
   explicit selected-voice ancestry guard remains future hardening.
-- `BUG-2026-07-03-002` and `BUG-2026-07-03-003` have live accepted suites on
-  2026-07-05: `service-commands` and `mode-routing`.
-- `BUG-2026-07-04-004` remains partially open because live natural launches
-  still leak raw route/model, local URL, child issue rows, and wake ids.
+- `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and `BUG-2026-07-04-004` have
+  live accepted suites on 2026-07-05: `service-commands` and strengthened
+  `mode-routing`.
 - Accepted work-creating live suites can still leave Paperclip agents in
   `error` after issue cleanup. 2026-07-05 `mode-routing` required a second
   backup plus `prepare local` before guard returned to `ok=true`.

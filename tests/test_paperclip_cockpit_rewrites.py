@@ -726,6 +726,112 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
             flat_buttons = [button for row in calls[0][2]["inline_keyboard"] for button in row]
             self.assertIn({"text": "✓ Глубоко", "callback_data": "pc:set_mode:deep_local"}, flat_buttons)
 
+    def test_selected_mode_launch_uses_clean_telegram_summary_for_raw_ask_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = str(Path(tmp) / "telegram-state.json")
+            config = {
+                "command": {"name": "agora"},
+                "telegram": {
+                    "enabled": True,
+                    "callback_prefix": "pc",
+                    "launch_summary": {
+                        "success_markers": ["Поставил вопрос в Агору", "Сессия:"],
+                        "issue_patterns": [
+                            "Поставил вопрос в Агору:\\s*([0-9A-Za-z_-]+)",
+                            "Сессия:\\s*([0-9A-Za-z_-]+)",
+                        ],
+                        "voices_pattern": "Выбрал\\s+\\d+\\s+голос(?:ов|а)?\\s*:\\s*([^\\n]+)",
+                        "flag_only": ["--max"],
+                        "labels": {
+                            "launched": "Запустил совет",
+                            "question": "Вопрос",
+                            "voices": "Философы",
+                            "status": "Статус",
+                            "waiting": "Жду ответы.",
+                            "session": "Сессия",
+                            "result": "Итог",
+                            "details": "Детали",
+                        },
+                        "callbacks": {
+                            "session": "session",
+                            "voices": "philosophers",
+                            "result": "result",
+                            "details": "details",
+                        },
+                    },
+                    "mode_selector": {
+                        "enabled": True,
+                        "state_path": state_path,
+                        "default_mode": "deep_local",
+                        "apply_to_actions": ["ask"],
+                        "modes": [
+                            {
+                                "id": "deep_local",
+                                "label": "Глубоко",
+                                "action": "deep",
+                                "args": "--max",
+                                "env": {"INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"},
+                            }
+                        ],
+                    },
+                },
+                "actions": {
+                    "ask": {"natural_aliases": ["собери совет"], "exec": ["echo", "ask"]},
+                    "deep": {"exec": ["echo", "deep"]},
+                },
+            }
+            calls = []
+
+            def fake_send(chat_id, text, reply_markup=None):
+                calls.append((chat_id, text, reply_markup))
+
+            def fake_run_action(name, action, raw_args, **kwargs):
+                return "\n".join(
+                    [
+                        "# Поставил вопрос в Агору: THE-42",
+                        "Выбрал 2 голоса: Платон, Декарт.",
+                        "Маршрут: hermes_local model=google/gemma-4-26b-a4b-qat reason=forcedLocalAdapter",
+                        "Сессия: THE-42",
+                        "Открыть: http://127.0.0.1:3100/issues/root-42",
+                        "Голоса:",
+                        "- Платон: THE-43 (wake=queued:run-1)",
+                        "- Декарт: THE-44 (wake=queued:run-2)",
+                    ]
+                )
+
+            class Source:
+                platform = "telegram"
+                chat_id = "chat-route"
+
+            class Event:
+                source = Source()
+                text = "собери совет у пары философов: как поддерживать взрослого ребенка"
+
+            with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
+                json.dump(config, handle)
+                handle.flush()
+                with EnvPatch(
+                    PAPERCLIP_COCKPIT_CONFIG=handle.name,
+                    PAPERCLIP_COCKPIT_NL_REWRITE="1",
+                    PAPERCLIP_COCKPIT_NL_WRITES="0",
+                    PAPERCLIP_COCKPIT_COMMAND=None,
+                    TELEGRAM_BOT_TOKEN="test-token",
+                ), mock.patch.object(self.plugin, "_telegram_send_message", fake_send), mock.patch.object(
+                    self.plugin, "_run_action", fake_run_action
+                ):
+                    result = self.plugin._pre_gateway_dispatch(Event())
+
+            self.assertEqual(result, {"action": "skip"})
+            text = calls[0][1]
+            self.assertIn("Запустил совет: THE-42", text)
+            self.assertIn("Вопрос:\nу пары философов: как поддерживать взрослого ребенка", text)
+            self.assertIn("Философы:\nПлатон, Декарт", text)
+            self.assertNotIn("Маршрут:", text)
+            self.assertNotIn("http://127.0.0.1", text)
+            self.assertNotIn("wake=queued", text)
+            flat_buttons = [button for row in calls[0][2]["inline_keyboard"] for button in row]
+            self.assertIn({"text": "Сессия", "callback_data": "pc:session:THE-42"}, flat_buttons)
+
     def test_telegram_command_boundary_allows_full_help_path(self):
         config = {
             "command": {"name": "agora"},

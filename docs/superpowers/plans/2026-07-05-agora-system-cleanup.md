@@ -482,6 +482,13 @@ Progress 2026-07-05:
 - Observed separate Telegram launch-summary leakage in accepted live replies:
   route/model, local URL, child issue rows, and `wake=queued` ids. This remains
   `BUG-2026-07-04-004` and must be fixed in a focused Telegram UX slice.
+- Fixed that focused Telegram UX slice: selected-mode natural launches now pass
+  successful raw ask stdout through the same clean `telegram.launch_summary`
+  renderer used by launch callbacks. The live profile plugin was synced with
+  `scripts/setup-hermes-profile.mjs`, `inneragora gateway restart` loaded it,
+  and strengthened live run `QA-20260705-2106-mode-routing-475f2b` passed 4/4
+  while forbidding route/model, local URL, `Открыть:`, `wake=queued`, and raw
+  child `Голоса:` rows. Post-suite guard returned `ok=true`.
 
 ## Completion Checklist
 
@@ -495,6 +502,6 @@ Progress 2026-07-05:
   `prepare local`.
 - [x] Each later cleanup pass has acceptance criteria.
 - [x] Non-live verification passes before claiming completion of any pass.
-- [ ] Telegram launch-summary leakage is fixed and live-retested.
+- [x] Telegram launch-summary leakage is fixed and live-retested.
 - [ ] Work-creating live QA suites include an explicit post-suite agent-health
   gate or documented repair step.

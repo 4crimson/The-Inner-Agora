@@ -3154,15 +3154,20 @@ def _maybe_execute_selected_mode_rewrite(original_text: str, rewritten: str, cha
         _telegram_send_message(str(chat_id or ""), f"Mode action is not configured: {target_action_name}")
         return {"action": "skip"}
 
+    action_raw_args = _mode_raw_args(mode, raw_args)
     output = _run_action(
         target_action_name,
         _mode_action_with_overrides(target_action, mode),
-        _mode_raw_args(mode, raw_args),
+        action_raw_args,
         chat_id=chat_id,
     )
     payload_flag = mode.get("telegram_payload") if "telegram_payload" in mode else mode.get("payload", True)
     if _as_bool(payload_flag, True):
-        message_text, reply_markup = _telegram_payload_from_output(output)
+        launch_payload = _telegram_launch_payload_from_output(output, action_raw_args)
+        if launch_payload:
+            message_text, reply_markup = launch_payload
+        else:
+            message_text, reply_markup = _telegram_payload_from_output(output)
         keyboard = reply_markup if _telegram_reply_markup_has_buttons(reply_markup) else _telegram_mode_keyboard(chat_id)
         _telegram_send_message(str(chat_id or ""), message_text, keyboard)
     else:

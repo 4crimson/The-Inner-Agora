@@ -4,7 +4,7 @@ This file tracks live Telegram acceptance failures separately from roadmap phase
 
 ## BUG-2026-07-04-004 — Telegram launch flow hides the question and leaks wake details
 
-**Status:** partially fixed; selected-mode natural launch still leaks raw CLI details in live Telegram
+**Status:** live accepted for strengthened `mode-routing` on 2026-07-05
 **Severity:** P1 for Telegram launch UX
 **Reported:** 2026-07-04
 **Surface:** Telegram → New question → proposal/launch cards
@@ -23,6 +23,15 @@ stdout: route/model details, local Paperclip URL, child issue rows, and
 `wake=queued:...` ids. Keep that as a separate Telegram launch-summary fix; do
 not mix it with router or Paperclip repair changes.
 
+Follow-up 2026-07-05: selected-mode natural launch now reuses the existing
+Telegram launch-summary renderer before falling back to raw action output.
+The live Hermes profile plugin was synced via `scripts/setup-hermes-profile.mjs`,
+the `inneragora` gateway was restarted, and
+`QA-20260705-2106-mode-routing-475f2b` passed 4/4 with strengthened
+`replyNotContains` checks for `Маршрут:`, `model=`, localhost URLs,
+`Открыть:`, `wake=queued`, and child `Голоса:` rows. Post-suite guard returned
+`ok=true` with no `errorAgents`.
+
 ### Root Cause
 
 The Telegram callback config mixed format selection with launch confirmation. `deep_prompt` was a static composition card rather than a topic prompt. The launch callback sent raw `scripts/agora.mjs ask` stdout directly to Telegram, which is useful for CLI debugging but too technical for the first-level chat UI.
@@ -34,6 +43,8 @@ The Telegram callback config mixed format selection with launch confirmation. `d
 - `Выбрать философов` only shows edit/launch buttons after a topic is known.
 - Proposal cards include `Вопрос:` with the parsed question.
 - Telegram launch callbacks can render a clean launch summary with session id, question, philosophers, status, and buttons to session/philosophers/итог/details.
+- Selected-mode natural launches use the same clean launch summary instead of
+  raw `scripts/agora.mjs ask` stdout.
 - First-level launch acknowledgement hides `wake=`, route/model details, local URLs, and child issue internals.
 - `Назад` sends the home screen with a fresh inline keyboard attached to the new bottom message.
 
