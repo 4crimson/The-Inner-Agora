@@ -466,6 +466,11 @@ def _telegram_config() -> dict[str, Any]:
     return raw if isinstance(raw, dict) else {}
 
 
+def _telegram_launch_summary_config() -> dict[str, Any]:
+    raw = _telegram_config().get("launch_summary", {})
+    return raw if isinstance(raw, dict) else {}
+
+
 def _telegram_mode_selector_config() -> dict[str, Any]:
     raw = _telegram_config().get("mode_selector", {})
     if not isinstance(raw, dict):
@@ -836,8 +841,11 @@ def _telegram_launch_question(raw_args: str, pending: dict[str, Any] | None = No
         parts = str(raw_args or "").split()
     question: list[str] = []
     skip_next = False
-    value_flags = {"--philosophers", "--voices", "--roles"}
-    flag_only = {"--min", "--balanced", "--max", "--all", "--no-architects"}
+    summary = _telegram_launch_summary_config()
+    value_flags = {"--roles", "--voices"}
+    value_flags.update(_listify(summary.get("value_flags")))
+    flag_only = {"--min", "--balanced", "--max", "--all"}
+    flag_only.update(_listify(summary.get("flag_only")))
     for part in parts:
         if skip_next:
             skip_next = False
@@ -855,15 +863,28 @@ def _telegram_launch_keyboard(issue_ref: str) -> dict[str, Any] | None:
     ref = str(issue_ref or "").strip()
     if not ref:
         return None
+    summary = _telegram_launch_summary_config()
+    labels = summary.get("labels", {})
+    labels = labels if isinstance(labels, dict) else {}
+    callbacks = summary.get("callbacks", {})
+    callbacks = callbacks if isinstance(callbacks, dict) else {}
+    session_label = str(labels.get("session") or "Session")
+    voices_label = str(labels.get("voices") or _label("agents").title())
+    result_label = str(labels.get("result") or "Result")
+    details_label = str(labels.get("details") or "Details")
+    session_callback = str(callbacks.get("session") or "session")
+    voices_callback = str(callbacks.get("voices") or _term("agents"))
+    result_callback = str(callbacks.get("result") or "result")
+    details_callback = str(callbacks.get("details") or "details")
     return {
         "inline_keyboard": [
             [
-                {"text": "Последняя сессия", "callback_data": _telegram_callback_data("session", ref)},
-                {"text": "Философы", "callback_data": _telegram_callback_data("philosophers", ref)},
+                {"text": session_label[:32], "callback_data": _telegram_callback_data(session_callback, ref)},
+                {"text": voices_label[:32], "callback_data": _telegram_callback_data(voices_callback, ref)},
             ],
             [
-                {"text": "Итог", "callback_data": _telegram_callback_data("result", ref)},
-                {"text": "Детали", "callback_data": _telegram_callback_data("details", ref)},
+                {"text": result_label[:32], "callback_data": _telegram_callback_data(result_callback, ref)},
+                {"text": details_label[:32], "callback_data": _telegram_callback_data(details_callback, ref)},
             ],
         ]
     }
@@ -875,16 +896,27 @@ def _telegram_launch_payload_from_output(
     pending: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None] | None:
     text = str(output or "")
-    if "Поставил вопрос в Агору" not in text and "Сессия:" not in text:
+    summary = _telegram_launch_summary_config()
+    markers = _listify(summary.get("success_markers")) or ["Created", "Session:"]
+    if not any(marker and marker in text for marker in markers):
         return None
 
-    issue_match = re.search(r"Поставил вопрос в Агору:\s*([0-9A-Za-z_-]+)", text)
-    if not issue_match:
-        issue_match = re.search(r"Сессия:\s*([0-9A-Za-z_-]+)", text)
+    issue_match = None
+    for pattern in _listify(summary.get("issue_patterns")) or [r"Session:\s*([0-9A-Za-z_-]+)"]:
+        try:
+            issue_match = re.search(pattern, text)
+        except re.error:
+            issue_match = None
+        if issue_match:
+            break
     issue_ref = issue_match.group(1).strip() if issue_match else ""
 
     voices: list[str] = []
-    voices_match = re.search(r"Выбрал\s+\d+\s+голос(?:ов|а)?\s*:\s*([^\n]+)", text)
+    voices_pattern = str(summary.get("voices_pattern") or r"Selected\s+\d+\s+voices?\s*:\s*([^\n]+)")
+    try:
+        voices_match = re.search(voices_pattern, text)
+    except re.error:
+        voices_match = None
     if voices_match:
         raw_voices = voices_match.group(1).strip().rstrip(".")
         voices = [item.strip() for item in raw_voices.split(",") if item.strip()]
@@ -895,12 +927,19 @@ def _telegram_launch_payload_from_output(
                 voices.append(match.group(1).strip())
 
     question = _telegram_launch_question(raw_args, pending)
-    lines = [f"Запустил совет{f': {issue_ref}' if issue_ref else ''}", ""]
+    labels = summary.get("labels", {})
+    labels = labels if isinstance(labels, dict) else {}
+    launched = str(labels.get("launched") or "Started")
+    question_label = str(labels.get("question") or "Question")
+    voices_label = str(labels.get("voices") or _label("agents").title())
+    status_label = str(labels.get("status") or "Status")
+    waiting = str(labels.get("waiting") or "Waiting for results.")
+    lines = [f"{launched}{f': {issue_ref}' if issue_ref else ''}", ""]
     if question:
-        lines.extend(["Вопрос:", question, ""])
+        lines.extend([f"{question_label}:", question, ""])
     if voices:
-        lines.extend(["Философы:", ", ".join(voices), ""])
-    lines.extend(["Статус:", "Жду ответы философов. Пришлю итог, когда все будут готовы."])
+        lines.extend([f"{voices_label}:", ", ".join(voices), ""])
+    lines.extend([f"{status_label}:", waiting])
     return "\n".join(lines).strip(), _telegram_launch_keyboard(issue_ref)
 
 
@@ -1052,10 +1091,9 @@ def _telegram_error_recovery_keyboard(callback_arg: str) -> dict[str, Any] | Non
     raw_buttons = config.get("buttons")
     if not isinstance(raw_buttons, list):
         raw_buttons = [
-            {"label": "Восстановить и повторить", "callback": "recover_retry", "arg": "{arg}"},
-            {"label": "Попробовать без него", "callback": "recover_without_philosopher", "arg": "{arg}"},
-            {"label": "Показать детали", "callback": "show_error_details", "arg": "{arg}"},
-            {"label": "Назад", "callback": "back_home", "arg": "help"},
+            {"label": "Retry", "callback": "recover_retry", "arg": "{arg}"},
+            {"label": "Details", "callback": "show_error_details", "arg": "{arg}"},
+            {"label": "Back", "callback": "back_home", "arg": "help"},
         ]
     buttons: list[dict[str, Any]] = []
     for item in raw_buttons:
@@ -2352,7 +2390,7 @@ def _humanize_action_error(name: str, returncode: int, output: str, error: str) 
         ancestor = match.group(2).strip() if match else ""
         if language == "ru":
             lines = [
-                "Не смог запустить действие Agora: сломана Paperclip-иерархия.",
+                "Не смог запустить действие проекта: сломана Paperclip-иерархия.",
                 "",
             ]
             if role:
@@ -2367,7 +2405,7 @@ def _humanize_action_error(name: str, returncode: int, output: str, error: str) 
             )
             return "\n".join(lines).strip()
         lines = [
-            "I could not start the Agora action because the Paperclip hierarchy is stale.",
+            "I could not start the project action because the Paperclip hierarchy is stale.",
             "",
         ]
         if role:
@@ -2911,12 +2949,13 @@ def _rewrite_pending_question(raw: str, chat_id: Any = None) -> str | dict[str, 
         return None
     pending_type = str(pending.get("type") or "").strip()
     if pending_type == "ask_one":
-        philosopher = str(pending.get("philosopher") or pending.get("role") or "").strip()
-        if not re.match(r"^[0-9A-Za-z_-]+$", philosopher):
+        role = str(pending.get("role") or pending.get("agent") or "").strip()
+        if not re.match(r"^[0-9A-Za-z_-]+$", role):
             _telegram_clear_pending_question(chat_id)
             return None
         _telegram_clear_pending_question(chat_id)
-        return _slash(_term("ask"), "--philosophers", philosopher, raw)
+        flag = str(_telegram_launch_summary_config().get("role_list_flag") or "--roles").strip() or "--roles"
+        return _slash(_term("ask"), flag, role, raw)
     if pending_type in {"follow_up", "follow-up", "followup"}:
         root = str(pending.get("root") or pending.get("issue") or pending.get("session") or "").strip()
         if not re.match(r"^[0-9A-Za-z_-]+$", root):
@@ -2926,21 +2965,22 @@ def _rewrite_pending_question(raw: str, chat_id: Any = None) -> str | dict[str, 
         return _slash("follow-up", root, raw)
     if pending_type in {"custom_edit", "custom-edit", "customedit"}:
         operation = str(pending.get("operation") or "").strip().casefold()
-        philosophers = [
+        roles = [
             item.strip()
-            for item in str(pending.get("philosophers") or "").split(",")
+            for item in str(pending.get("roles") or pending.get("agents") or "").split(",")
             if re.match(r"^[0-9A-Za-z_-]+$", item.strip())
         ]
         topic = str(pending.get("topic") or "").strip()
         action = _actions().get("telegram_custom_edit")
-        if operation not in {"add", "remove"} or not philosophers or not topic or not action:
+        if operation not in {"add", "remove"} or not roles or not topic or not action:
             _telegram_clear_pending_question(chat_id)
             return None
+        flag = str(_telegram_launch_summary_config().get("role_list_flag") or "--roles").strip() or "--roles"
         raw_args = " ".join(
             [
                 shlex.quote(operation),
-                "--philosophers",
-                shlex.quote(",".join(philosophers)),
+                flag,
+                shlex.quote(",".join(roles)),
                 "--topic",
                 shlex.quote(topic),
                 "--query",

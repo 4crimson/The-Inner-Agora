@@ -82,6 +82,43 @@
     "progress": {
       "contract_buttons": true
     },
+    "launch_summary": {
+      "success_markers": [
+        "Поставил вопрос в Агору",
+        "Сессия:"
+      ],
+      "issue_patterns": [
+        "Поставил вопрос в Агору:\\s*([0-9A-Za-z_-]+)",
+        "Сессия:\\s*([0-9A-Za-z_-]+)"
+      ],
+      "voices_pattern": "Выбрал\\s+\\d+\\s+голос(?:ов|а)?\\s*:\\s*([^\\n]+)",
+      "value_flags": [
+        "--philosophers",
+        "--voices",
+        "--roles"
+      ],
+      "flag_only": [
+        "--no-architects",
+        "--confirm-all"
+      ],
+      "role_list_flag": "--philosophers",
+      "labels": {
+        "launched": "Запустил совет",
+        "session": "Последняя сессия",
+        "voices": "Философы",
+        "result": "Итог",
+        "details": "Детали",
+        "question": "Вопрос",
+        "status": "Статус",
+        "waiting": "Жду ответы философов. Пришлю итог, когда все будут готовы."
+      },
+      "callbacks": {
+        "session": "session",
+        "voices": "philosophers",
+        "result": "result",
+        "details": "details"
+      }
+    },
     "error_recovery": {
       "enabled": true,
       "buttons": [
@@ -577,7 +614,7 @@
         "message": "Аристотель выбран.\nТеперь напиши тему обычным текстом.",
         "pending_question": {
           "type": "ask_one",
-          "philosopher": "aristotle"
+          "role": "aristotle"
         }
       },
       "choose_socrates": {
@@ -585,7 +622,7 @@
         "message": "Сократ выбран.\nТеперь напиши тему обычным текстом.",
         "pending_question": {
           "type": "ask_one",
-          "philosopher": "socrates"
+          "role": "socrates"
         }
       },
       "choose_nietzsche": {
@@ -593,7 +630,7 @@
         "message": "Ницше выбран.\nТеперь напиши тему обычным текстом.",
         "pending_question": {
           "type": "ask_one",
-          "philosopher": "nietzsche"
+          "role": "nietzsche"
         }
       },
       "choose_foucault": {
@@ -601,7 +638,7 @@
         "message": "Фуко выбран.\nТеперь напиши тему обычным текстом.",
         "pending_question": {
           "type": "ask_one",
-          "philosopher": "foucault"
+          "role": "foucault"
         }
       },
       "search_philosopher": {
@@ -621,7 +658,7 @@
         "telegram_payload": true,
         "pending_question": {
           "type": "ask_one",
-          "philosopher": "{arg}"
+          "role": "{arg}"
         }
       },
       "last_session": {
@@ -1161,6 +1198,31 @@
         "status"
       ],
       "timeout": 180
+    },
+    "costs": {
+      "usage": "costs [--limit N] [--pricing default]",
+      "aliases": [
+        "cost",
+        "tokens",
+        "токены",
+        "стоимость"
+      ],
+      "natural_aliases": [
+        "стоимость",
+        "токены",
+        "сколько токенов",
+        "расход токенов",
+        "стоимость агоры"
+      ],
+      "description": "показать локальную сводку token usage и известной стоимости",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "costs",
+        "--pricing",
+        "default"
+      ],
+      "timeout": 60
     },
     "catalog": {
       "usage": "catalog",

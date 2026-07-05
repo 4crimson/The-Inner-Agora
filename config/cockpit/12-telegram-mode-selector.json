@@ -1,0 +1,89 @@
+{
+  "telegram": {
+    "mode_selector": {
+      "enabled": true,
+      "state_path": ".paperclip-cockpit-telegram-mode-state.json",
+      "default_mode": "balanced_local",
+      "menus": [],
+      "apply_to_actions": [
+        "ask"
+      ],
+      "show_current_mode": true,
+      "prompt_after_select": "Режим выбран. Теперь напиши вопрос обычным языком.",
+      "choose_participants": {
+        "mode": "custom_voices",
+        "prompt": "Напиши имена философов и вопрос одним сообщением. Например: с Платоном и Сартром: что такое свобода."
+      },
+      "modes": [
+        {
+          "id": "quick_local",
+          "label": "Быстро",
+          "description": "короткий локальный совет",
+          "action": "ask",
+          "args": "--min",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "balanced_local",
+          "label": "Сбаланс",
+          "description": "локальный совет по умолчанию",
+          "action": "ask",
+          "args": "--balanced",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "deep_local",
+          "label": "Глубоко",
+          "description": "расширенный локальный совет",
+          "action": "ask",
+          "args": "--max",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        },
+        {
+          "id": "codex_deep",
+          "label": "Codex",
+          "description": "сильный разбор через codex_local",
+          "action": "ask",
+          "args": "--max",
+          "env": {
+            "INNER_AGORA_MODE": "max",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "0"
+          }
+        },
+        {
+          "id": "custom_voices",
+          "label": "Свои голоса",
+          "description": "укажи философов в тексте вопроса",
+          "action": "ask",
+          "args": "--balanced",
+          "env": {
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          },
+          "prompt": "Напиши имена философов и вопрос одним сообщением. Например: с Платоном и Сартром: что такое свобода."
+        },
+        {
+          "id": "go_no_go_local",
+          "label": "Проверить",
+          "description": "режим решения: делать или не делать, не философский совет",
+          "action": "go-no-go",
+          "prompt": "Напиши ситуацию практического выбора: что на столе, критерии успеха, цена ошибки и дедлайн. Ответ будет: делать, не делать или делать при условиях; с рисками и следующим шагом.",
+          "env": {
+            "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
+            "INNER_AGORA_MODE": "local",
+            "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+          }
+        }
+      ]
+    }
+  }
+}

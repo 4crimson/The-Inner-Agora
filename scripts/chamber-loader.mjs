@@ -3,9 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { buildCockpitConfig } from "./build-cockpit-config.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_CHAMBERS_DIR = path.join(ROOT, "chambers");
+const DEFAULT_CONFIG_FRAGMENTS_DIR = path.join(ROOT, "config", "cockpit");
 
 function usage(exitCode = 0) {
   console.log(`Usage:
@@ -164,6 +166,9 @@ export function loadChamber(chambersDir, id) {
 
 export function loadCockpitConfig(chambersDir, id) {
   loadChamber(chambersDir, id);
+  if (path.resolve(chambersDir) === path.resolve(DEFAULT_CHAMBERS_DIR) && id === "philosophy") {
+    return buildCockpitConfig(DEFAULT_CONFIG_FRAGMENTS_DIR).config;
+  }
   const corePath = path.join(ROOT, "cockpit.core.json");
   const overridePath = path.join(chambersDir, id, "cockpit.overrides.json");
   const core = readJson(corePath);

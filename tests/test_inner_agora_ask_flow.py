@@ -190,6 +190,66 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def all_role_agents(self):
+        roles = json.loads((ROOT / "chambers" / "philosophy" / "roles.json").read_text(encoding="utf-8"))
+        return [
+            {"id": "assistant-1", "name": "Agora Assistant / Синтезатор", "status": "idle"},
+            *[
+                {
+                    "id": f"{role['key']}-1",
+                    "name": role["name"],
+                    "status": "idle",
+                }
+                for role in roles
+            ],
+        ]
+
+    def run_ask_args(self, *args, agents=None):
+        AskFlowHandler.reset()
+        original_agents = AskFlowHandler.agents
+        if agents is not None:
+            AskFlowHandler.agents = agents
+        server = TestHTTPServer(("127.0.0.1", 0), AskFlowHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                config_path = Path(temp_dir) / "paperclip-cockpit.json"
+                state_path = Path(temp_dir) / "state.json"
+                config_path.write_text(
+                    json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
+                    encoding="utf-8",
+                )
+                env = {
+                    **os.environ,
+                    "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
+                    "PAPERCLIP_COCKPIT_CONFIG": str(config_path),
+                    "INNER_AGORA_STATE_PATH": str(state_path),
+                    "INNER_AGORA_AUTO_RESTART_PAPERCLIP": "0",
+                }
+                env.pop("INNER_AGORA_MODE", None)
+                result = subprocess.run(
+                    ["node", str(AGORA_SCRIPT), "ask", *args],
+                    cwd=ROOT,
+                    env=env,
+                    text=True,
+                    capture_output=True,
+                )
+                state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+                return {
+                    "returncode": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "issues": list(AskFlowHandler.created_issues),
+                    "comments": list(AskFlowHandler.comments),
+                    "wakeups": list(AskFlowHandler.wakeups),
+                    "state": state,
+                }
+        finally:
+            server.shutdown()
+            server.server_close()
+            AskFlowHandler.agents = original_agents
+
     def run_dry_ask(self, *args):
         env = {
             **os.environ,
@@ -446,6 +506,25 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
                     json.dumps({"agora": {"default_mode": "local"}, "cwd": temp_dir}),
                     encoding="utf-8",
                 )
+                state_path.write_text(
+                    json.dumps(
+                        {
+                            "session": {
+                                "costLog": [
+                                    {
+                                        "kind": "intent-extractor",
+                                        "source": "llm",
+                                        "model": "test/slots",
+                                        "promptTokens": 21,
+                                        "completionTokens": 9,
+                                        "totalTokens": 30,
+                                    }
+                                ]
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
                 env = {
                     **os.environ,
                     "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
@@ -487,6 +566,18 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
                             "lastAdapterModel": "test/hermes-local",
                             "lastAdapterReason": "localMode",
                             "lastAdapterRiskTier": "reflective",
+                            "session": {
+                                "costLog": [
+                                    {
+                                        "kind": "intent-extractor",
+                                        "source": "llm",
+                                        "model": "test/slots",
+                                        "promptTokens": 21,
+                                        "completionTokens": 9,
+                                        "totalTokens": 30,
+                                    }
+                                ]
+                            },
                         }
                     ),
                     encoding="utf-8",
@@ -553,6 +644,36 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertEqual(state["lastAdapterName"], "hermes_local")
         self.assertEqual(state["lastAdapterModel"], "test/hermes-local")
         self.assertEqual(state["lastAdapterReason"], "localMode")
+
+    def test_all_mode_requires_explicit_confirmation_before_paperclip_writes(self):
+        result = self.run_ask_args("--all", "разбери всеми философами тему власти")
+
+        self.assertNotEqual(result["returncode"], 0)
+        self.assertIn("ask --all выберет", result["stderr"])
+        self.assertIn("84 голос", result["stderr"])
+        self.assertIn("84 child-задач", result["stderr"])
+        self.assertIn("--confirm-all", result["stderr"])
+        self.assertEqual(result["issues"], [])
+        self.assertEqual(result["comments"], [])
+        self.assertEqual(result["wakeups"], [])
+        self.assertEqual(result["state"], {})
+
+    def test_all_mode_confirm_all_preserves_existing_creation_path(self):
+        agents = self.all_role_agents()
+        result = self.run_ask_args(
+            "--all",
+            "--confirm-all",
+            "разбери всеми философами тему власти",
+            agents=agents,
+        )
+        role_count = len(agents) - 1
+
+        self.assertEqual(result["returncode"], 0, result["stderr"])
+        self.assertIn(f"Выбрал {role_count} голосов", result["stdout"])
+        self.assertEqual(len(result["issues"]), role_count + 1)
+        self.assertEqual(len(result["wakeups"]), role_count)
+        self.assertEqual(result["issues"][0]["title"].split(":", 1)[0], "Agora all")
+        self.assertEqual(result["issues"][0]["priority"], "critical")
 
     def test_follow_up_creates_child_task_against_existing_root(self):
         result = self.run_follow_up("THE-900", "уточни у Платона понятие долга")
@@ -646,6 +767,8 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("## Маршрут модели", result["stdout"])
         self.assertIn("adapter=hermes_local", result["stdout"])
         self.assertIn("model=test/hermes-local", result["stdout"])
+        self.assertIn("## Стоимость и токены", result["stdout"])
+        self.assertIn("Токены LLM: 30 total", result["stdout"])
         self.assertEqual(result["state"]["lastAdapterName"], "hermes_local")
         self.assertEqual(result["state"]["lastAdapterModel"], "test/hermes-local")
 
@@ -655,6 +778,8 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertIn("Последний маршрут модели:", stdout)
         self.assertIn("adapter=hermes_local", stdout)
         self.assertIn("model=test/hermes-local", stdout)
+        self.assertIn("Стоимость и токены:", stdout)
+        self.assertIn("Токены LLM: 30 total", stdout)
 
 
 if __name__ == "__main__":

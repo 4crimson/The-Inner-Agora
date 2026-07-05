@@ -842,7 +842,7 @@ class PaperclipCockpitTelegramHelperTests(unittest.TestCase):
         self.assertIn("Кого добавить?", payload["text"])
         self.assertEqual(payload["pending_question"]["type"], "custom_edit")
         self.assertEqual(payload["pending_question"]["operation"], "add")
-        self.assertEqual(payload["pending_question"]["philosophers"], "socrates,aristotle")
+        self.assertEqual(payload["pending_question"]["roles"], "socrates,aristotle")
         self.assertEqual(payload["pending_question"]["topic"], "свобода взрослого ребенка")
 
     def test_payload_custom_edit_adds_and_removes_before_launch(self):

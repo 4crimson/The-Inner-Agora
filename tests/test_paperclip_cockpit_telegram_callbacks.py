@@ -942,7 +942,7 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
                             "pending_question": {
                                 "type": "custom_edit",
                                 "operation": "add",
-                                "philosophers": "socrates,aristotle",
+                                "roles": "socrates,aristotle",
                                 "topic": "свобода взрослого ребенка",
                             },
                         }
@@ -1130,8 +1130,11 @@ class PaperclipCockpitTelegramCallbackTests(unittest.TestCase):
                         "choose_philosopher": {
                             "answer": "Ок",
                             "message": "Философ выбран.\nТеперь напиши тему.",
-                            "pending_question": {"type": "ask_one", "philosopher": "{arg}"},
+                            "pending_question": {"type": "ask_one", "role": "{arg}"},
                         }
+                    },
+                    "launch_summary": {
+                        "role_list_flag": "--philosophers",
                     },
                 },
             }

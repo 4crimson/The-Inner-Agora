@@ -2,10 +2,12 @@
 .env
 .inner-agora-state.json
 .paperclip-cockpit-monitor-state.json
+.paperclip-cockpit-telegram-mode-state.json
 node_modules/
 __pycache__/
 brain-runs/
 artifacts/telegram-test-runs/
+backups/
 *.log
 memory/sessions/
 memory/profiles/

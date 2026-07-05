@@ -5,6 +5,28 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  buttonRows as buildButtonRows,
+  byIssueNumber,
+  byRecentIssue,
+  callbackData as formatCallbackData,
+  childrenOf,
+  isSynthesisIssue,
+  isTerminalIssue,
+  issueRef,
+  terminalStatusSet,
+  voiceLabel,
+} from "./telegram/payload-utils.mjs";
+import {
+  latestQaRun as findLatestQaRun,
+  qaBugs,
+  qaCleanupWord,
+  qaCounts,
+  qaStatusWord,
+  resolveQaArtifactsDir,
+} from "./telegram/qa-artifacts.mjs";
+import { sendText as sendTelegramText } from "./telegram/sender.mjs";
+import { stopCleanup as runStopCleanup } from "./telegram/stop-cleanup.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG_PATH = process.env.PAPERCLIP_COCKPIT_CONFIG || path.join(ROOT, "paperclip-cockpit.json");
@@ -113,43 +135,18 @@ async function telegramApi(method, payload) {
   return data;
 }
 
-function issueRef(issue) {
-  return issue?.identifier || issue?.id || "";
-}
-
-function issueNumber(issue) {
-  const direct = Number(issue?.issueNumber);
-  if (Number.isFinite(direct)) return direct;
-  const match = String(issueRef(issue)).match(/-(\d+)$/);
-  return match ? Number(match[1]) : 0;
-}
-
-function byIssueNumber(left, right) {
-  const delta = issueNumber(left) - issueNumber(right);
-  if (delta) return delta;
-  return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
-}
-
-function byRecentIssue(left, right) {
-  const leftTime = Date.parse(left?.updatedAt || left?.createdAt || "") || 0;
-  const rightTime = Date.parse(right?.updatedAt || right?.createdAt || "") || 0;
-  if (leftTime !== rightTime) return rightTime - leftTime;
-  return issueNumber(right) - issueNumber(left);
-}
-
 function isSynthesis(issue) {
   const pattern = telegram.synthesis_title_pattern || "^Синтез:|^Synthesis:";
-  return new RegExp(pattern, "i").test(String(issue?.title || ""));
+  return isSynthesisIssue(issue, pattern);
 }
 
 function terminalStatuses() {
   const configured = Array.isArray(config.monitor?.terminal_statuses) ? config.monitor.terminal_statuses : [];
-  const values = configured.length ? configured : ["done", "blocked", "cancelled"];
-  return new Set(values.map((item) => String(item).trim().toLowerCase()).filter(Boolean));
+  return terminalStatusSet(configured);
 }
 
 function isTerminal(issue) {
-  return terminalStatuses().has(String(issue?.status || "").toLowerCase());
+  return isTerminalIssue(issue, terminalStatuses());
 }
 
 async function resolveRoot(issue) {
@@ -162,19 +159,9 @@ async function resolveRoot(issue) {
   return current;
 }
 
-function childrenOf(root, issues) {
-  return issues.filter((issue) => issue.parentId === root.id && !issue.hiddenAt).sort(byIssueNumber);
-}
-
-function voiceLabel(child) {
-  const titleName = String(child.title || "").split(":", 1)[0].trim();
-  if (titleName && !/^синтез$/i.test(titleName)) return titleName.split("/")[0].trim();
-  return issueRef(child);
-}
-
 function callbackData(name, arg) {
   const prefix = telegram.callback_prefix || "pc";
-  return `${prefix}:${name}:${arg}`;
+  return formatCallbackData(name, arg, prefix);
 }
 
 function quickActionRows(root) {
@@ -193,18 +180,7 @@ function quickActionRows(root) {
 }
 
 function buttonRows(buttons, fallbackArg = "help") {
-  const prepared = buttons
-    .map((button) => {
-      const text = String(button?.label || button?.text || "").trim();
-      const callback = String(button?.callback || button?.name || "").trim();
-      const arg = String(button?.arg || fallbackArg || "help").trim() || "help";
-      if (!text || !callback) return null;
-      return { text: text.slice(0, 32), callback_data: callbackData(callback, arg) };
-    })
-    .filter(Boolean);
-  const rows = [];
-  for (let index = 0; index < prepared.length; index += 2) rows.push(prepared.slice(index, index + 2));
-  return { inline_keyboard: rows };
+  return buildButtonRows(buttons, { prefix: telegram.callback_prefix || "pc", fallbackArg });
 }
 
 function buildKeyboard(root, issues) {
@@ -629,53 +605,9 @@ function stopCleanupKeyboard(root, { partial = false } = {}) {
   );
 }
 
-function isActiveRun(run) {
-  return !["succeeded", "failed", "cancelled", "timed_out"].includes(String(run?.status || "").toLowerCase());
-}
-
-async function issueLiveRuns(issue) {
-  try {
-    const runs = await api(`/issues/${issue.id || issueRef(issue)}/live-runs`);
-    return Array.isArray(runs) ? runs : [];
-  } catch {
-    return [];
-  }
-}
-
-async function cancelHeartbeatRun(run) {
-  return api(`/heartbeat-runs/${run.id}/cancel`, {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
-}
-
-async function cancelAndHideIssue(issue, hiddenAt) {
-  return api(`/issues/${issue.id || issueRef(issue)}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "cancelled", hiddenAt }),
-  });
-}
-
 async function stopCleanupPayload(root, issues) {
   if (!root) return telegramPayload("Сессию для остановки не нашел.", finalResultKeyboard());
-  const hiddenAt = new Date().toISOString();
-  const targets = [root, ...childrenOf(root, issues).filter((issue) => !isTerminal(issue))];
-  const failures = [];
-  for (const issue of targets) {
-    const runs = await issueLiveRuns(issue);
-    for (const run of runs.filter(isActiveRun)) {
-      try {
-        await cancelHeartbeatRun(run);
-      } catch (error) {
-        failures.push({ issue, error });
-      }
-    }
-    try {
-      await cancelAndHideIssue(issue, hiddenAt);
-    } catch (error) {
-      failures.push({ issue, error });
-    }
-  }
+  const { failures } = await runStopCleanup(root, issues, { api, isTerminal });
   const text = failures.length
     ? "Остановил совет, но убрал не все.\nМожно дочистить."
     : "Остановил совет и убрал его из рабочих сессий.";
@@ -940,7 +872,7 @@ function customLaunchPending(philosophers, topic) {
     type: "launch",
     action: "ask",
     args: `--philosophers ${keys.join(",")} ${topic}`.trim(),
-    philosophers: keys.join(","),
+    roles: keys.join(","),
     topic,
   };
 }
@@ -990,7 +922,7 @@ function deepProposalPayload(args = []) {
       type: "launch",
       action: "ask",
       args: topic,
-      philosophers: keys.join(","),
+      roles: keys.join(","),
       topic,
     },
   });
@@ -1026,7 +958,7 @@ function customEditPromptPayload(args = []) {
     pending_question: {
       type: "custom_edit",
       operation: options.operation,
-      philosophers: options.philosophers.join(","),
+      roles: options.philosophers.join(","),
       topic: options.topic,
     },
   });
@@ -1058,7 +990,7 @@ function customEditPayload(args = []) {
         pending_question: {
           type: "custom_edit",
           operation: options.operation,
-          philosophers: options.philosophers.join(","),
+          roles: options.philosophers.join(","),
           topic: options.topic,
         },
       },
@@ -1102,92 +1034,11 @@ function customProposalPayload(args = []) {
 function qaArtifactsDir() {
   const qa = telegram.qa && typeof telegram.qa === "object" ? telegram.qa : {};
   const rootQa = config.qa && typeof config.qa === "object" ? config.qa : {};
-  const configured = qa.artifacts_dir || qa.artifactsDir || rootQa.artifacts_dir || rootQa.artifactsDir;
-  const raw = String(configured || "artifacts/telegram-test-runs").trim();
-  return path.isAbsolute(raw) ? raw : path.resolve(config.cwd || ROOT, raw);
+  return resolveQaArtifactsDir({ telegramQa: qa, rootQa, cwd: config.cwd || ROOT });
 }
 
 function latestQaRun() {
-  const artifactsDir = qaArtifactsDir();
-  if (!fs.existsSync(artifactsDir)) return null;
-  const runs = fs
-    .readdirSync(artifactsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const runDir = path.join(artifactsDir, entry.name);
-      const manifestPath = path.join(runDir, "manifest.json");
-      if (!fs.existsSync(manifestPath)) return null;
-      try {
-        const manifest = readJson(manifestPath);
-        const stat = fs.statSync(manifestPath);
-        return { dir: runDir, manifest, mtimeMs: stat.mtimeMs };
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean)
-    .sort((left, right) => right.mtimeMs - left.mtimeMs);
-  return runs[0] || null;
-}
-
-function qaTests(manifest) {
-  if (Array.isArray(manifest?.tests)) return manifest.tests;
-  if (Array.isArray(manifest?.results)) return manifest.results;
-  return [];
-}
-
-function qaBugs(run) {
-  if (!run) return [];
-  const bugsPath = path.join(run.dir, "bugs.jsonl");
-  if (fs.existsSync(bugsPath)) {
-    const bugs = fs
-      .readFileSync(bugsPath, "utf8")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return { title: line };
-        }
-      });
-    if (bugs.length) return bugs;
-  }
-  return Array.isArray(run.manifest?.bugs) ? run.manifest.bugs : [];
-}
-
-function qaCounts(manifest) {
-  const tests = qaTests(manifest);
-  const passedStatuses = new Set(["pass", "passed", "ok", "success", "succeeded"]);
-  const failedStatuses = new Set(["fail", "failed", "error", "blocked", "timed_out", "timeout"]);
-  const passed = tests.filter((test) => passedStatuses.has(String(test?.status || "").toLowerCase())).length;
-  const failed = tests.filter((test) => failedStatuses.has(String(test?.status || "").toLowerCase())).length;
-  const total =
-    tests.length ||
-    Number(manifest?.counts?.total || manifest?.summary?.total || manifest?.total || manifest?.planned || 0) ||
-    0;
-  return { total, passed, failed, tests };
-}
-
-function qaStatusWord(counts, bugs) {
-  if (counts.failed > 0 || bugs.length > 0) return "FAIL";
-  if (counts.total > 0 && counts.passed >= counts.total) return "PASS";
-  if (counts.total > 0) return "RUNNING";
-  return "UNKNOWN";
-}
-
-function qaCleanupWord(manifest) {
-  const cleanup = manifest?.cleanup;
-  if (!cleanup) return "unknown";
-  const residuals = Array.isArray(cleanup?.residuals) ? cleanup.residuals : [];
-  if (residuals.length) return `residuals ${residuals.length}`;
-  if (Array.isArray(cleanup)) {
-    const failed = cleanup.filter((item) => String(item?.status || "").toLowerCase() === "failed");
-    return failed.length ? `failed ${failed.length}` : "clean";
-  }
-  if (String(cleanup?.status || "").toLowerCase() === "failed") return "failed";
-  return "clean";
+  return findLatestQaRun(qaArtifactsDir());
 }
 
 function qaKeyboard() {
@@ -1274,36 +1125,8 @@ function qaCleanupPayload() {
   return telegramPayload(lines.join("\n"), qaKeyboard());
 }
 
-function chunks(text, limit = 3900) {
-  let body = String(text || "").trim() || "OK";
-  const out = [];
-  while (body.length > limit) {
-    let splitAt = body.lastIndexOf("\n\n", limit);
-    if (splitAt < 1200) splitAt = body.lastIndexOf("\n", limit);
-    if (splitAt < 1200) splitAt = limit;
-    out.push(body.slice(0, splitAt).trim());
-    body = body.slice(splitAt).trim();
-  }
-  out.push(body);
-  return out;
-}
-
 async function sendText(chatId, text, keyboard, dryRun) {
-  if (dryRun) {
-    console.log(JSON.stringify({ chat_id: chatId || "(default)", text, reply_markup: keyboard }, null, 2));
-    return;
-  }
-  const target = telegramChat(chatId);
-  if (!target) throw new Error("Telegram chat id is not configured");
-  const parts = chunks(text);
-  for (let index = 0; index < parts.length; index += 1) {
-    await telegramApi("sendMessage", {
-      chat_id: target,
-      text: parts[index],
-      disable_web_page_preview: true,
-      ...(index === 0 && keyboard ? { reply_markup: keyboard } : {}),
-    });
-  }
+  await sendTelegramText({ chatId, text, keyboard, dryRun, telegramChat, telegramApi });
 }
 
 async function issueTree(issueRefArg) {

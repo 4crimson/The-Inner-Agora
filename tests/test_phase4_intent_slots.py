@@ -119,6 +119,51 @@ class Phase4IntentSlotTests(unittest.TestCase):
         self.assertEqual(payload["slots"]["mode"], "min")
         self.assertEqual(payload["slots"]["roles"], ["sartre", "camus"])
 
+    def test_agora_natural_llm_usage_is_logged_to_state(self):
+        fake = json.dumps(
+            {
+                "intent": "new_session",
+                "chamber": "philosophy",
+                "mode": "min",
+                "topic": "что такое свобода у Сартра и Камю",
+                "roles": ["Сартр", "Камю"],
+                "taskRef": None,
+                "missingSlots": [],
+                "confidence": 0.93,
+            },
+            ensure_ascii=False,
+        )
+        usage = json.dumps({"prompt_tokens": 21, "completion_tokens": 9, "total_tokens": 30})
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "state.json"
+            env = {
+                **os.environ,
+                "INNER_AGORA_FAKE_LLM_RESPONSE": fake,
+                "INNER_AGORA_FAKE_LLM_USAGE": usage,
+                "INNER_AGORA_STATE_PATH": str(state_path),
+            }
+            result = self.run_node(
+                AGORA_SCRIPT,
+                "natural",
+                "--routing-mode",
+                "llm",
+                "--dry-run",
+                "--json",
+                "коротко спроси агору: что такое свобода у Сартра и Камю",
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["source"], "llm")
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(state["session"]["costLog"][0]["kind"], "intent-extractor")
+        self.assertEqual(state["session"]["costLog"][0]["source"], "llm")
+        self.assertEqual(state["session"]["costLog"][0]["promptTokens"], 21)
+        self.assertEqual(state["session"]["costLog"][0]["completionTokens"], 9)
+        self.assertEqual(state["session"]["costLog"][0]["totalTokens"], 30)
+
     def test_llm_extractor_falls_back_when_critical_slot_is_missing(self):
         fake = json.dumps(
             {

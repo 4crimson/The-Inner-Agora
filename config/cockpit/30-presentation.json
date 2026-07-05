@@ -1,0 +1,140 @@
+{
+  "presentation": {
+    "language": "ru",
+    "home": {
+      "title": "The Inner Agora",
+      "intro": "Я могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
+      "items": [
+        {
+          "action": "ask",
+          "text": "новый вопрос"
+        },
+        {
+          "action": "latest",
+          "text": "последняя сессия"
+        },
+        {
+          "action": "result",
+          "text": "итог"
+        }
+      ],
+      "more": [
+        {
+          "command": "help",
+          "text": "помощь"
+        },
+        {
+          "command": "help full",
+          "text": "полная справка"
+        }
+      ]
+    },
+    "sections": {
+      "useful_commands": "Команды:",
+      "more": "Еще:",
+      "details": "Детали:",
+      "recent_comments": "Последние заметки:",
+      "open_tasks": "Открытые сессии:",
+      "active_agents": "Активные:",
+      "idle_agents": "Ожидают:"
+    },
+    "help": {
+      "full_headings": {
+        "plain_entry_heading": "Обычный вход:",
+        "common_commands_heading": "Обычные команды:",
+        "session_commands_heading": "Работа с сессиями:",
+        "agent_commands_heading": "Философы/голоса:",
+        "admin_commands_heading": "Админ/диагностика:"
+      },
+      "command_descriptions": {
+        "help": "показать справку по командам",
+        "companies": "список агор / рабочих пространств",
+        "health": "проверить доступность Paperclip API",
+        "agents": "список философов и их статусы",
+        "tasks": "список сессий и задач",
+        "task": "краткая карточка одной сессии или задачи",
+        "comments": "показать заметки / комментарии задачи",
+        "move": "изменить статус задачи",
+        "capabilities": "показать возможности и настройки cockpit",
+        "status": "кратко показать состояние The Inner Agora",
+        "debug": "техническая диагностика bridge"
+      }
+    }
+  },
+  "labels": {
+    "company": "agora",
+    "companies": "agoras",
+    "agent": "philosopher",
+    "agents": "philosophers",
+    "task": "session",
+    "tasks": "sessions",
+    "comment": "note",
+    "comments": "notes"
+  },
+  "terms": {
+    "companies": "agoras",
+    "agents": "philosophers",
+    "tasks": "sessions",
+    "task": "session",
+    "comments": "notes",
+    "move": "move",
+    "health": "health",
+    "capabilities": "capabilities"
+  },
+  "aliases": {
+    "companies": [
+      "agoras",
+      "агора",
+      "агоры",
+      "проект",
+      "компании",
+      "компаний",
+      "список компаний",
+      "список агор"
+    ],
+    "agents": [
+      "philosophers",
+      "voices",
+      "roster",
+      "философы",
+      "философов",
+      "мыслители",
+      "мыслителей",
+      "голоса",
+      "состав",
+      "список философов",
+      "кто в перклипе",
+      "кто в агоре"
+    ],
+    "tasks": [
+      "sessions",
+      "research",
+      "queue",
+      "задачи",
+      "сессии",
+      "исследования",
+      "очередь"
+    ],
+    "task": [
+      "session",
+      "issue",
+      "задача",
+      "сессия"
+    ],
+    "comments": [
+      "notes",
+      "comments",
+      "комментарии",
+      "комменты",
+      "заметки"
+    ]
+  },
+  "markers": [
+    "agora",
+    "inner agora",
+    "агора",
+    "в агоре",
+    "перклип",
+    "paperclip"
+  ]
+}

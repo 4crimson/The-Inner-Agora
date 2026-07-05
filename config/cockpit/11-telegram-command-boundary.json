@@ -1,0 +1,73 @@
+{
+  "telegram": {
+    "command_boundary": {
+      "enabled": true,
+      "commands": {
+        "home": [
+          "/start",
+          "/help",
+          "/agora",
+          "/agora help",
+          "Агора",
+          "The Inner Agora"
+        ],
+        "agents": [
+          "/agents"
+        ],
+        "allow_full": [
+          "/agora help full",
+          "/help full",
+          "/agents full"
+        ]
+      },
+      "menus": {
+        "home": {
+          "text": "The Inner Agora\n\nЯ могу помочь разобрать вопрос через нескольких философов.\nМожно писать обычным языком или выбрать действие.",
+          "buttons": [
+            {
+              "label": "Новый вопрос",
+              "callback": "new_question"
+            },
+            {
+              "label": "Последняя сессия",
+              "callback": "last_session"
+            },
+            {
+              "label": "Итог",
+              "callback": "final_result"
+            },
+            {
+              "label": "История",
+              "callback": "history"
+            },
+            {
+              "label": "Помощь",
+              "callback": "help_sections"
+            }
+          ]
+        },
+        "agents": {
+          "text": "Философы показываются внутри активной или последней сессии.\n\nОткрой последнюю сессию или начни новый вопрос.",
+          "buttons": [
+            {
+              "label": "Последняя сессия",
+              "callback": "last_session"
+            },
+            {
+              "label": "Новый вопрос",
+              "callback": "new_question"
+            },
+            {
+              "label": "Итог",
+              "callback": "final_result"
+            },
+            {
+              "label": "Назад",
+              "callback": "back_home"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

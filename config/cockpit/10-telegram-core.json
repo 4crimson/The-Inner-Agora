@@ -1,0 +1,123 @@
+{
+  "telegram": {
+    "enabled": true,
+    "profile": "inneragora",
+    "callback_prefix": "pc",
+    "home_chat_env": "TELEGRAM_HOME_CHANNEL",
+    "history": {
+      "defaultLimit": 5
+    },
+    "progress": {
+      "contract_buttons": true
+    },
+    "launch_summary": {
+      "success_markers": [
+        "Поставил вопрос в Агору",
+        "Сессия:"
+      ],
+      "issue_patterns": [
+        "Поставил вопрос в Агору:\\s*([0-9A-Za-z_-]+)",
+        "Сессия:\\s*([0-9A-Za-z_-]+)"
+      ],
+      "voices_pattern": "Выбрал\\s+\\d+\\s+голос(?:ов|а)?\\s*:\\s*([^\\n]+)",
+      "value_flags": [
+        "--philosophers",
+        "--voices",
+        "--roles"
+      ],
+      "flag_only": [
+        "--no-architects",
+        "--confirm-all"
+      ],
+      "role_list_flag": "--philosophers",
+      "labels": {
+        "launched": "Запустил совет",
+        "session": "Последняя сессия",
+        "voices": "Философы",
+        "result": "Итог",
+        "details": "Детали",
+        "question": "Вопрос",
+        "status": "Статус",
+        "waiting": "Жду ответы философов. Пришлю итог, когда все будут готовы."
+      },
+      "callbacks": {
+        "session": "session",
+        "voices": "philosophers",
+        "result": "result",
+        "details": "details"
+      }
+    },
+    "error_recovery": {
+      "enabled": true,
+      "buttons": [
+        {
+          "label": "Восстановить и повторить",
+          "callback": "recover_retry",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Попробовать без него",
+          "callback": "recover_without_philosopher",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Показать детали",
+          "callback": "show_error_details",
+          "arg": "{arg}"
+        },
+        {
+          "label": "Назад",
+          "callback": "back_home",
+          "arg": "help"
+        }
+      ]
+    },
+    "buttons": {
+      "enabled": true,
+      "voice_limit": 6,
+      "show_export": false,
+      "quick_actions": [
+        {
+          "label": "Новый вопрос",
+          "callback": "new_question"
+        },
+        {
+          "label": "Детали",
+          "callback": "details"
+        }
+      ],
+      "labels": {
+        "synthesis": "Итог",
+        "full_result": "Полный итог",
+        "all_voices": "Философы",
+        "clarify": "Продолжить",
+        "details": "Детали"
+      },
+      "callbacks": {
+        "all_voices": "philosophers"
+      }
+    },
+    "help_buttons": [
+      {
+        "label": "Новый вопрос",
+        "callback": "new_question"
+      },
+      {
+        "label": "Последняя сессия",
+        "callback": "last_session"
+      },
+      {
+        "label": "Итог",
+        "callback": "final_result"
+      },
+      {
+        "label": "История",
+        "callback": "history"
+      },
+      {
+        "label": "Помощь",
+        "callback": "help_sections"
+      }
+    ]
+  }
+}

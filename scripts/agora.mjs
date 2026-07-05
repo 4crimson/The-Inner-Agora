@@ -10,6 +10,146 @@ import { loadSkillPrompt, resolveSkillsForRole } from "./skill-loader.mjs";
 import { adapterForRequest } from "./model-routing.mjs";
 import { composeChamberPolicy, fallbackTransparencyPolicy } from "./policy-loader.mjs";
 import {
+  activeChamberCompanyConfigFromChamber,
+  activeChamberIdFromState,
+  normalizeChamberMode,
+  resolveMvpPresetPath,
+  resolveRoleSourcePath,
+  shouldUseActiveChamberRoles as shouldUseActiveChamberRolesFromConfig,
+} from "./agora/chamber-utils.mjs";
+import {
+  adapterDisplayLine,
+  adapterFromIssue,
+  adapterFromState as adapterFromStateData,
+  adapterMetadata,
+  adapterStatePatch,
+} from "./agora/adapter-utils.mjs";
+import {
+  cleanTitle,
+  clip,
+  stableJson,
+} from "./agora/text-utils.mjs";
+import {
+  roleAliases,
+  roleByToken as findRoleByToken,
+  roleFromText as findRoleFromText,
+  roleScoreInText,
+  searchRoles as searchRoleRoster,
+  uniqueRoles,
+} from "./agora/role-search.mjs";
+import { selectRoles } from "./agora/role-selection.mjs";
+import {
+  allowedMoveStatuses,
+  byIssueNumber,
+  childrenOf,
+  compactIssueLine,
+  displayStatus,
+  displayTitle,
+  isSynthesisIssue,
+  issueByIdMap,
+  issueKind,
+  latestIssueRef,
+  latestSynthesisChild,
+  rootFromMap,
+  terminalStatuses,
+  voiceChildren,
+  withoutIssueRef,
+} from "./agora/issue-utils.mjs";
+import {
+  latestSynthesisForRoot,
+  resolveRootIssue,
+  resolveTopRootIssue,
+} from "./agora/issue-query-utils.mjs";
+import {
+  collectSubtree,
+  visibleChildren,
+} from "./agora/finalize-utils.mjs";
+import {
+  availableVoiceLines,
+  sessionActionLines,
+  voiceChildScore,
+} from "./agora/session-output.mjs";
+import {
+  appendCostLog,
+  costDashboard,
+  costDashboardLines,
+  costPricingPath,
+  costSummaryLine,
+  parseCostsArgs,
+} from "./agora/cost-utils.mjs";
+import {
+  normalizeTag,
+  parsePhilosophersArgs,
+  tagList,
+  tagSummary,
+} from "./agora/roster-utils.mjs";
+import { allModePreflight } from "./agora/preflight-utils.mjs";
+import {
+  hasSynthesisShape,
+  normalizedDigestBody,
+  printFallbackDigest,
+  printSynthesisDigest,
+  printVoiceDigest,
+  rootQuestion,
+  synthesisComment,
+} from "./agora/digest-utils.mjs";
+import { normalizeMode } from "./agora/mode-utils.mjs";
+import {
+  naturalCommandPayload as buildNaturalCommandPayload,
+  naturalContextFromState,
+  parseNaturalArgs,
+} from "./agora/natural-utils.mjs";
+import {
+  memoryExportMarkdown,
+  memoryExportPath,
+} from "./agora/memory-export-utils.mjs";
+import {
+  chamberChoiceLines,
+  parseWizardChamber,
+  parseWizardMode,
+  wizardCancelled,
+  wizardConfirmed,
+  wizardInitialSlots,
+} from "./agora/wizard-utils.mjs";
+import {
+  buildStartExamples,
+  startOnboardingLines,
+} from "./agora/start-utils.mjs";
+import {
+  parseAskArgs,
+  parseCouncilArgs,
+  parseFollowUpArgs,
+  parseRoleProposalArgs,
+  parseTasksArgs,
+  stripFullTokens,
+} from "./agora/cli-parse-utils.mjs";
+import {
+  activeChamberOutputLines,
+  costSummaryOutputLines,
+  decoratedCostLogEntries,
+  issueStatePatch,
+  modeOutputLines,
+} from "./agora/state-output-utils.mjs";
+import {
+  allRoleSkillsLines,
+  allRoleSkillsPayload,
+  resolvedRoleSkillsPayload,
+  roleProposalLines,
+  roleProposalPayload,
+  roleSearchLines,
+  singleRoleSkillsLines,
+} from "./agora/role-output-utils.mjs";
+import { createPaperclipClient, wakeSummary } from "./agora/paperclip-client.mjs";
+import {
+  buildDialogueDescription,
+  buildDialogueWithContextDescription,
+  buildFollowUpDescription,
+  buildRootDescription,
+  buildRoleDescription,
+  buildSynthesisDescription,
+  isPhilosophyChamber,
+} from "./agora/session-builders.mjs";
+import {
   readProfile,
   readState,
   statePath as resolvedStatePath,
@@ -35,8 +175,8 @@ const API_BASE = process.env.PAPERCLIP_API_BASE || "http://127.0.0.1:3100/api";
 const ASSISTANT_NAME = "Agora Assistant / Синтезатор";
 const DEFAULT_MODE = process.env.INNER_AGORA_DEFAULT_MODE || AGORA_CONFIG.default_mode || "balanced";
 const MEMORY_DIR = process.env.INNER_AGORA_MEMORY_DIR || path.join(ROOT, "memory", "sessions");
-const ISSUE_REF_RE = /\b([A-Z][A-Z0-9]{1,12}-\d+)\b/i;
-const DEFAULT_ISSUE_PREFIX = process.env.INNER_AGORA_ISSUE_PREFIX || "THE";
+const paperclip = createPaperclipClient({ apiBase: API_BASE, root: ROOT });
+const { api, createIssue, updateIssue, addComment, wakeAgentSafe } = paperclip;
 
 function readJsonFile(filePath, fallback = {}) {
   try {
@@ -46,26 +186,27 @@ function readJsonFile(filePath, fallback = {}) {
   }
 }
 
-function normalizeChamberMode(value) {
-  const normalized = String(value || "legacy").trim().toLowerCase();
-  if (["legacy", "chambers"].includes(normalized)) return normalized;
-  throw new Error(`Unsupported CHAMBER_MODE=${value}. Use legacy or chambers.`);
-}
-
 const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
 
 function shouldUseActiveChamberRoles() {
-  return CHAMBER_MODE === "chambers" || Boolean(process.env.INNER_AGORA_ACTIVE_CHAMBER) || activeChamberId() !== DEFAULT_CHAMBER_ID;
-}
-
-function chamberRelativePath(chamber, relativePath) {
-  return path.isAbsolute(relativePath) ? relativePath : path.join(CHAMBERS_DIR, chamber.id, relativePath);
+  return shouldUseActiveChamberRolesFromConfig({
+    chamberMode: CHAMBER_MODE,
+    env: process.env,
+    activeChamberId: activeChamberId(),
+    defaultChamberId: DEFAULT_CHAMBER_ID,
+  });
 }
 
 function roleSourcePath() {
-  if (!shouldUseActiveChamberRoles()) return LEGACY_ROLES_PATH;
-  const chamber = activeChamber();
-  return chamberRelativePath(chamber, chamber.roles[0]);
+  return resolveRoleSourcePath({
+    chamberMode: CHAMBER_MODE,
+    env: process.env,
+    activeChamberId: activeChamberId(),
+    defaultChamberId: DEFAULT_CHAMBER_ID,
+    legacyRolesPath: LEGACY_ROLES_PATH,
+    chambersDir: CHAMBERS_DIR,
+    chamber: activeChamber(),
+  });
 }
 
 function loadRoles() {
@@ -78,10 +219,15 @@ function loadRoles() {
 }
 
 function mvpPresetPath() {
-  if (process.env.INNER_AGORA_MVP_PRESET_PATH) return path.resolve(process.env.INNER_AGORA_MVP_PRESET_PATH);
-  if (!shouldUseActiveChamberRoles()) return DEFAULT_MVP_PRESET_PATH;
-  const chamber = activeChamber();
-  return chamberRelativePath(chamber, chamber.presets[0]);
+  return resolveMvpPresetPath({
+    chamberMode: CHAMBER_MODE,
+    env: process.env,
+    activeChamberId: activeChamberId(),
+    defaultChamberId: DEFAULT_CHAMBER_ID,
+    defaultMvpPresetPath: DEFAULT_MVP_PRESET_PATH,
+    chambersDir: CHAMBERS_DIR,
+    chamber: activeChamber(),
+  });
 }
 
 function loadMvpPresetRoleKeys() {
@@ -104,7 +250,7 @@ function usage(exitCode = 0) {
   console.log(`Usage:
   node scripts/agora.mjs prepare [local|balanced|max]
   node scripts/agora.mjs council [--dry-run] "question"
-  node scripts/agora.mjs ask [--min|--balanced|--max|--all] [--philosophers list] "question"
+  node scripts/agora.mjs ask [--min|--balanced|--max|--all] [--confirm-all] [--philosophers list] "question"
   node scripts/agora.mjs ask --dry-run --philosophers socrates,kant "question"
   node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"
   node scripts/agora.mjs dialogue <philosopher> "question"
@@ -123,6 +269,7 @@ function usage(exitCode = 0) {
   node scripts/agora.mjs understand [--routing-mode regex|llm] [--json] "human text"
   node scripts/agora.mjs natural [--routing-mode regex|llm] [--dry-run] [--json] "human text"
   node scripts/agora.mjs mode [get|set <min|balanced|max|local>|--raw]
+  node scripts/agora.mjs costs [--json] [--limit N] [--since ISO|--hours N] [--pricing env|default|off|FILE]
   node scripts/agora.mjs status
   node scripts/agora.mjs recheck [issue-id-or-key]
   node scripts/agora.mjs tasks [--all|--open] [--limit N]
@@ -144,25 +291,32 @@ Modes:
   process.exit(exitCode);
 }
 
-function stableJson(value) {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
-
 function rememberIssue(issue, patch = {}) {
   if (!issue) return;
-  writeState({
-    ...patch,
-    lastIssueRef: issue.identifier || issue.id,
-    lastIssueId: issue.id,
-    lastIssueTitle: issue.title || "",
-    lastIssueStatus: issue.status || "",
-    lastIssueSeenAt: new Date().toISOString(),
-  });
+  writeState(issueStatePatch(issue, patch));
+}
+
+function rememberCostLog(extracted, context = {}, command = "") {
+  const state = readState();
+  const entries = decoratedCostLogEntries(extracted, context, state, command);
+  if (!entries.length) return;
+  writeState({ session: appendCostLog(state.session, entries) });
+}
+
+function printCostSummary(state = readState(), { markdown = false } = {}) {
+  const lines = costSummaryOutputLines(state, { markdown });
+  for (const line of lines) console.log(line);
+  return lines.length > 0;
 }
 
 function activeChamberId(state = readState()) {
   const profile = readProfile();
-  return String(process.env.INNER_AGORA_ACTIVE_CHAMBER || state.activeChamberId || profile.preferredChamberId || DEFAULT_CHAMBER_ID).trim();
+  return activeChamberIdFromState({
+    env: process.env,
+    state,
+    profile,
+    defaultChamberId: DEFAULT_CHAMBER_ID,
+  });
 }
 
 function activeChamber(state = readState()) {
@@ -171,20 +325,12 @@ function activeChamber(state = readState()) {
 
 function activeChamberCompanyConfig(state = readState()) {
   const chamber = activeChamber(state);
-  const company = chamber.company || {};
-  return {
-    chamber,
-    companyId: String(process.env.INNER_AGORA_COMPANY_ID || company.companyId || "").trim(),
-    companyName: String(process.env.INNER_AGORA_COMPANY_NAME || company.name || "").trim(),
-    projectName: String(process.env.INNER_AGORA_PROJECT_NAME || company.projectName || "").trim(),
-    goalTitle: String(process.env.INNER_AGORA_GOAL_TITLE || company.goalTitle || "").trim(),
-  };
+  return activeChamberCompanyConfigFromChamber(chamber, process.env);
 }
 
 function printActiveChamber(state = readState()) {
   const chamber = activeChamber(state);
-  console.log(`activeChamberId=${chamber.id}`);
-  console.log(`activeChamberName=${chamber.name}`);
+  for (const line of activeChamberOutputLines(chamber)) console.log(line);
   return chamber;
 }
 
@@ -219,16 +365,6 @@ function chamberCommand(args = []) {
   throw new Error(`Unknown chamber command: ${action}`);
 }
 
-function normalizeMode(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (["min", "minimum", "минимум", "мин"].includes(normalized)) return "min";
-  if (["local", "локально", "локальный"].includes(normalized)) return "local";
-  if (["balanced", "balance", "умный", "средний"].includes(normalized)) return "balanced";
-  if (["max", "maximum", "макс", "максимум"].includes(normalized)) return "max";
-  if (["all", "все", "всё"].includes(normalized)) return "all";
-  throw new Error(`Unknown mode: ${value}`);
-}
-
 function defaultMode() {
   const state = readState();
   const profile = readProfile();
@@ -254,51 +390,13 @@ function adapterForMode(mode, options = {}) {
   });
 }
 
-function adapterMetadata(adapter) {
-  return {
-    name: adapter.name,
-    model: adapter.model,
-    reason: adapter.reason,
-    riskTier: adapter.riskTier,
-  };
-}
-
-function adapterStatePatch(adapter) {
-  return {
-    lastAdapterName: adapter.name,
-    lastAdapterModel: adapter.model,
-    lastAdapterReason: adapter.reason,
-    lastAdapterRiskTier: adapter.riskTier,
-  };
-}
-
-function adapterDisplayLine(adapter) {
-  return `adapter=${adapter.name}, model=${adapter.model}, reason=${adapter.reason}, risk=${adapter.riskTier}`;
-}
-
 function adapterFromState(state = readState()) {
-  if (!state.lastAdapterName) return null;
-  return {
-    name: state.lastAdapterName,
-    model: state.lastAdapterModel || "-",
-    reason: state.lastAdapterReason || "-",
-    riskTier: state.lastAdapterRiskTier || "-",
-  };
-}
-
-function adapterFromIssue(issue) {
-  const adapter = issue?.metadata?.innerAgora?.adapter || issue?.metadata?.innerAgoraAdapter || null;
-  return adapter?.name ? adapter : null;
+  return adapterFromStateData(state);
 }
 
 function printMode(mode, state = readState()) {
   const adapter = adapterForMode(mode);
-  console.log(`mode=${mode}`);
-  console.log(`adapter=${adapter.name}`);
-  console.log(`model=${adapter.model}`);
-  console.log(`reason=${adapter.reason}`);
-  console.log(`state=${resolvedStatePath()}`);
-  if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
+  for (const line of modeOutputLines({ mode, adapter, statePath: resolvedStatePath(), state })) console.log(line);
 }
 
 function modeCommand(args) {
@@ -367,92 +465,6 @@ function prepare(args) {
   console.log(`Prepared Paperclip agents: mode=${mode}, adapter=${adapter.name}`);
 }
 
-async function api(pathname, options = {}) {
-  const url = `${API_BASE}${pathname}`;
-  const request = () =>
-    fetch(url, {
-      ...options,
-      headers: {
-        "content-type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
-
-  let response;
-  try {
-    response = await request();
-  } catch (error) {
-    if (shouldAutoRestartPaperclip()) {
-      const recovery = restartPaperclipService();
-      await sleep(2500);
-      try {
-        response = await request();
-      } catch (retryError) {
-        throw paperclipFetchError(pathname, options, url, retryError, recovery);
-      }
-    } else {
-      throw paperclipFetchError(pathname, options, url, error, null);
-    }
-  }
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(`${options.method || "GET"} ${pathname} failed: ${response.status} ${text}`);
-  }
-  return data;
-}
-
-function shouldAutoRestartPaperclip() {
-  try {
-    const parsed = new URL(API_BASE);
-    return (
-      ["127.0.0.1", "localhost", "::1"].includes(parsed.hostname) &&
-      (parsed.port === "3100" || !parsed.port) &&
-      process.env.INNER_AGORA_AUTO_RESTART_PAPERCLIP !== "0"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function restartPaperclipService() {
-  const result = spawnSync("zsh", ["-lc", "launchctl kickstart -k gui/$(id -u)/local.paperclipai.default"], {
-    cwd: ROOT,
-    encoding: "utf8",
-    timeout: 10000,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  return {
-    status: result.status,
-    stdout: (result.stdout || "").trim(),
-    stderr: (result.stderr || "").trim(),
-    error: result.error?.message || "",
-  };
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function paperclipFetchError(pathname, options, url, error, recovery) {
-  const lines = [
-    `${options.method || "GET"} ${pathname} failed before HTTP response: ${error.message}`,
-    `Paperclip API URL: ${url}`,
-  ];
-  if (recovery) {
-    lines.push(`Auto-restart attempted: launchctl kickstart local.paperclipai.default exit=${recovery.status ?? "null"}`);
-    if (recovery.stderr) lines.push(`Auto-restart stderr: ${recovery.stderr}`);
-    if (recovery.error) lines.push(`Auto-restart error: ${recovery.error}`);
-  }
-  lines.push(
-    "Most likely Paperclip is not running or the local port is unavailable.",
-    "Check: curl http://127.0.0.1:3100/api/health",
-    "Restart: launchctl kickstart -k gui/$(id -u)/local.paperclipai.default",
-  );
-  return new Error(lines.join("\n"));
-}
-
 async function getAgora() {
   const { chamber, companyId, companyName, projectName, goalTitle } = activeChamberCompanyConfig();
   const companies = await api("/companies");
@@ -482,140 +494,17 @@ async function getAgora() {
   return { company, agents, agentsByName, assistant, project, goal };
 }
 
-function cleanTitle(text) {
-  return text.replace(/\s+/g, " ").trim().slice(0, 96) || "Agora request";
-}
-
-function clip(text, limit = 7000) {
-  const value = String(text || "").trim();
-  if (value.length <= limit) return value;
-  return `${value.slice(0, limit)}\n\n[... clipped ${value.length - limit} chars ...]`;
-}
-
 function roleByToken(token) {
-  const normalized = String(token || "").trim().toLowerCase();
-  const normalizedLoose = looseText(normalized);
-  const normalizedStem = looseStem(normalized);
-  return roles.find((item) => {
-    return roleAliases(item).some((alias) => {
-      const aliasText = String(alias || "").trim().toLowerCase();
-      const aliasLoose = looseText(aliasText);
-      return (
-        aliasText === normalized ||
-        aliasLoose === normalizedLoose ||
-        (normalizedLoose.length >= 4 && aliasLoose.includes(normalizedLoose)) ||
-        (normalizedStem.length >= 4 && looseStem(aliasText) === normalizedStem)
-      );
-    });
-  });
+  return findRoleByToken(roles, token);
 }
 /** @deprecated Use roleByToken. */
 const philosopherByToken = roleByToken;
 
-function looseText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/ё/g, "е")
-    .replace(/[^0-9a-zа-я]+/g, "");
-}
-
-function looseStem(value) {
-  const text = looseText(value);
-  const suffixes = ["ами", "ями", "ого", "ему", "ому", "ыми", "ими", "ий", "ый", "ая", "ое", "ее", "ой", "ей", "ым", "им", "ом", "ем", "ах", "ях", "у", "ю", "е", "а", "я", "ы", "и"];
-  for (const suffix of suffixes) {
-    if (text.length - suffix.length >= 4 && text.endsWith(suffix)) return text.slice(0, -suffix.length);
-  }
-  return text;
-}
-
-function roleAliases(item) {
-  return [item.key, item.name, item.englishName, ...(item.aliases || [])].filter(Boolean);
-}
 /** @deprecated Use roleAliases. */
 const philosopherAliases = roleAliases;
 
-function searchStem(value) {
-  return looseStem(value).replace(/ь$/u, "");
-}
-
-function editDistance(left, right) {
-  const a = Array.from(String(left || ""));
-  const b = Array.from(String(right || ""));
-  const rows = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
-  for (let row = 0; row <= a.length; row += 1) rows[row][0] = row;
-  for (let column = 0; column <= b.length; column += 1) rows[0][column] = column;
-  for (let row = 1; row <= a.length; row += 1) {
-    for (let column = 1; column <= b.length; column += 1) {
-      const cost = a[row - 1] === b[column - 1] ? 0 : 1;
-      rows[row][column] = Math.min(
-        rows[row - 1][column] + 1,
-        rows[row][column - 1] + 1,
-        rows[row - 1][column - 1] + cost,
-      );
-    }
-  }
-  return rows[a.length][b.length];
-}
-
-function roleSearchEntry(item, query) {
-  const queryText = String(query || "").trim();
-  const queryLoose = looseText(queryText);
-  const queryStem = searchStem(queryText);
-  if (!queryLoose) return null;
-
-  let best = null;
-  for (const alias of roleAliases(item)) {
-    const aliasText = String(alias || "").trim();
-    const aliasLoose = looseText(aliasText);
-    const aliasStem = searchStem(aliasText);
-    if (!aliasLoose) continue;
-
-    const exact = aliasLoose === queryLoose;
-    const caseMatch = queryStem.length >= 4 && aliasStem === queryStem;
-    const startsWith = queryStem.length >= 3 && aliasStem.startsWith(queryStem);
-    const contains = queryStem.length >= 4 && aliasStem.includes(queryStem);
-    const distance = queryStem && aliasStem ? editDistance(queryStem, aliasStem) : 999;
-    const maxLength = Math.max(queryStem.length, aliasStem.length, 1);
-    const close = distance <= Math.max(2, Math.floor(maxLength * 0.28));
-    let score = 0;
-    if (exact) score = 10000 + aliasLoose.length;
-    else if (caseMatch) score = 9000 + aliasStem.length;
-    else if (startsWith) score = 8000 + queryStem.length;
-    else if (contains) score = 7000 + queryStem.length;
-    else if (close) score = 6000 - distance * 100 + aliasStem.length;
-    else score = Math.max(0, 1000 - distance * 20);
-
-    const candidate = { item, alias: aliasText, exact, caseMatch, distance, score };
-    if (!best || candidate.score > best.score || (candidate.score === best.score && candidate.distance < best.distance)) {
-      best = candidate;
-    }
-  }
-  return best;
-}
-
-function roleSearchSummary(entry) {
-  return {
-    key: entry.item.key,
-    name: entry.item.name,
-    englishName: entry.item.englishName,
-    alias: entry.alias,
-    score: entry.score,
-    distance: entry.distance,
-  };
-}
-
 function searchRoles(query, limit = 3) {
-  const matches = roles
-    .map((item) => roleSearchEntry(item, query))
-    .filter(Boolean)
-    .sort((left, right) => right.score - left.score || left.distance - right.distance || left.item.key.localeCompare(right.item.key));
-  const selected = matches.find((entry) => entry.exact || entry.caseMatch) || null;
-  const relevant = matches.filter((entry) => entry.exact || entry.caseMatch || entry.score >= 5000);
-  return {
-    query: String(query || "").trim(),
-    selected: selected ? roleSearchSummary(selected) : null,
-    matches: relevant.slice(0, limit).map(roleSearchSummary),
-  };
+  return searchRoleRoster(roles, query, limit);
 }
 
 function philosopherSearch(args) {
@@ -626,197 +515,39 @@ function philosopherSearch(args) {
     process.stdout.write(stableJson(payload));
     return payload;
   }
-  if (payload.selected) {
-    console.log(`${payload.selected.name} (${payload.selected.key})`);
-    return payload;
-  }
-  if (payload.matches.length === 0) {
-    console.log("No matching philosophers found.");
-    return payload;
-  }
-  for (const match of payload.matches) {
-    console.log(`${match.name} (${match.key})`);
-  }
+  for (const line of roleSearchLines(payload)) console.log(line);
   return payload;
-}
-
-function parseRoleProposalArgs(args = []) {
-  const options = { json: false, limit: 4, mode: "balanced", noArchitects: false };
-  const textParts = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--json") options.json = true;
-    else if (arg === "--limit") {
-      options.limit = Math.max(1, Number(args[++index] || 4) || 4);
-    } else if (arg === "--mode") {
-      options.mode = normalizeMode(args[++index] || "balanced");
-    } else if (arg === "--no-architects") {
-      options.noArchitects = true;
-    } else {
-      textParts.push(arg);
-    }
-  }
-  return { ...options, topic: textParts.join(" ").trim() };
 }
 
 function roleProposal(args = []) {
   const options = parseRoleProposalArgs(args);
   if (!options.topic) throw new Error('Usage: node scripts/agora.mjs role-proposal [--json] [--limit N] "topic"');
   const selected = selectPhilosophers(options.topic, options.mode, null, { noArchitects: options.noArchitects }).slice(0, options.limit);
-  const payload = {
-    topic: options.topic,
-    mode: options.mode,
-    roles: selected.map((role) => ({
-      key: role.key,
-      name: role.name,
-      englishName: role.englishName,
-      reason: role.title || role.centralIntuition || "",
-    })),
-  };
+  const payload = roleProposalPayload({ topic: options.topic, mode: options.mode, roles: selected });
   if (options.json) {
     process.stdout.write(stableJson(payload));
     return payload;
   }
-  console.log(`По этой теме я бы собрал ${payload.roles.length} философов:\n`);
-  for (const role of payload.roles) console.log(`${role.name} — ${role.reason}`);
+  for (const line of roleProposalLines(payload)) console.log(line);
   return payload;
 }
 
-function roleScoreInText(item, text) {
-  const haystack = looseText(text);
-  if (!haystack) return 0;
-  let score = 0;
-  for (const alias of roleAliases(item)) {
-    const exact = looseText(alias);
-    const stem = looseStem(alias);
-    if (exact && haystack.includes(exact)) score = Math.max(score, exact.length + 20);
-    if (stem && stem.length >= 4 && haystack.includes(stem)) score = Math.max(score, stem.length + 10);
-  }
-  return score;
-}
 /** @deprecated Use roleScoreInText. */
 const philosopherScoreInText = roleScoreInText;
 
 function roleFromText(text) {
-  const exact = roleByToken(String(text || "").replace(/[^\p{L}\p{N}_ -]+/gu, "").trim());
-  if (exact) return exact;
-  return roles
-    .map((item) => ({ item, score: roleScoreInText(item, text) }))
-    .filter((entry) => entry.score > 0)
-    .sort((left, right) => right.score - left.score || left.item.key.localeCompare(right.item.key))[0]?.item || null;
+  return findRoleFromText(roles, text);
 }
 /** @deprecated Use roleFromText. */
 const philosopherFromText = roleFromText;
 
-function uniqueRoles(items) {
-  const seen = new Set();
-  return items.filter((item) => {
-    if (!item || seen.has(item.key)) return false;
-    seen.add(item.key);
-    return true;
-  });
-}
 /** @deprecated Use uniqueRoles. */
 const uniquePhilosophers = uniqueRoles;
 
-function parseAskArgs(args) {
-  let mode = defaultMode();
-  let explicitMode = false;
-  let dryRun = false;
-  let all = false;
-  let noArchitects = false;
-  let philosopherList = null;
-  const textParts = [];
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--mode") {
-      const value = args[index + 1];
-      if (!value) throw new Error("--mode requires one of: min, local, balanced, max, all");
-      mode = normalizeMode(value);
-      explicitMode = true;
-      index += 1;
-    } else if (arg === "--min") {
-      mode = "min";
-      explicitMode = true;
-    } else if (arg === "--balanced") {
-      mode = "balanced";
-      explicitMode = true;
-    } else if (arg === "--max") {
-      mode = "max";
-      explicitMode = true;
-    } else if (arg === "--local") {
-      mode = "local";
-      explicitMode = true;
-    } else if (arg === "--all") {
-      all = true;
-      mode = "all";
-      explicitMode = true;
-    } else if (arg === "--dry-run") {
-      dryRun = true;
-    } else if (arg === "--no-architects") {
-      noArchitects = true;
-    } else if (arg === "--philosophers" || arg === "--voices") {
-      const value = args[index + 1];
-      if (!value) throw new Error(`${arg} requires comma-separated philosopher keys or names`);
-      philosopherList = value;
-      index += 1;
-    } else if (arg === "--help" || arg === "-h") {
-      usage(0);
-    } else {
-      textParts.push(arg);
-    }
-  }
-
-  const request = textParts.join(" ").trim();
-  if (!explicitMode) mode = detectMode(request, mode);
-  return { request, mode, dryRun, all, noArchitects, philosopherList };
-}
-
-function parseCouncilArgs(args) {
-  let dryRun = false;
-  const textParts = [];
-
-  for (const arg of args) {
-    if (arg === "--dry-run") {
-      dryRun = true;
-    } else if (arg === "--help" || arg === "-h") {
-      usage(0);
-    } else {
-      textParts.push(arg);
-    }
-  }
-
-  return {
-    dryRun,
-    request: textParts.join(" ").trim(),
-  };
-}
-
-function detectMode(request, fallback) {
-  if (/всех|все философы|full agora|all voices/i.test(request)) return "all";
-  if (/максимальн|макс|deep|глубок/i.test(request)) return "max";
-  if (/быстро|коротко|мин/i.test(request)) return "min";
-  return fallback;
-}
-
-function requestedVoiceLimit(request) {
-  const text = request.toLowerCase();
-  const countContext = /философ|голос|участ|подход|сильн|выбор|voices|thinkers|participants/.test(text);
-  if (!countContext) return null;
-
-  if (/(?:пар[уыа]?|двух|двум|два)\s*(?:философ|голос|участ|подход|voices|thinkers|participants)/.test(text)) return 2;
-  if (/(?:одному|один|1)\s*[-–—]?\s*(?:двум|два|2)\s*(?:философ|голос|участ|подход|voices|thinkers|participants)/.test(text)) return 2;
-
-  const range = text.match(/\b([2-9]|1[0-9])\s*[-–—]\s*([2-9]|1[0-9])\b/);
-  if (range) return Math.max(Number(range[1]), Number(range[2]));
-
-  const single = text.match(/\b([2-9]|1[0-9])\s*(?:философ|голос|участ|подход|сильн|voices|thinkers|participants)\b/);
-  return single ? Number(single[1]) : null;
-}
-
 async function minimumCouncil(args) {
-  const { request, dryRun } = parseCouncilArgs(args);
+  const parsed = parseCouncilArgs(args);
+  if (parsed.help) usage(0);
+  const { request, dryRun } = parsed;
   if (!request) throw new Error('Usage: node scripts/agora.mjs council [--dry-run] "your question"');
   const roleKeys = loadMvpPresetRoleKeys();
 
@@ -831,173 +562,16 @@ async function minimumCouncil(args) {
 }
 
 function selectPhilosophers(request, mode, philosopherList, options = {}) {
-  if (philosopherList) {
-    const selected = philosopherList
-      .split(",")
-      .map((token) => roleByToken(token))
-      .filter(Boolean);
-    if (!selected.length) throw new Error(`No known philosophers in --philosophers ${philosopherList}`);
-    return uniqueRoles(selected);
-  }
-
-  if (mode === "all" || options.all) return roles;
-
-  if (activeChamberId() !== "philosophy") {
-    return selectChamberRoles(request, mode);
-  }
-
-  const text = request.toLowerCase();
-  const selected = [];
-  const add = (...keys) => {
-    for (const key of keys) selected.push(roleByKey.get(key));
-  };
-
-  if (/врем|темпорал|длит|dur[eé]e|duration|uji|аничч|anicca|момент|мгновен|вечност|циклич|прошл|будущ|настоящ/.test(text)) {
-    add("buddha", "dogen", "laozi", "bergson", "heidegger", "augustine", "nagarjuna");
-  }
-
-  if (!options.noArchitects) add("plato", "descartes", "heidegger");
-  add("socrates");
-
-  if (/морал|этик|добродетел|долг|вина|счаст|жизнь|страдан|выбор|ценност/.test(text)) {
-    add(
-      "buddha",
-      "confucius",
-      "schopenhauer",
-      "kierkegaard",
-      "levinas",
-      "tolstoy",
-      "aristotle",
-      "diogenes",
-      "kant",
-      "epictetus",
-      "marcus-aurelius",
-      "epicurus",
-      "augustine",
-      "nietzsche",
-    );
-  }
-  if (/свобод|условн|обыча|стыд|роскош|аскез|циник|киник|провокац|простот/.test(text)) {
-    add("sartre", "beauvoir", "camus", "berdyaev", "diogenes", "epictetus", "epicurus", "nietzsche", "rousseau");
-  }
-  if (/быт|существ|реальн|метафиз|бог|единое|душ|субстанц|природ/.test(text)) {
-    add(
-      "laozi",
-      "nagarjuna",
-      "shankara",
-      "avicenna",
-      "ibn-arabi",
-      "leibniz",
-      "dogen",
-      "parmenides",
-      "plotinus",
-      "spinoza",
-      "aquinas",
-      "cusanus",
-    );
-  }
-  if (/знан|истин|метод|сомнен|доказ|разум|субъект|позна/.test(text)) {
-    add("hume", "montaigne", "pascal", "husserl", "wittgenstein", "al-ghazali", "averroes", "maimonides", "pyrrho", "kant", "spinoza", "aquinas");
-  }
-  if (/истор|обще|полит|государ|власт|культур|цивилизац|либерал|модерн|традиц/.test(text)) {
-    add(
-      "machiavelli",
-      "hobbes",
-      "marx",
-      "arendt",
-      "fanon",
-      "said",
-      "freire",
-      "ibn-khaldun",
-      "diogenes",
-      "rousseau",
-      "hegel",
-      "nietzsche",
-      "foucault",
-      "dugin",
-    );
-  }
-  if (/язык|текст|знак|медиа|симулякр|постмодерн|дискурс|нарратив|культура/.test(text)) {
-    add("wittgenstein", "derrida", "bakhtin", "said", "barthes", "baudrillard", "deleuze", "foucault");
-  }
-  if (/желан|тело|станов|различ|машин|ризом|поток/.test(text)) {
-    add("bergson", "merleau-ponty", "zhuangzi", "deleuze", "nietzsche", "spinoza");
-  }
-
-  add("aristotle", "diogenes", "nietzsche", "foucault");
-
-  const limits = {
-    min: 3,
-    local: 5,
-    balanced: 7,
-    max: 12,
-  };
-  const modeLimit = limits[mode] || limits.balanced;
-  const requestedLimit = requestedVoiceLimit(request);
-  const limit = requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
-  return uniqueRoles(selected).slice(0, limit);
-}
-
-function selectedRoleLimit(request, mode) {
-  const limits = {
-    min: 3,
-    local: 5,
-    balanced: 7,
-    max: 12,
-  };
-  const modeLimit = limits[mode] || limits.balanced;
-  const requestedLimit = requestedVoiceLimit(request);
-  return requestedLimit ? Math.min(modeLimit, requestedLimit) : modeLimit;
-}
-
-function genericRoleScore(item, request) {
-  const haystack = looseText(
-    [
-      item.key,
-      item.name,
-      item.englishName,
-      item.title,
-      item.centralIntuition,
-      ...(item.aliases || []),
-      ...(item.tags || []),
-    ].join(" "),
-  );
-  return looseText(request)
-    .split(/\s+/)
-    .filter((token) => token.length >= 3)
-    .reduce((score, token) => score + (haystack.includes(token) ? 1 : 0), 0);
-}
-
-function selectChamberRoles(request, mode) {
-  const selected = roles
-    .map((item) => ({ item, score: roleScoreInText(item, request) + genericRoleScore(item, request) }))
-    .filter((entry) => entry.score > 0)
-    .sort((left, right) => right.score - left.score || left.item.key.localeCompare(right.item.key))
-    .map((entry) => entry.item);
-
-  for (const key of loadMvpPresetRoleKeys()) selected.push(roleByKey.get(key));
-  for (const role of roles) selected.push(role);
-
-  return uniqueRoles(selected).slice(0, selectedRoleLimit(request, mode));
-}
-
-function isPhilosophyChamber(chamber = activeChamber()) {
-  return chamber.id === "philosophy";
-}
-
-function modePolicy(mode, chamber = activeChamber()) {
-  if (!isPhilosophyChamber(chamber)) {
-    if (mode === "all") return "Режим all: участвуют все роли из текущей палаты.";
-    if (mode === "max") return "Режим max: широкий совет ролей для выявления конфликтов, рисков и условий решения.";
-    if (mode === "balanced") return "Режим balanced: 5-7 релевантных ролей, достаточно глубоко без расползания.";
-    if (mode === "local") return "Режим local: короткий совет без внешней проверки; полезен для быстрых локальных запусков.";
-    return "Режим min: 3 роли, быстрый первый разбор.";
-  }
-  if (mode === "all") return "Режим all: участвуют все философские машины из текущего состава.";
-  if (mode === "max") return "Режим max: широкий совет, но не обязательно весь пантеон; цель — сильный конфликт перспектив.";
-  if (mode === "balanced") return "Режим balanced: 5-7 релевантных голосов, достаточно глубоко без расползания.";
-  if (mode === "local") return "Режим local: короткий совет без внешней проверки; полезен для быстрых локальных запусков.";
-  return "Режим min: 3 голоса, быстрый первый разбор.";
+  return selectRoles({
+    roles,
+    request,
+    mode,
+    roleList: philosopherList,
+    options,
+    activeChamberId: activeChamberId(),
+    mvpRoleKeys: loadMvpPresetRoleKeys(),
+    byKey: roleByKey,
+  });
 }
 
 function transparencyPolicy(chamberOrPolicyId = activeChamber()) {
@@ -1017,25 +591,9 @@ function policyCommand(args = []) {
   console.log(policyId ? transparencyPolicy(policyId) : transparencyPolicy(activeChamber()));
 }
 
-function publicSkill(skill) {
-  return {
-    id: skill.id,
-    name: skill.name,
-    description: skill.description,
-    riskTier: skill.riskTier,
-    allowedTools: skill.allowedTools,
-  };
-}
-
 function resolvedRoleSkills(role, chamber = activeChamber()) {
   const resolved = resolveSkillsForRole(role, chamber, { skillsDir: SKILLS_DIR });
-  return {
-    chamberId: chamber.id,
-    roleKey: role.key,
-    roleName: role.name,
-    skills: resolved.skills.map(publicSkill),
-    diagnostics: resolved.diagnostics,
-  };
+  return resolvedRoleSkillsPayload({ chamber, role, resolved });
 }
 
 function skillsCommand(args = []) {
@@ -1052,286 +610,32 @@ function skillsCommand(args = []) {
       console.log(JSON.stringify(payload, null, 2));
       return;
     }
-    console.log(`${payload.roleName} (${payload.roleKey})`);
-    if (payload.skills.length) {
-      for (const skill of payload.skills) {
-        const tools = skill.allowedTools.length ? ` tools=${skill.allowedTools.join(",")}` : "";
-        console.log(`- ${skill.id} ${skill.riskTier}${tools}`);
-      }
-    } else {
-      console.log("- no resolved skills");
-    }
-    for (const item of payload.diagnostics) console.log(`! ${item.level}: ${item.message}`);
+    for (const line of singleRoleSkillsLines(payload)) console.log(line);
     return;
   }
 
-  const payload = {
-    chamberId: chamber.id,
+  const payload = allRoleSkillsPayload({
+    chamber,
     roles: roles.map((role) => resolvedRoleSkills(role, chamber)),
-  };
+  });
   if (json) {
     console.log(JSON.stringify(payload, null, 2));
     return;
   }
-  console.log(`Skills: ${chamber.name}`);
-  for (const role of payload.roles) {
-    const skillIds = role.skills.map((skill) => skill.id).join(", ") || "-";
-    console.log(`- ${role.roleKey}: ${skillIds}`);
-  }
-}
-
-function roleLine(item) {
-  const architect = item.architect ? " architect" : "";
-  return `- ${item.name}${architect}: ${item.title}`;
-}
-/** @deprecated Use roleLine. */
-const philosopherLine = roleLine;
-
-function buildRootDescription({ request, mode, selected, chamber = activeChamber() }) {
-  if (!isPhilosophyChamber(chamber)) {
-    const agentLabel = chamber.labels?.agents || "roles";
-    const taskLabel = chamber.labels?.task || "task";
-    return [
-      `Запрос пользователя для ${chamber.name}.`,
-      "",
-      modePolicy(mode, chamber),
-      "",
-      `Выбранные участники (${agentLabel}):`,
-      selected.map(roleLine).join("\n"),
-      "",
-      "Исходный вопрос:",
-      request,
-      "",
-      "Как работать с этой задачей:",
-      `- Тип корневой задачи: ${taskLabel}.`,
-      `- Child-задачи создаются отдельно и назначаются выбранным участникам (${agentLabel}).`,
-      "- Участники дают собственные advisory-позиции и не финализируют общий вывод.",
-      "- После ответов запусти синтез: `node scripts/agora.mjs synthesize ISSUE_ID_OR_KEY`.",
-      "- Итоговый memo должен сохранить расхождения, условия решения, риски и следующий шаг.",
-    ].join("\n");
-  }
-
-  return [
-    "Запрос пользователя для The Inner Agora.",
-    "",
-    modePolicy(mode, chamber),
-    "",
-    "Выбранные философские машины:",
-    selected.map(roleLine).join("\n"),
-    "",
-    "Исходный вопрос:",
-    request,
-    "",
-    "Как работать с этой задачей:",
-    "- Это корневой протокол сессии.",
-    "- Child-задачи создаются отдельно и назначаются философам.",
-    "- Философы не должны изображать общий итог; они дают собственную позицию.",
-    "- После ответов запусти синтез: `node scripts/agora.mjs synthesize ISSUE_ID_OR_KEY`.",
-    "- Итоговый Agora Assistant memo должен сохранить конфликт, а не сгладить его.",
-  ].join("\n");
-}
-
-function buildRoleDescription({ rootIssue, request, mode, philosopher, chamber = activeChamber() }) {
-  if (!isPhilosophyChamber(chamber)) {
-    const agentLabel = chamber.labels?.agent || "role";
-    const agentsLabel = chamber.labels?.agents || "roles";
-    const taskLabel = chamber.labels?.task || "task";
-    return [
-      `Ты выступаешь как ${agentLabel} "${philosopher.name}" в палате "${chamber.name}".`,
-      "",
-      `Корневое ${taskLabel}: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
-      modePolicy(mode, chamber),
-      "",
-      "Профиль:",
-      `- Область: ${philosopher.era}`,
-      `- Фокус: ${philosopher.title}`,
-      `- Центральная интуиция: ${philosopher.centralIntuition}`,
-      `- Манера: ${philosopher.voice}`,
-      `- Напряжение / слепая зона: ${philosopher.tension}`,
-      "",
-      "Вопрос:",
-      request,
-      "",
-      transparencyPolicy(chamber),
-      "",
-      "Формат ответа:",
-      "1. Как я пересобираю запрос в своей зоне ответственности.",
-      "2. Моя advisory-позиция.",
-      "3. Какие предпосылки, данные или проверки отсутствуют.",
-      `4. С кем из выбранных ${agentsLabel} я бы спорил и почему.`,
-      "5. Что синтезатор должен забрать в итог.",
-      "6. Пометки: данные, предположения, риски, условия решения, что требует проверки.",
-      "",
-      "Ограничения:",
-      "- Не говори за всю палату.",
-      "- Не финализируй общий вывод.",
-      "- Не выдавай профессиональную рекомендацию там, где нужна проверка или профильный специалист.",
-      "- Не сглаживай собственную позицию ради согласия.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  return [
-    `Ты выступаешь как философская машина "${philosopher.name}" в The Inner Agora.`,
-    "",
-    `Корневая сессия: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
-    modePolicy(mode, chamber),
-    "",
-    "Профиль:",
-    `- Эпоха: ${philosopher.era}`,
-    `- Оптика: ${philosopher.title}`,
-    `- Центральная интуиция: ${philosopher.centralIntuition}`,
-    `- Манера: ${philosopher.voice}`,
-    `- Напряжение / слепая зона: ${philosopher.tension}`,
-    philosopher.contemporaryPublicFigure
-      ? "- Ограничение: это реконструкция публичной интеллектуальной оптики, а не речь самого человека."
-      : "",
-    "",
-    "Вопрос:",
-    request,
-    "",
-    transparencyPolicy(chamber),
-    "",
-    "Формат ответа:",
-    "1. Как я пересобираю вопрос в своих понятиях.",
-    "2. Моя позиция.",
-    "3. Что в вопросе скрыто или неверно предполагается.",
-    "4. С кем из выбранных философов я бы спорил и почему.",
-    "5. Что Agora Assistant должен забрать в синтез.",
-    "6. Пометки: источники, реконструкция, имитация голоса, современный перенос, что требует проверки.",
-    "",
-    "Ограничения:",
-    "- Не говори за весь совет.",
-    "- Не финализируй общий вывод.",
-    "- Не притворяйся буквальным историческим лицом.",
-    "- Не сглаживай собственную позицию ради согласия.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-/** @deprecated Use buildRoleDescription. */
-const buildPhilosopherDescription = buildRoleDescription;
-
-function buildDialogueDescription({ request, philosopher, chamber = activeChamber() }) {
-  return [
-    isPhilosophyChamber(chamber)
-      ? `Диалог пользователя с философской машиной "${philosopher.name}" в The Inner Agora.`
-      : `Диалог пользователя с ролью "${philosopher.name}" в палате "${chamber.name}".`,
-    "",
-    "Профиль:",
-    `- Эпоха: ${philosopher.era}`,
-    `- Оптика: ${philosopher.title}`,
-    `- Центральная интуиция: ${philosopher.centralIntuition}`,
-    `- Манера: ${philosopher.voice}`,
-    `- Напряжение / слепая зона: ${philosopher.tension}`,
-    philosopher.contemporaryPublicFigure
-      ? "- Ограничение: это реконструкция публичной интеллектуальной оптики, а не речь самого человека."
-      : "",
-    "",
-    "Вопрос / начало диалога:",
-    request,
-    "",
-    transparencyPolicy(chamber),
-    "",
-    "Веди живой философский диалог. Если вопрос поставлен поверхностно, сопротивляйся и уточняй. Отвечай по-русски, если пользователь не просит иначе. Даже в диалоге заканчивай содержательные ответы коротким блоком `Пометки:`.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-function buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher, chamber = activeChamber() }) {
-  return [
-    isPhilosophyChamber(chamber)
-      ? `Контекстный диалог с философской машиной "${philosopher.name}" в The Inner Agora.`
-      : `Контекстный диалог с ролью "${philosopher.name}" в палате "${chamber.name}".`,
-    "",
-    `Корневая сессия: ${rootIssue.identifier || rootIssue.id} — ${rootIssue.title}`,
-    "",
-    `Корневой вопрос: ${rootQuestion(rootIssue)}`,
-    "",
-    synthesisIssue ? `Синтез: ${synthesisIssue.identifier || synthesisIssue.id} — ${synthesisIssue.title}` : "Синтез: пока не найден.",
-    "",
-    "Выжимка синтеза:",
-    synthesisText ? clip(synthesisText, 6500) : "Содержательной выжимки пока нет. Ответь осторожно и явно отметь нехватку контекста.",
-    "",
-    "Вопрос пользователя к роли:",
-    request,
-    "",
-    "Профиль:",
-    `- Эпоха: ${philosopher.era}`,
-    `- Оптика: ${philosopher.title}`,
-    `- Центральная интуиция: ${philosopher.centralIntuition}`,
-    `- Манера: ${philosopher.voice}`,
-    `- Напряжение / слепая зона: ${philosopher.tension}`,
-    "",
-    transparencyPolicy(chamber),
-    "",
-    "Ответь именно как продолжение этой сессии. Сначала отреагируй на вопрос пользователя, затем явно свяжи ответ с линиями синтеза. Не создавай новый общий обзор.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-async function createIssue(companyId, payload) {
-  return api(`/companies/${companyId}/issues`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-async function updateIssue(issueId, patch) {
-  return api(`/issues/${issueId}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
-  });
-}
-
-async function addComment(issueId, body) {
-  return api(`/issues/${issueId}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ body }),
-  });
-}
-
-async function wakeAgent(agentId, issueId, reason, options = {}) {
-  const idempotencyKey = options.idempotencyKey || `inner-agora:${issueId}:${agentId}`;
-  return api(`/agents/${agentId}/wakeup`, {
-    method: "POST",
-    body: JSON.stringify({
-      source: "assignment",
-      triggerDetail: "system",
-      reason,
-      payload: { issueId, source: "inner-agora" },
-      idempotencyKey,
-      forceFreshSession: Boolean(options.forceFreshSession),
-    }),
-  });
-}
-
-async function wakeAgentSafe(agentId, issueId, reason, options = {}) {
-  try {
-    const run = await wakeAgent(agentId, issueId, reason, options);
-    return { ok: true, run };
-  } catch (error) {
-    return { ok: false, error: error.message || String(error) };
-  }
-}
-
-function wakeSummary(result) {
-  if (!result) return "wake=not-requested";
-  if (!result.ok) return `wake=failed (${result.error})`;
-  const run = result.run || {};
-  if (run.id) return `wake=${run.status || "queued"}:${run.id}`;
-  return `wake=${run.status || "accepted"}`;
+  for (const line of allRoleSkillsLines(payload)) console.log(line);
 }
 
 async function ask(args) {
-  const { request, mode, dryRun, all, noArchitects, philosopherList } = parseAskArgs(args);
+  const parsed = parseAskArgs(args, { defaultMode: defaultMode() });
+  if (parsed.help) usage(0);
+  const { request, mode, dryRun, all, confirmAll, noArchitects, philosopherList } = parsed;
   if (!request) throw new Error('Usage: node scripts/agora.mjs ask "your question"');
 
   const chamber = activeChamber();
   const selected = selectPhilosophers(request, mode, philosopherList, { all, noArchitects });
+  const preflight = allModePreflight({ mode, all, selected, request, dryRun, confirmAll });
+  if (!preflight.ok) throw new Error(preflight.message);
+
   const adapter = adapterForMode(mode, {
     chamber,
     roleCount: selected.length,
@@ -1375,7 +679,14 @@ async function ask(args) {
     const agent = agora.agentsByName.get(philosopher.name);
     const child = await createIssue(agora.company.id, {
       title: `${philosopher.name}: ${cleanTitle(request)}`,
-      description: buildRoleDescription({ rootIssue, request, mode, philosopher, chamber }),
+      description: buildRoleDescription({
+        rootIssue,
+        request,
+        mode,
+        philosopher,
+        chamber,
+        transparencyText: transparencyPolicy(chamber),
+      }),
       status: "todo",
       workMode: "standard",
       priority: mode === "max" || mode === "all" ? "critical" : "high",
@@ -1434,25 +745,6 @@ async function ask(args) {
   console.log(`Дальше автоматически: monitor запустит синтез после завершения голосов.`);
 }
 
-function parseFollowUpArgs(args) {
-  const rootRef = args[0];
-  if (!rootRef) throw new Error('Usage: node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"');
-  let roleList = "";
-  const textParts = [];
-  for (let index = 1; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--voices" || arg === "--philosophers") {
-      roleList = args[++index] || "";
-      if (!roleList) throw new Error(`${arg} requires comma-separated role keys or names`);
-    } else {
-      textParts.push(arg);
-    }
-  }
-  const request = textParts.join(" ").trim();
-  if (!request) throw new Error('Usage: node scripts/agora.mjs follow-up <root-issue> [--voices list] "question"');
-  return { rootRef, roleList, request };
-}
-
 function followUpRoles(request, roleList) {
   if (roleList) {
     const selected = roleList
@@ -1467,26 +759,11 @@ function followUpRoles(request, roleList) {
   return selectPhilosophers(request, "min", "", { noArchitects: false }).slice(0, 1);
 }
 
-function buildFollowUpDescription({ rootIssue, request, philosopher, chamber = activeChamber() }) {
-  return [
-    `Follow-up к сессии: ${rootIssue.identifier || rootIssue.id}`,
-    "",
-    `Корневой вопрос: ${rootQuestion(rootIssue)}`,
-    "",
-    `Уточнение для роли: ${philosopher.name}`,
-    "",
-    request,
-    "",
-    "Ответь как продолжение уже начатой сессии. Не создавай новый общий обзор, а уточни именно этот follow-up.",
-    "",
-    transparencyPolicy(chamber),
-  ].join("\n");
-}
-
 async function followUp(args) {
   const { rootRef, roleList, request } = parseFollowUpArgs(args);
   const rootIssue = await api(`/issues/${rootRef}`);
   const selected = followUpRoles(request, roleList);
+  const chamber = activeChamber();
   const agora = await getAgora();
   const missingAgents = selected.filter((item) => !agora.agentsByName.get(item.name));
   if (missingAgents.length) throw new Error(`Missing Paperclip agents: ${missingAgents.map((item) => item.name).join(", ")}`);
@@ -1496,7 +773,13 @@ async function followUp(args) {
     const agent = agora.agentsByName.get(philosopher.name);
     const child = await createIssue(agora.company.id, {
       title: `${philosopher.name}: follow-up ${cleanTitle(request)}`,
-      description: buildFollowUpDescription({ rootIssue, request, philosopher, chamber: activeChamber() }),
+      description: buildFollowUpDescription({
+        rootIssue,
+        request,
+        philosopher,
+        chamber,
+        transparencyText: transparencyPolicy(chamber),
+      }),
       status: "todo",
       workMode: "standard",
       priority: "high",
@@ -1536,13 +819,19 @@ async function dialogue(args) {
   const philosopher = roleByToken(philosopherToken);
   if (!philosopher) throw new Error(`Unknown philosopher: ${philosopherToken}`);
 
+  const chamber = activeChamber();
   const agora = await getAgora();
   const agent = agora.agentsByName.get(philosopher.name);
   if (!agent) throw new Error(`Missing Paperclip agent: ${philosopher.name}`);
 
   const issue = await createIssue(agora.company.id, {
     title: `Диалог ${philosopher.name}: ${cleanTitle(request)}`,
-    description: buildDialogueDescription({ request, philosopher, chamber: activeChamber() }),
+    description: buildDialogueDescription({
+      request,
+      philosopher,
+      chamber,
+      transparencyText: transparencyPolicy(chamber),
+    }),
     status: "todo",
     workMode: "standard",
     priority: "high",
@@ -1558,18 +847,6 @@ async function dialogue(args) {
   console.log(`Open: http://127.0.0.1:3100/issues/${issue.id}`);
 }
 
-async function latestSynthesisForRoot(rootIssue, agora) {
-  const allIssues = await api(`/companies/${agora.company.id}/issues`);
-  const synthesisIssue = latestSynthesisChild(rootIssue, allIssues, agora);
-  if (!synthesisIssue) return { synthesisIssue: null, synthesisText: "" };
-  const commentsList = await api(`/issues/${synthesisIssue.id}/comments`);
-  const comment = synthesisComment(commentsList);
-  return {
-    synthesisIssue,
-    synthesisText: normalizedDigestBody(comment?.body || ""),
-  };
-}
-
 async function dialogueWithContext(args) {
   const [rootRef, philosopherToken, ...requestParts] = args;
   const request = requestParts.join(" ").trim();
@@ -1580,15 +857,24 @@ async function dialogueWithContext(args) {
   const philosopher = roleByToken(philosopherToken);
   if (!philosopher) throw new Error(`Unknown philosopher: ${philosopherToken}`);
 
+  const chamber = activeChamber();
   const rootIssue = await api(`/issues/${rootRef}`);
   const agora = await getAgora();
   const agent = agora.agentsByName.get(philosopher.name);
   if (!agent) throw new Error(`Missing Paperclip agent: ${philosopher.name}`);
-  const { synthesisIssue, synthesisText } = await latestSynthesisForRoot(rootIssue, agora);
+  const { synthesisIssue, synthesisText } = await latestSynthesisForRoot(rootIssue, agora, api);
 
   const issue = await createIssue(agora.company.id, {
     title: `Диалог ${philosopher.name}: ${cleanTitle(request)}`,
-    description: buildDialogueWithContextDescription({ rootIssue, synthesisIssue, synthesisText, request, philosopher, chamber: activeChamber() }),
+    description: buildDialogueWithContextDescription({
+      rootIssue,
+      synthesisIssue,
+      synthesisText,
+      request,
+      philosopher,
+      chamber,
+      transparencyText: transparencyPolicy(chamber),
+    }),
     status: "todo",
     workMode: "standard",
     priority: "high",
@@ -1616,360 +902,8 @@ async function dialogueWithContext(args) {
   console.log(`Open: http://127.0.0.1:3100/issues/${issue.id}`);
 }
 
-const terminalStatuses = new Set(["done", "blocked", "cancelled"]);
-const allowedMoveStatuses = new Set(["todo", "in_progress", "blocked", "done", "cancelled"]);
-
-function parseTasksArgs(args) {
-  let scope = "open";
-  let limit = 20;
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--all") scope = "all";
-    else if (arg === "--open") scope = "open";
-    else if (arg === "--limit") {
-      const value = Number(args[index + 1]);
-      if (!Number.isFinite(value) || value <= 0) throw new Error("--limit requires a positive number");
-      limit = value;
-      index += 1;
-    } else if (arg === "--help" || arg === "-h") {
-      usage(0);
-    } else {
-      throw new Error(`Unknown tasks argument: ${arg}`);
-    }
-  }
-  return { scope, limit };
-}
-
-function compactIssueLine(issue, agentById = new Map()) {
-  const id = issue.identifier || issue.id;
-  const assignee = issue.assigneeAgentId ? agentById.get(issue.assigneeAgentId)?.name || "assigned" : "-";
-  const parent = issue.parentId ? " child" : " root";
-  return `- ${String(issue.status || "unknown").padEnd(11)} ${id.padEnd(7)}${parent} assignee=${assignee} ${issue.title}`;
-}
-
-function issueNumber(issue) {
-  const direct = Number(issue?.issueNumber);
-  if (Number.isFinite(direct)) return direct;
-  const match = String(issue?.identifier || "").match(/-(\d+)$/);
-  return match ? Number(match[1]) : 0;
-}
-
-function byIssueNumber(left, right) {
-  const delta = issueNumber(left) - issueNumber(right);
-  if (delta) return delta;
-  return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
-}
-
-function bareIssueRef(raw) {
-  if (!DEFAULT_ISSUE_PREFIX) return "";
-  const match = String(raw || "").match(/\b(\d{1,7})\b/);
-  return match ? `${DEFAULT_ISSUE_PREFIX.toUpperCase()}-${match[1]}` : "";
-}
-
-function latestIssueRef(args) {
-  const raw = args.join(" ");
-  const match = raw.match(ISSUE_REF_RE);
-  return match ? match[1].toUpperCase() : bareIssueRef(raw);
-}
-
-function withoutIssueRef(raw) {
-  let text = String(raw || "").replace(ISSUE_REF_RE, " ");
-  if (DEFAULT_ISSUE_PREFIX) text = text.replace(/\b\d{1,7}\b/g, " ");
-  return text.replace(/\s+/g, " ").trim();
-}
-
-async function resolveRootIssue(args, allIssues) {
-  const explicitRef = latestIssueRef(args);
-  if (explicitRef) {
-    const issue = await api(`/issues/${explicitRef}`);
-    if (!issue.parentId) return issue;
-    return api(`/issues/${issue.parentId}`);
-  }
-
-  const roots = allIssues
-    .filter((issue) => !issue.hiddenAt && !issue.parentId)
-    .sort((left, right) => byIssueNumber(right, left));
-  if (!roots.length) throw new Error("No root Agora sessions found in Paperclip.");
-  return roots[0];
-}
-
-async function resolveTopRootIssue(issue) {
-  let current = issue;
-  const seen = new Set();
-  while (current?.parentId && !seen.has(current.id)) {
-    seen.add(current.id);
-    current = await api(`/issues/${current.parentId}`);
-  }
-  return current;
-}
-
-function childrenOf(issue, allIssues) {
-  return allIssues.filter((item) => item.parentId === issue.id && !item.hiddenAt).sort(byIssueNumber);
-}
-
-function isSynthesisIssue(issue, assistantId = "") {
-  if (!issue) return false;
-  const title = String(issue.title || "");
-  if (/^Синтез:/i.test(title)) return true;
-  return Boolean(assistantId && issue.assigneeAgentId === assistantId && /\b(синтез|synthesis|summary|итог)\b/i.test(title));
-}
-
-function latestSynthesisChild(issue, allIssues, agora) {
-  return [...childrenOf(issue, allIssues)]
-    .reverse()
-    .find((child) => isSynthesisIssue(child, agora.assistant.id));
-}
-
-function hasSynthesisShape(text) {
-  return /Реальный вопрос|Какой вопрос реально исследовался|Участники и их позиции|Карта позиций|Главные линии конфликта|Черновая матрица/i.test(
-    normalizedDigestBody(text),
-  );
-}
-
-function oneLine(text, limit = 420) {
-  const value = String(text || "").replace(/\s+/g, " ").trim();
-  if (value.length <= limit) return value;
-  return `${value.slice(0, Math.max(0, limit - 15)).trim()} ... [clipped]`;
-}
-
-function extractHereDocBody(text) {
-  const value = String(text || "");
-  const match = value.match(/cat\s+<<['"]?([A-Za-z0-9_-]+)['"]?\s*\n([\s\S]*?)\n\1(?:\s|\)|$)/);
-  if (match) return match[2].trim();
-  const start = value.match(/cat\s+<<['"]?[A-Za-z0-9_-]+['"]?\s*\n/);
-  return start ? value.slice((start.index || 0) + start[0].length).trim() : "";
-}
-
-function meaningfulBody(text) {
-  let body = String(text || "").trim();
-  const hereDoc = extractHereDocBody(body);
-  if (hereDoc) body = hereDoc;
-  body = body.split(/⚠️\s*File-mutation verifier:/i)[0].trim();
-  body = body.replace(/```(?:bash|sh|zsh|shell)\s*[\s\S]*?```\s*/gi, "").trim();
-  return body;
-}
-
-function normalizedDigestBody(text) {
-  return meaningfulBody(text)
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\*\*(\d+\.\s*[^*\n]+)\*\*\s*$/gm, "$1")
-    .replace(/^\*\*(\d+\.\s*[^*\n]+)\*\*\s+(.+)$/gm, "$1\n$2")
-    .trim();
-}
-
-function rootQuestion(issue) {
-  const body = String(issue.description || "");
-  const match = body.match(/Исходный вопрос:\s*\n([\s\S]*?)(?:\n\n|$)/);
-  return oneLine(match ? match[1] : issue.title, 900);
-}
-
-function sectionBody(text, number) {
-  const pattern = new RegExp(`(?:^|\\n)${number}\\.\\s+[^\\n]*\\n+([\\s\\S]*?)(?=\\n\\d+\\.\\s+|\\nПометки:|$)`);
-  const match = normalizedDigestBody(text).match(pattern);
-  return match ? match[1].trim() : "";
-}
-
-function bulletLines(text, limit = 5) {
-  return String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => /^[-*]\s+/.test(line))
-    .slice(0, limit)
-    .map((line) => oneLine(line.replace(/^\*\s+/, "- "), 520));
-}
-
-function paragraphLines(text, limit = 2) {
-  return String(text || "")
-    .split(/\n\s*\n/)
-    .map((line) => oneLine(line, 620))
-    .filter(Boolean)
-    .slice(0, limit);
-}
-
-function synthesisComment(commentsList) {
-  const visible = commentsList.filter((item) => !item.deletedAt && String(item.body || "").trim());
-  const scored = visible
-    .map((comment) => {
-      const rawBody = String(comment.body || "");
-      const body = normalizedDigestBody(rawBody);
-      let score = body.length;
-      if (/Реальный вопрос|Какой вопрос реально исследовался|Участники и их позиции|Карта позиций|Главные линии конфликта/i.test(body)) score += 100000;
-      if (comment.authorType === "agent") score += 1000;
-      if (/PAPERCLIP_API|curl\s+-|jq\s|X-Paperclip-Run-Id|```bash/i.test(rawBody) && !extractHereDocBody(rawBody)) score -= 50000;
-      if (/Задача .* завершена|SYNTHESIS VERIFIED|Final disposition|already marked as done/i.test(body)) score -= 50000;
-      if (/Paperclip needs a disposition|Автоматически закрыто через Paperclip cockpit monitor/i.test(body)) score -= 50000;
-      return { comment, score };
-    })
-    .sort((left, right) => right.score - left.score);
-  return scored[0]?.comment || null;
-}
-
-function printSynthesisDigest(comment) {
-  const body = normalizedDigestBody(comment?.body || "");
-  if (!body) {
-    console.log("- Содержательного синтеза пока нет.");
-    return false;
-  }
-
-  let printed = false;
-  const positionsSection = /(?:^|\n)2\.\s+[^\n]*(участник|позици)/i.test(body) ? 2 : 3;
-  const conflictsSection = positionsSection === 2 ? 3 : 4;
-  const question = paragraphLines(sectionBody(body, 1), 1);
-  const positions = bulletLines(sectionBody(body, positionsSection), 6);
-  const positionParagraphs = positions.length ? [] : paragraphLines(sectionBody(body, positionsSection), 5);
-  const conflicts = bulletLines(sectionBody(body, conflictsSection), 5);
-  const unresolved = bulletLines(sectionBody(body, 6), 3);
-  const next = paragraphLines(sectionBody(body, 7), 1);
-  const notes = body.match(/Пометки:\s*([\s\S]*)$/)?.[1] || "";
-  const noteLines = bulletLines(notes, 5);
-
-  if (question.length) {
-    console.log("Реальный вопрос:");
-    for (const line of question) console.log(`- ${line}`);
-    console.log("");
-    printed = true;
-  }
-
-  if (positions.length) {
-    console.log("Позиции:");
-    for (const line of positions) console.log(line);
-    console.log("");
-    printed = true;
-  }
-
-  if (positionParagraphs.length) {
-    console.log("Позиции:");
-    for (const line of positionParagraphs) console.log(`- ${line}`);
-    console.log("");
-    printed = true;
-  }
-
-  if (conflicts.length) {
-    console.log("Линии конфликта:");
-    for (const line of conflicts) console.log(line);
-    console.log("");
-    printed = true;
-  }
-
-  if (unresolved.length) {
-    console.log("Осталось нерешенным:");
-    for (const line of unresolved) console.log(line);
-    console.log("");
-    printed = true;
-  }
-
-  if (next.length) {
-    console.log("Следующий шаг:");
-    for (const line of next) console.log(`- ${line}`);
-    console.log("");
-    printed = true;
-  }
-
-  if (noteLines.length) {
-    console.log("Пометки:");
-    for (const line of noteLines) console.log(line);
-    printed = true;
-  }
-  return printed;
-}
-
-function printVoiceDigest(comment) {
-  const body = normalizedDigestBody(comment?.body || "");
-  if (!body) {
-    console.log("- Содержательного ответа пока нет.");
-    return false;
-  }
-
-  const sections = [
-    ["Как он понял вопрос", sectionBody(body, 1)],
-    ["Позиция", sectionBody(body, 2)],
-    ["Что скрыто в вопросе", sectionBody(body, 3)],
-  ]
-    .map(([title, section]) => [title, paragraphLines(section, 1)])
-    .filter(([, lines]) => lines.length);
-
-  if (!sections.length) return false;
-  for (const [title, lines] of sections) {
-    console.log(`${title}:`);
-    for (const line of lines) console.log(`- ${line}`);
-    console.log("");
-  }
-  return true;
-}
-
-function printFallbackDigest(comment) {
-  const body = normalizedDigestBody(comment?.body || "");
-  if (!body) {
-    console.log("- Содержательного результата пока нет.");
-    return;
-  }
-  for (const line of paragraphLines(body, 6)) console.log(`- ${line}`);
-}
-
-function stripFullTokens(args = []) {
-  const fullWords = new Set(["--full", "full", "подробно", "полностью"]);
-  return {
-    full: args.some((arg) => fullWords.has(String(arg).toLowerCase())),
-    args: args.filter((arg) => !fullWords.has(String(arg).toLowerCase())),
-  };
-}
-
-function commandVoiceName(child, agentById) {
-  const titleName = String(child?.title || "").split(":", 1)[0].trim();
-  if (titleName && !/^синтез$/i.test(titleName)) return titleName.split("/")[0].trim();
-  const assignee = child?.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
-  if (assignee && assignee !== ASSISTANT_NAME) return assignee.split("/")[0].trim();
-  return "";
-}
-
 function printSessionActions(root, philosopherChildren, synthesis, agentById) {
-  const rootRef = root?.identifier || root?.id || "";
-  if (!rootRef) return;
-  const voiceNames = philosopherChildren.map((child) => commandVoiceName(child, agentById)).filter(Boolean).slice(0, 6);
-  console.log("");
-  console.log("Дальше:");
-  if (synthesis) console.log(`- Синтез: /agora result ${synthesis.identifier || synthesis.id}`);
-  else console.log(`- Собрать синтез: /agora synth ${rootRef}`);
-  for (const name of voiceNames) console.log(`- ${name}: /agora voice ${name} ${rootRef}`);
-}
-
-function displayStatus(status) {
-  const labels = {
-    todo: "ожидает",
-    in_progress: "в работе",
-    blocked: "заблокировано",
-    done: "готово",
-    cancelled: "отменено",
-    queued: "в очереди",
-  };
-  return labels[status] ? `${labels[status]} (${status})` : status || "unknown";
-}
-
-function displayTitle(issue) {
-  let title = String(issue?.title || "").trim();
-  title = title.replace(/^(Синтез:\s*){2,}/i, "Синтез: ");
-  return oneLine(title, 220);
-}
-
-function issueKind(issue, assistantId = "") {
-  if (isSynthesisIssue(issue, assistantId)) return "синтез";
-  if (issue?.parentId) return "подзадача";
-  return "пакет";
-}
-
-function issueByIdMap(issues) {
-  return new Map(issues.map((issue) => [issue.id, issue]));
-}
-
-function rootFromMap(issue, byId) {
-  let current = issue;
-  const seen = new Set();
-  while (current?.parentId && !seen.has(current.id)) {
-    seen.add(current.id);
-    current = byId.get(current.parentId) || current;
-    if (seen.has(current.id)) break;
-  }
-  return current;
+  for (const line of sessionActionLines(root, philosopherChildren, synthesis, agentById)) console.log(line);
 }
 
 async function status(args = []) {
@@ -1985,6 +919,7 @@ async function status(args = []) {
     console.log(`- ${adapterDisplayLine(lastAdapter)}`);
     console.log("");
   }
+  printCostSummary(state);
 
   const { company, agents } = await getAgora();
   const [issues, runs] = await Promise.all([
@@ -2038,57 +973,19 @@ async function recheck(args = []) {
   return latest([]);
 }
 
-function tagList(item) {
-  return Array.isArray(item.tags) ? item.tags.filter(Boolean) : [];
-}
-
-function normalizeTag(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function tagSummary() {
-  const counts = new Map();
-  for (const item of roles) {
-    for (const tag of tagList(item)) counts.set(tag, (counts.get(tag) || 0) + 1);
-  }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-}
-
-function parsePhilosophersArgs(args) {
-  const options = {
-    showTags: false,
-    tag: "",
-  };
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--tags" || arg === "tags" || arg === "теги") {
-      options.showTags = true;
-    } else if (arg === "--tag" || arg === "--тег") {
-      options.tag = normalizeTag(args[++index]);
-      if (!options.tag) throw new Error("Usage: node scripts/agora.mjs philosophers --tag TAG");
-    } else if (arg.startsWith("--tag=")) {
-      options.tag = normalizeTag(arg.slice("--tag=".length));
-      if (!options.tag) throw new Error("Usage: node scripts/agora.mjs philosophers --tag TAG");
-    } else if (arg === "--help" || arg === "-h") {
-      console.log("Usage: node scripts/agora.mjs philosophers [--tags|--tag TAG]");
-      process.exit(0);
-    } else {
-      throw new Error(`Unknown philosophers option: ${arg}`);
-    }
-  }
-
-  return options;
-}
-
 async function listPhilosophers(args = []) {
   const options = parsePhilosophersArgs(args);
+  if (options.help) {
+    console.log("Usage: node scripts/agora.mjs philosophers [--tags|--tag TAG]");
+    process.exit(0);
+  }
 
   if (options.showTags) {
     console.log("# Теги философов");
-    for (const [tag, count] of tagSummary()) console.log(`- ${tag}: ${count}`);
+    const summary = tagSummary(roles);
+    for (const [tag, count] of summary) console.log(`- ${tag}: ${count}`);
     console.log("");
-    console.log(`Всего тегов: ${tagSummary().length}`);
+    console.log(`Всего тегов: ${summary.length}`);
     console.log(`Философов: ${roles.length}`);
     return;
   }
@@ -2127,7 +1024,9 @@ async function listPhilosophers(args = []) {
 }
 
 async function tasks(args) {
-  const { scope, limit } = parseTasksArgs(args);
+  const parsed = parseTasksArgs(args);
+  if (parsed.help) usage(0);
+  const { scope, limit } = parsed;
   const { company, agents } = await getAgora();
   const allIssues = await api(`/companies/${company.id}/issues`);
   const agentById = new Map(agents.map((agent) => [agent.id, agent]));
@@ -2144,11 +1043,30 @@ async function tasks(args) {
   for (const issue of selected) console.log(compactIssueLine(issue, agentById));
 }
 
+function costs(args = []) {
+  const options = parseCostsArgs(args);
+  if (options.help) {
+    console.log("Usage: node scripts/agora.mjs costs [--json] [--limit N] [--since ISO|--hours N] [--pricing env|default|off|FILE]");
+    process.exit(0);
+  }
+  const state = readState();
+  const pricingPath = costPricingPath(options.pricingPath, { root: ROOT, cwd: process.cwd(), env: process.env });
+  const pricing = pricingPath ? readJsonFile(pricingPath, {}) : null;
+  const dashboardOptions = { ...options, pricing };
+  const dashboard = costDashboard(state, dashboardOptions);
+  if (options.json) {
+    process.stdout.write(stableJson(dashboard));
+    return dashboard;
+  }
+  for (const line of costDashboardLines(state, dashboardOptions)) console.log(line);
+  return dashboard;
+}
+
 async function latest(args) {
   const agora = await getAgora();
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
-  const root = await resolveRootIssue(args, allIssues);
+  const root = await resolveRootIssue(args, allIssues, api);
   const children = childrenOf(root, allIssues);
   const synthesis = latestSynthesisChild(root, allIssues, agora);
   const philosopherChildren = children.filter((issue) => issue.id !== synthesis?.id);
@@ -2171,6 +1089,11 @@ async function latest(args) {
     console.log("");
     console.log("## Маршрут модели");
     console.log(`- ${adapterDisplayLine(rootAdapter)}`);
+  }
+  const costState = readState();
+  if (costSummaryLine(costState)) {
+    console.log("");
+    printCostSummary(costState, { markdown: true });
   }
   console.log("");
   console.log("## Вопрос");
@@ -2203,24 +1126,6 @@ async function latest(args) {
   printSessionActions(root, philosopherChildren, synthesis, agentById);
 }
 
-function voiceChildren(root, allIssues, agora) {
-  return childrenOf(root, allIssues).filter((child) => !isSynthesisIssue(child, agora.assistant.id));
-}
-
-function voiceChildScore(child, philosopher, agentById) {
-  const assignee = child.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
-  return roleScoreInText(philosopher, `${child.title || ""} ${assignee}`);
-}
-
-function availableVoiceLines(children, agentById) {
-  if (!children.length) return ["- В этой сессии пока нет отдельных философских задач."];
-  return children.map((child) => {
-    const assignee = child.assigneeAgentId ? agentById.get(child.assigneeAgentId)?.name || "" : "";
-    const label = assignee || displayTitle(child);
-    return `- ${label}: ${child.identifier || child.id}`;
-  });
-}
-
 async function voice(args) {
   const parsed = stripFullTokens(args);
   const filteredArgs = parsed.args;
@@ -2238,7 +1143,7 @@ async function voice(args) {
   const agora = await getAgora();
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
-  const root = explicitRef ? await resolveRootIssue([explicitRef], allIssues) : await resolveRootIssue([], allIssues);
+  const root = explicitRef ? await resolveRootIssue([explicitRef], allIssues, api) : await resolveRootIssue([], allIssues, api);
   const candidates = voiceChildren(root, allIssues, agora);
 
   if (!philosopher) {
@@ -2291,10 +1196,10 @@ async function result(args) {
       if (target.id !== root.id) sourceNote = `Показан последний синтез пакета ${root.identifier || root.id}.`;
     } else {
       target = issue;
-      root = await resolveTopRootIssue(issue);
+      root = await resolveTopRootIssue(issue, api);
     }
   } else {
-    root = await resolveRootIssue([], allIssues);
+    root = await resolveRootIssue([], allIssues, api);
     target = latestSynthesisChild(root, allIssues, agora) || root;
     if (target.id !== root.id) sourceNote = `Показан последний синтез пакета ${root.identifier || root.id}.`;
   }
@@ -2466,10 +1371,10 @@ async function synthesize(args) {
 
   const agora = await getAgora();
   let allIssues = await api(`/companies/${agora.company.id}/issues`);
-  const root = issueRef ? await api(`/issues/${issueRef}`) : await resolveRootIssue([], allIssues);
+  const root = issueRef ? await api(`/issues/${issueRef}`) : await resolveRootIssue([], allIssues, api);
   rememberIssue(root, { lastRootIssueRef: root.identifier || root.id, lastRootIssueId: root.id });
   if (isSynthesisIssue(root, agora.assistant.id)) {
-    const parent = root.parentId ? await resolveTopRootIssue(root) : null;
+    const parent = root.parentId ? await resolveTopRootIssue(root, api) : null;
     console.log(`${root.identifier || root.id} уже является задачей синтеза.`);
     console.log(`Результат: node scripts/agora.mjs result ${root.identifier || root.id}`);
     if (parent && parent.id !== root.id) {
@@ -2479,7 +1384,7 @@ async function synthesize(args) {
   }
 
   if (root.parentId) {
-    const parent = await resolveTopRootIssue(root);
+    const parent = await resolveTopRootIssue(root, api);
     console.log(`${root.identifier || root.id} является child-задачей, а synth ожидает корневой пакет.`);
     console.log(`Новый синтез всего пакета: node scripts/agora.mjs synthesize ${parent.identifier || parent.id}`);
     console.log(`Результат этой задачи: node scripts/agora.mjs result ${root.identifier || root.id}`);
@@ -2504,39 +1409,10 @@ async function synthesize(args) {
   const children = childrenOf(root, allIssues);
 
   const childBlocks = await Promise.all(children.map(childBlock));
-  const description = [
-    "Agora Assistant: собери синтез философской сессии.",
-    "",
-    "Не изображай голоса, которых нет в материалах. Если child-задачи еще пустые, явно скажи, что синтез предварительный.",
-    "",
-    "Формат:",
-    "1. Реальный вопрос сессии.",
-    "2. Участники и их позиции.",
-    "3. Главные линии конфликта.",
-    "4. Скрытые предпосылки вопроса.",
-    "5. Сильнейшие аргументы.",
-    "6. Нерешенные вопросы.",
-    "7. Следующий исследовательский или практический шаг.",
-    "8. Как использованы пометки: источники, реконструкции, имитации, современные переносы, что требует проверки.",
-    "",
-    "Ограничения:",
-    "- Не стирай пометки философов о типе утверждения.",
-    "- Не превращай [имитация] или [реконструкция] в якобы подтвержденный источник.",
-    "- Если источник требует проверки, сохрани это как исследовательский долг.",
-    "",
-    "Корневая сессия:",
-    `# ${root.identifier || root.id}: ${root.title}`,
-    "",
-    clip(root.description || "", 4000),
-    "",
-    "# Материалы философов",
-    "",
-    childBlocks.length ? childBlocks.join("\n\n---\n\n") : "Child-задач нет.",
-  ].join("\n");
 
   const synthesis = await createIssue(agora.company.id, {
     title: `Синтез: ${root.title}`,
-    description: clip(description, 24000),
+    description: buildSynthesisDescription({ root, childBlocks }),
     status: "todo",
     workMode: "standard",
     priority: "high",
@@ -2568,26 +1444,6 @@ async function synthesize(args) {
   console.log(`Open: http://127.0.0.1:3100/issues/${synthesis.id}`);
 }
 
-function collectSubtree(root, allIssues) {
-  const byParent = new Map();
-  for (const issue of allIssues.filter((item) => !item.hiddenAt)) {
-    if (!issue.parentId) continue;
-    const items = byParent.get(issue.parentId) || [];
-    items.push(issue);
-    byParent.set(issue.parentId, items);
-  }
-
-  const items = [];
-  function visit(issue, depth) {
-    for (const child of (byParent.get(issue.id) || []).sort(byIssueNumber)) {
-      items.push({ issue: child, depth });
-      visit(child, depth + 1);
-    }
-  }
-  visit(root, 1);
-  return { items, byParent };
-}
-
 async function finalize(args) {
   const dryRun = args.includes("--dry-run");
   const issueRef = latestIssueRef(args);
@@ -2595,7 +1451,7 @@ async function finalize(args) {
 
   const agora = await getAgora();
   const start = await api(`/issues/${issueRef}`);
-  const root = await resolveTopRootIssue(start);
+  const root = await resolveTopRootIssue(start, api);
   rememberIssue(root, { lastRootIssueRef: root.identifier || root.id, lastRootIssueId: root.id });
   const allIssues = await api(`/companies/${agora.company.id}/issues`);
   const agentById = new Map(agora.agents.map((agent) => [agent.id, agent]));
@@ -2603,12 +1459,8 @@ async function finalize(args) {
   const issueById = new Map([[root.id, root], ...items.map(({ issue }) => [issue.id, issue])]);
   const changed = [];
 
-  function visibleChildren(issue) {
-    return (byParent.get(issue.id) || []).filter((child) => !child.hiddenAt).sort(byIssueNumber);
-  }
-
   for (const { issue } of [...items].sort((left, right) => right.depth - left.depth || byIssueNumber(right.issue, left.issue))) {
-    const kids = visibleChildren(issue);
+    const kids = visibleChildren(issue, byParent);
     if (!kids.length || terminalStatuses.has(issue.status)) continue;
     if (!kids.every((child) => terminalStatuses.has(issueById.get(child.id)?.status || child.status))) continue;
 
@@ -2620,7 +1472,7 @@ async function finalize(args) {
     changed.push(issue);
   }
 
-  const rootChildren = visibleChildren(root);
+  const rootChildren = visibleChildren(root, byParent);
   const openRootChildren = rootChildren.filter((child) => !terminalStatuses.has(issueById.get(child.id)?.status || child.status));
 
   console.log(`# Закрытие пакета: ${root.identifier || root.id}`);
@@ -2660,17 +1512,6 @@ async function finalize(args) {
   console.log(`Open: http://127.0.0.1:3100/issues/${root.id}`);
 }
 
-function slugify(text, fallback = "session") {
-  const slug = String(text || "")
-    .trim()
-    .replace(/[\\/:*?"<>|#^[\]]+/g, " ")
-    .replace(/\s+/g, " ")
-    .slice(0, 100)
-    .trim()
-    .replace(/\s/g, "-");
-  return slug || fallback;
-}
-
 async function exportMemory(args) {
   const issueRef = args[0];
   if (!issueRef) throw new Error("Usage: node scripts/agora.mjs export-memory <issue-id-or-key>");
@@ -2679,69 +1520,14 @@ async function exportMemory(args) {
   rememberIssue(issue);
   const commentsList = await api(`/issues/${issue.id}/comments`);
   fs.mkdirSync(MEMORY_DIR, { recursive: true });
-  const filePath = path.join(MEMORY_DIR, `${issue.identifier || issue.id}-${slugify(issue.title)}.md`);
-  const body = [
-    "---",
-    `paperclip_id: ${JSON.stringify(issue.id)}`,
-    `identifier: ${JSON.stringify(issue.identifier || "")}`,
-    `status: ${JSON.stringify(issue.status || "")}`,
-    `created: ${JSON.stringify(issue.createdAt || "")}`,
-    `updated: ${JSON.stringify(issue.updatedAt || "")}`,
-    "source: paperclip",
-    "---",
-    "",
-    `# ${issue.identifier || issue.id}: ${issue.title}`,
-    "",
-    `Paperclip: http://127.0.0.1:3100/issues/${issue.id}`,
-    "",
-    "## Description",
-    "",
-    issue.description || "",
-    "",
-    "## Comments",
-    "",
-    commentsList.length
-      ? commentsList
-          .map((comment) => `### ${comment.authorType || "unknown"} ${comment.createdAt || ""}\n\n${comment.body || ""}`)
-          .join("\n\n")
-      : "No comments.",
-    "",
-  ].join("\n");
-  fs.writeFileSync(filePath, body.endsWith("\n") ? body : `${body}\n`, "utf8");
+  const filePath = memoryExportPath(MEMORY_DIR, issue);
+  const body = memoryExportMarkdown(issue, commentsList);
+  fs.writeFileSync(filePath, body, "utf8");
   console.log(`Exported: ${filePath}`);
 }
 
-function startExampleForChamber(chamber) {
-  if (chamber.id === "board-directors") {
-    return {
-      chamber: chamber.id,
-      text: "совет директоров, нужен go/no-go по найму CTO",
-    };
-  }
-  return {
-    chamber: chamber.id,
-    text: "давай спросим агору про свободу ребенка и власть родителей",
-  };
-}
-
-function buildStartExamples(chambers) {
-  return chambers.map(startExampleForChamber);
-}
-
 function printStartOnboarding(payload) {
-  console.log(payload.title);
-  console.log("");
-  console.log("Пиши обычным языком: я пойму вопрос, выберу палату и создам задачи в Paperclip.");
-  console.log(`Понимание текста: ${payload.routingMode === "llm" ? "локальная модель" : "детерминированный fallback"}.`);
-  console.log("");
-  console.log("Палаты:");
-  for (const chamber of payload.chambers) {
-    const marker = chamber.id === payload.activeChamberId ? "*" : "-";
-    console.log(`${marker} ${chamber.id}: ${chamber.name}`);
-  }
-  console.log("");
-  console.log("Можно начать так:");
-  for (const example of payload.examples) console.log(`- ${example.text}`);
+  for (const line of startOnboardingLines(payload)) console.log(line);
 }
 
 async function start(args = []) {
@@ -2764,30 +1550,13 @@ async function start(args = []) {
   return payload;
 }
 
-function wizardInitialSlots() {
-  return {
-    intent: "new_session",
-    chamber: null,
-    mode: "balanced",
-    topic: null,
-    roles: [],
-    taskRef: null,
-    missingSlots: ["topic"],
-    confidence: 0.8,
-  };
-}
-
 function writeWizard(wizard) {
   return writeState({ wizard });
 }
 
-function chamberChoiceLines() {
-  return listChambers(CHAMBERS_DIR).map((chamber, index) => `${index + 1}. ${chamber.id} — ${chamber.name}`);
-}
-
 function printChamberQuestion() {
   console.log("В какую палату поставить вопрос?");
-  for (const line of chamberChoiceLines()) console.log(line);
+  for (const line of chamberChoiceLines(listChambers(CHAMBERS_DIR))) console.log(line);
 }
 
 function printModeQuestion() {
@@ -2795,32 +1564,6 @@ function printModeQuestion() {
   console.log("1. коротко");
   console.log("2. обычно");
   console.log("3. глубоко");
-}
-
-function parseWizardChamber(answer) {
-  const value = looseText(answer);
-  const chambers = listChambers(CHAMBERS_DIR);
-  if (value === "1") return chambers[0]?.id || DEFAULT_CHAMBER_ID;
-  if (value === "2") return chambers[1]?.id || chambers[0]?.id || DEFAULT_CHAMBER_ID;
-  if (value.includes("board") || value.includes("директор") || value.includes("бизнес")) return "board-directors";
-  if (value.includes("philosophy") || value.includes("философ") || value.includes("агора")) return "philosophy";
-  return chambers.find((chamber) => value.includes(looseText(chamber.id)) || value.includes(looseText(chamber.name)))?.id || "";
-}
-
-function parseWizardMode(answer) {
-  const value = looseText(answer);
-  if (value === "1" || value.includes("корот") || value.includes("кратк") || value.includes("min")) return "min";
-  if (value === "3" || value.includes("глуб") || value.includes("подроб") || value.includes("max")) return "max";
-  if (value === "2" || value.includes("обыч") || value.includes("баланс") || value.includes("balanced")) return "balanced";
-  return "";
-}
-
-function wizardConfirmed(answer) {
-  return /^(да|yes|y|go|ок|окей|запускай|start)$/i.test(looseText(answer));
-}
-
-function wizardCancelled(answer) {
-  return /^(нет|no|n|cancel|отмена|стоп)$/i.test(looseText(answer));
 }
 
 function printWizardConfirmation(slots) {
@@ -2862,7 +1605,7 @@ async function wizardAnswer(args = []) {
   }
 
   if (current.step === "chamber") {
-    const chamber = parseWizardChamber(answer);
+    const chamber = parseWizardChamber(answer, listChambers(CHAMBERS_DIR), DEFAULT_CHAMBER_ID);
     if (!chamber) {
       printChamberQuestion();
       return;
@@ -2900,104 +1643,15 @@ async function wizardAnswer(args = []) {
   return wizard([]);
 }
 
-function parseNaturalArgs(args = []) {
-  const options = {
-    routingMode: process.env.ROUTING_MODE || "regex",
-    json: false,
-    dryRun: false,
-    text: "",
-  };
-  const textParts = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === "--routing-mode") {
-      options.routingMode = args[++index] || options.routingMode;
-    } else if (arg === "--json") {
-      options.json = true;
-    } else if (arg === "--dry-run") {
-      options.dryRun = true;
-    } else {
-      textParts.push(arg);
-    }
-  }
-  options.text = textParts.join(" ").trim();
-  if (!options.text) throw new Error('Usage: node scripts/agora.mjs natural "human text"');
-  return options;
-}
-
-function naturalFollowUpRequested(text) {
-  const value = naturalWords(text);
-  return /уточн|продолж|спроси еще|по этой сессии|а что если/.test(value);
-}
-
-function naturalWords(text) {
-  return String(text || "")
-    .toLowerCase()
-    .replace(/ё/g, "е")
-    .replace(/[^0-9a-zа-я]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function naturalNewTopicRequested(text) {
-  const value = naturalWords(text);
-  return /нов(ый|ая)\s+(вопрос|тема)|отдельн(ый|ая)\s+(вопрос|тема)|с нуля/.test(value);
-}
-
-function naturalNewSessionRequested(text) {
-  const value = naturalWords(text);
-  return /спрос|задай|поставь|исслед|разобраться|собери|создай|консилиум|совет|запуст|запуск|начать|хочу\s+запустить/.test(value);
-}
-
-function naturalReadOnlyRequested(text) {
-  const value = naturalWords(text);
-  return (
-    /помощь|help|команды|как пользоваться|что доступно|возможности|готов|статус|что там|выжим|результат|итог|синтез|покажи|посмотри|таск|задач|issue|task|что сказал|подробнее|голос|позици|ответ/.test(
-      value,
-    ) || /(^|\s)(что|чем)\s+(ты\s+)?(умеешь|можешь)(\s|$)/u.test(value)
-  );
-}
-
-function stateTimestamp(state) {
-  return state.lastSynthesisSeenAt || state.lastIssueSeenAt || state.updatedAt || "";
-}
-
-function lastSynthesisIsFresh(state, now = new Date()) {
-  if (!state.lastSynthesisRef) return false;
-  const raw = stateTimestamp(state);
-  if (!raw) return false;
-  const timestamp = new Date(raw);
-  if (Number.isNaN(timestamp.getTime())) return false;
-  const hours = Number(process.env.INNER_AGORA_FOLLOWUP_WINDOW_HOURS || 24);
-  const ageMs = now.getTime() - timestamp.getTime();
-  return ageMs >= 0 && ageMs <= hours * 60 * 60 * 1000;
-}
-
 function naturalContext(text) {
-  const state = readState();
-  const lastRootIssueRef = state.lastRootIssueRef || "";
-  const explicitFollowUp = Boolean(lastRootIssueRef && naturalFollowUpRequested(text));
-  const implicitFollowUp = Boolean(
-    lastRootIssueRef &&
-      lastSynthesisIsFresh(state) &&
-      !explicitFollowUp &&
-      !naturalNewTopicRequested(text) &&
-      !naturalNewSessionRequested(text) &&
-      !naturalReadOnlyRequested(text),
-  );
-  return {
-    lastRootIssueRef,
-    lastSynthesisRef: state.lastSynthesisRef || "",
-    isFollowUp: explicitFollowUp || implicitFollowUp,
-    explicitFollowUp,
-    implicitFollowUp,
-  };
+  return naturalContextFromState(text, readState(), { env: process.env });
 }
 
 async function understand(args = []) {
   const options = parseNaturalArgs(args);
   const context = naturalContext(options.text);
   const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode, context });
+  rememberCostLog(extracted, context, "understand");
   const plan = decideNextStep(extracted.slots, context);
   const payload = { ...extracted, plan };
   if (options.json) {
@@ -3023,13 +1677,7 @@ async function runPlannedCommand(command) {
 }
 
 function naturalCommandPayload(command, options, extra = {}) {
-  const text = command.join(" ");
-  const payload = {
-    action: "rewrite",
-    text,
-    plan: { action: "command", command, text, ...(extra.plan || {}) },
-    ...extra,
-  };
+  const payload = buildNaturalCommandPayload(command, extra);
   if (options.json) process.stdout.write(stableJson(payload));
   else console.log(payload.text);
   return payload;
@@ -3046,6 +1694,7 @@ async function natural(args = []) {
 
   const context = naturalContext(options.text);
   const extracted = await extractIntentSlots(options.text, { routingMode: options.routingMode, context });
+  rememberCostLog(extracted, context, "natural");
   const plan = decideNextStep(extracted.slots, context);
 
   if (options.dryRun || options.json) {
@@ -3101,6 +1750,7 @@ async function main() {
   if (command === "philosopher-search" || command === "role-search") return philosopherSearch(args);
   if (command === "role-proposal" || command === "philosopher-proposal") return roleProposal(args);
   if (command === "status") return status(args);
+  if (command === "costs" || command === "cost" || command === "tokens") return costs(args);
   if (command === "recheck" || command === "verify" || command === "перепроверь" || command === "сверь") return recheck(args);
   if (command === "tasks") return tasks(args);
   if (command === "latest" || command === "last" || command === "brief") return latest(args);

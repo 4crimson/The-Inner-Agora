@@ -1,0 +1,31 @@
+{
+  "notifications": {
+    "comments": {
+      "move_status_changed": "Статус изменен через Agora cockpit: {old_status} -> {new_status}.",
+      "auto_finalized": "Пакет автоматически закрыт через Agora cockpit: все видимые дочерние задачи уже в финальных статусах."
+    }
+  },
+  "agora": {
+    "default_mode": "local"
+  },
+  "natural_language": {
+    "start": {
+      "action": "start"
+    },
+    "delegate": {
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "natural",
+        "--dry-run",
+        "--json",
+        "{text}"
+      ],
+      "timeout": 45
+    }
+  },
+  "language": "ru",
+  "company_hints": [
+    "The Inner Agora"
+  ]
+}

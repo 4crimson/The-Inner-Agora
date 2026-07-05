@@ -25,6 +25,29 @@
     "lastAdapterModel": { "type": "string" },
     "lastAdapterReason": { "type": "string" },
     "lastAdapterRiskTier": { "type": "string" },
+    "session": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "costLog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "kind": { "type": "string" },
+              "source": { "type": "string" },
+              "model": { "type": "string" },
+              "adapter": { "type": "string" },
+              "promptTokens": { "type": "number", "minimum": 0 },
+              "completionTokens": { "type": "number", "minimum": 0 },
+              "totalTokens": { "type": "number", "minimum": 0 },
+              "createdAt": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
     "wizard": {}
   }
 }

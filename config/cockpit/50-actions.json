@@ -1,0 +1,770 @@
+{
+  "actions": {
+    "prepare": {
+      "usage": "prepare [local|balanced|max]",
+      "aliases": [
+        "подготовь"
+      ],
+      "natural_aliases": [
+        "подготовь агору",
+        "обнови философов"
+      ],
+      "description": "обновить структуру проекта и философов в Paperclip",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "prepare"
+      ],
+      "timeout": 240
+    },
+    "recheck": {
+      "usage": "recheck [ISSUE]",
+      "aliases": [
+        "recheck",
+        "verify",
+        "перепроверь",
+        "сверь"
+      ],
+      "natural_aliases": [
+        "перепроверь статус",
+        "сверь статус",
+        "проверь статус заново",
+        "в вебе вижу другой статус",
+        "откуда у тебя такой статус",
+        "статус отличается",
+        "другой статус"
+      ],
+      "description": "заново сверить статус задачи прямо через Paperclip API",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "recheck"
+      ],
+      "timeout": 180
+    },
+    "status": {
+      "usage": "status",
+      "aliases": [
+        "статус"
+      ],
+      "natural_aliases": [
+        "статус",
+        "статус агоры"
+      ],
+      "description": "кратко показать состояние агоры",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "status"
+      ],
+      "timeout": 180
+    },
+    "costs": {
+      "usage": "costs [--limit N] [--pricing default]",
+      "aliases": [
+        "cost",
+        "tokens",
+        "токены",
+        "стоимость"
+      ],
+      "natural_aliases": [
+        "стоимость",
+        "токены",
+        "сколько токенов",
+        "расход токенов",
+        "стоимость агоры"
+      ],
+      "description": "показать локальную сводку token usage и известной стоимости",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "costs",
+        "--pricing",
+        "default"
+      ],
+      "timeout": 60
+    },
+    "catalog": {
+      "usage": "catalog",
+      "aliases": [
+        "каталог"
+      ],
+      "natural_aliases": [
+        "список философов с тегами",
+        "дай список философов с тегами",
+        "покажи список философов с тегами",
+        "философы с тегами",
+        "состав философов с тегами"
+      ],
+      "description": "чистый список философов с тегами из проектного roster",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "philosophers"
+      ],
+      "append_args": false,
+      "timeout": 180
+    },
+    "latest": {
+      "usage": "latest [ISSUE]",
+      "aliases": [
+        "last",
+        "brief",
+        "summary",
+        "выжимка",
+        "последняя"
+      ],
+      "natural_aliases": [
+        "выжимка",
+        "дай выжимку",
+        "покажи выжимку",
+        "последняя таска",
+        "последняя задача",
+        "последняя сессия",
+        "результаты последней таски",
+        "результаты последней задачи"
+      ],
+      "description": "показать последнюю сессию с подзадачами и выжимкой",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "latest"
+      ],
+      "timeout": 180
+    },
+    "result": {
+      "usage": "result [ISSUE] [--full]",
+      "aliases": [
+        "result",
+        "outcome",
+        "итог",
+        "результат"
+      ],
+      "natural_aliases": [
+        "давай результат",
+        "тогда давай результат",
+        "дай результат",
+        "покажи результат",
+        "результат синтеза",
+        "дай результат по синтезу",
+        "дай последнюю выжимку",
+        "последняя выжимка",
+        "итог синтеза"
+      ],
+      "description": "показать содержательный итог или синтез",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "result"
+      ],
+      "timeout": 180
+    },
+    "voice": {
+      "usage": "voice PHILOSOPHER [ISSUE] [--full]",
+      "aliases": [
+        "voice",
+        "голос"
+      ],
+      "natural_aliases": [
+        "голос",
+        "голос философа"
+      ],
+      "description": "показать материал одного философа из последней или указанной сессии",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "voice"
+      ],
+      "timeout": 180
+    },
+    "telegram_result": {
+      "usage": "telegram_result ISSUE",
+      "description": "служебный Telegram payload для синтеза с inline-кнопками",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-result"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_voice": {
+      "usage": "telegram_voice ISSUE",
+      "description": "служебный Telegram payload для отдельного голоса с inline-кнопками",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-voice"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_latest": {
+      "usage": "telegram_latest ISSUE",
+      "description": "служебный Telegram payload для сессии с inline-кнопками",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-latest"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_last_session": {
+      "usage": "telegram_last_session [ISSUE]",
+      "description": "служебный Telegram payload для последней сессии без raw Paperclip деталей",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-last-session"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_final_result": {
+      "usage": "telegram_final_result",
+      "description": "служебный Telegram payload для последнего готового итога",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-final-result"
+      ],
+      "append_args": false,
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_history": {
+      "usage": "telegram_history",
+      "description": "служебный Telegram payload для истории корневых сессий",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-history"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosophers": {
+      "usage": "telegram_philosophers [ISSUE]",
+      "description": "служебный Telegram payload для философов текущей сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosophers"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosopher_search": {
+      "usage": "telegram_philosopher_search QUERY",
+      "description": "служебный Telegram payload для поиска философа без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosopher-search"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_philosopher_choice": {
+      "usage": "telegram_philosopher_choice PHILOSOPHER",
+      "description": "служебный Telegram payload для выбора одного философа без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-philosopher-choice"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_proposal": {
+      "usage": "telegram_custom_proposal TOPIC",
+      "description": "служебный Telegram payload для предложения редактируемого состава философов",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-proposal"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_deep_proposal": {
+      "usage": "telegram_deep_proposal TOPIC",
+      "description": "служебный Telegram payload для предложения глубокого состава после ввода темы",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-deep-proposal"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_add_prompt": {
+      "usage": "telegram_custom_add_prompt --philosophers KEYS TOPIC",
+      "description": "служебный Telegram payload для добавления философа в сохраненный custom-состав",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit-prompt",
+        "add"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_remove_prompt": {
+      "usage": "telegram_custom_remove_prompt --philosophers KEYS TOPIC",
+      "description": "служебный Telegram payload для удаления философа из сохраненного custom-состава",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit-prompt",
+        "remove"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_custom_edit": {
+      "usage": "telegram_custom_edit add|remove --philosophers KEYS --topic TOPIC --query QUERY",
+      "description": "служебный Telegram payload для обновления custom-состава без запуска сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-custom-edit"
+      ],
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_details": {
+      "usage": "telegram_details [ISSUE]",
+      "description": "служебный Telegram payload для второго уровня деталей сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-details"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_stop_confirm": {
+      "usage": "telegram_stop_confirm ISSUE",
+      "description": "служебный Telegram payload для подтверждения остановки сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-stop-confirm"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_stop_cleanup": {
+      "usage": "telegram_stop_cleanup ISSUE",
+      "description": "служебный Telegram payload для подтвержденной остановки и скрытия сессии",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-stop-cleanup"
+      ],
+      "timeout": 180,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_status": {
+      "usage": "telegram_qa_status",
+      "description": "служебный Telegram payload со статусом последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-status"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_report": {
+      "usage": "telegram_qa_report",
+      "description": "служебный Telegram payload с последним QA-отчетом без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-report"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_failures": {
+      "usage": "telegram_qa_failures",
+      "description": "служебный Telegram payload с падениями последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-failures"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "telegram_qa_cleanup": {
+      "usage": "telegram_qa_cleanup",
+      "description": "служебный Telegram payload с cleanup-статусом последнего QA-артефакта без live запуска",
+      "exec": [
+        "node",
+        "scripts/paperclip-cockpit-telegram.mjs",
+        "payload-qa-cleanup"
+      ],
+      "append_args": false,
+      "timeout": 60,
+      "presentation": {
+        "mode": "raw",
+        "clip": 30000
+      }
+    },
+    "mode": {
+      "usage": "mode [get|set MODE]",
+      "aliases": [
+        "режим"
+      ],
+      "natural_aliases": [
+        "режим",
+        "режим агоры"
+      ],
+      "description": "показать или изменить режим выбора участников",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "mode"
+      ],
+      "timeout": 180
+    },
+    "council": {
+      "usage": "council QUESTION",
+      "aliases": [
+        "совет"
+      ],
+      "natural_aliases": [
+        "совет",
+        "совет философов"
+      ],
+      "description": "задать вопрос минимальному совету",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "council"
+      ],
+      "timeout": 900
+    },
+    "ask": {
+      "usage": "ask [--min|--balanced|--max|--all|--philosophers list] QUESTION",
+      "aliases": [
+        "question",
+        "вопрос"
+      ],
+      "natural_aliases": [
+        "агора",
+        "вопрос агоре"
+      ],
+      "description": "создать исследовательскую сессию",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask"
+      ],
+      "timeout": 900
+    },
+    "follow-up": {
+      "usage": "follow-up ROOT QUESTION",
+      "aliases": [
+        "followup",
+        "продолжить"
+      ],
+      "description": "продолжить существующую Agora-сессию",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "follow-up"
+      ],
+      "timeout": 900
+    },
+    "min": {
+      "usage": "min QUESTION",
+      "aliases": [
+        "мин",
+        "минимум"
+      ],
+      "natural_aliases": [
+        "агора-мин",
+        "агора минимум"
+      ],
+      "description": "запустить короткую сессию",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--min"
+      ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
+      "timeout": 900
+    },
+    "max": {
+      "usage": "max QUESTION",
+      "aliases": [
+        "макс",
+        "максимум"
+      ],
+      "natural_aliases": [
+        "агора-макс",
+        "агора максимум"
+      ],
+      "description": "запустить расширенную сессию",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--max"
+      ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
+      "timeout": 900
+    },
+    "all": {
+      "usage": "all QUESTION",
+      "aliases": [
+        "все",
+        "всё"
+      ],
+      "natural_aliases": [
+        "агора-все",
+        "агора все"
+      ],
+      "description": "подключить всех философов из roster",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--all"
+      ],
+      "timeout": 900
+    },
+    "quick": {
+      "usage": "quick QUESTION",
+      "aliases": [
+        "quick",
+        "быстрый"
+      ],
+      "natural_aliases": [
+        "быстрый совет",
+        "короткий совет"
+      ],
+      "description": "быстрый локальный совет",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--min"
+      ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
+      "timeout": 900
+    },
+    "deep": {
+      "usage": "deep QUESTION",
+      "aliases": [
+        "deep",
+        "глубоко"
+      ],
+      "natural_aliases": [
+        "глубокое исследование",
+        "глубокий разбор"
+      ],
+      "description": "глубокое локальное исследование",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--max"
+      ],
+      "env": {
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
+      "timeout": 900
+    },
+    "go-no-go": {
+      "usage": "go-no-go QUESTION",
+      "aliases": [
+        "go-no-go"
+      ],
+      "natural_aliases": [
+        "go/no-go",
+        "совет директоров go/no-go"
+      ],
+      "description": "быстрая проверка практического решения: делать или не делать",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "ask",
+        "--min"
+      ],
+      "env": {
+        "INNER_AGORA_ACTIVE_CHAMBER": "board-directors",
+        "INNER_AGORA_MODE": "local",
+        "INNER_AGORA_FORCE_LOCAL_ADAPTER": "1"
+      },
+      "timeout": 900
+    },
+    "dialogue": {
+      "usage": "dialogue PHILOSOPHER QUESTION",
+      "aliases": [
+        "dialog",
+        "диалог"
+      ],
+      "natural_aliases": [
+        "диалог"
+      ],
+      "description": "начать диалог с одним философом",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "dialogue"
+      ],
+      "timeout": 600
+    },
+    "synth": {
+      "usage": "synth [ISSUE]",
+      "aliases": [
+        "synthesize",
+        "синтез"
+      ],
+      "natural_aliases": [
+        "синтез",
+        "собери синтез",
+        "сделай синтез",
+        "синтезируй"
+      ],
+      "description": "создать задачу синтеза для корневой сессии",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "synthesize"
+      ],
+      "timeout": 900
+    },
+    "finalize": {
+      "usage": "finalize ISSUE",
+      "aliases": [
+        "close",
+        "закрыть",
+        "финализировать"
+      ],
+      "natural_aliases": [
+        "закрой пакет",
+        "закрыть пакет",
+        "закрой сессию",
+        "закрыть сессию",
+        "финализируй пакет"
+      ],
+      "description": "закрыть пакет, если все дочерние задачи завершены",
+      "builtin": "finalize",
+      "timeout": 180
+    },
+    "memory": {
+      "usage": "memory ISSUE",
+      "aliases": [
+        "память"
+      ],
+      "natural_aliases": [
+        "память"
+      ],
+      "description": "экспортировать сессию в markdown-память проекта",
+      "exec": [
+        "node",
+        "scripts/agora.mjs",
+        "export-memory"
+      ],
+      "timeout": 180
+    },
+    "guard": {
+      "usage": "guard",
+      "aliases": [
+        "check",
+        "проверка"
+      ],
+      "natural_aliases": [
+        "проверка агоры"
+      ],
+      "description": "проверить файлы и настройки The Inner Agora",
+      "exec": [
+        "node",
+        "scripts/inner-agora-guard.mjs"
+      ],
+      "append_args": false,
+      "timeout": 60
+    }
+  }
+}

@@ -30,6 +30,10 @@ class Phase6StateManagerTests(unittest.TestCase):
         self.assertEqual(schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
         self.assertIn("schemaVersion", schema["required"])
         self.assertEqual(schema["properties"]["schemaVersion"]["const"], 1)
+        session = schema["properties"]["session"]
+        self.assertEqual(session["type"], "object")
+        self.assertEqual(session["properties"]["costLog"]["type"], "array")
+        self.assertIn("totalTokens", session["properties"]["costLog"]["items"]["properties"])
 
     def test_per_chat_path_sanitizes_chat_id(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { listChambers, loadChamber } from "./chamber-loader.mjs";
 import { slotExtractorConfig } from "./model-routing.mjs";
+import { tokenCostEntry } from "./agora/cost-utils.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
@@ -470,6 +471,7 @@ async function callLocalModel(userText, options = {}) {
   const extractorConfig = slotExtractorConfig();
   const baseUrl = (options.baseUrl || extractorConfig.baseUrl).replace(/\/+$/, "");
   const model = options.model || extractorConfig.model;
+  const adapter = extractorConfig.adapter || "";
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -486,18 +488,58 @@ async function callLocalModel(userText, options = {}) {
   });
   if (!response.ok) throw new Error(`local model request failed: ${response.status} ${response.statusText}`);
   const payload = await response.json();
-  return payload.choices?.[0]?.message?.content || "";
+  return {
+    content: payload.choices?.[0]?.message?.content || "",
+    usage: payload.usage || null,
+    model,
+    adapter,
+  };
+}
+
+function fakeLocalModelResult() {
+  const extractorConfig = slotExtractorConfig();
+  let usage = null;
+  try {
+    usage = process.env.INNER_AGORA_FAKE_LLM_USAGE ? JSON.parse(process.env.INNER_AGORA_FAKE_LLM_USAGE) : null;
+  } catch {
+    usage = null;
+  }
+  return {
+    content: process.env.INNER_AGORA_FAKE_LLM_RESPONSE || "",
+    usage,
+    model: extractorConfig.model,
+    adapter: extractorConfig.adapter || "",
+  };
+}
+
+function callCostEntry(call, kind) {
+  return tokenCostEntry({
+    kind,
+    source: "llm",
+    model: call.model,
+    adapter: call.adapter,
+    usage: call.usage,
+  });
 }
 
 async function extractWithLlm(userText, options = {}) {
-  const raw = process.env.INNER_AGORA_FAKE_LLM_RESPONSE || (await callLocalModel(userText, options));
+  const calls = [];
+  const first = process.env.INNER_AGORA_FAKE_LLM_RESPONSE ? fakeLocalModelResult() : await callLocalModel(userText, options);
+  calls.push(callCostEntry(first, "intent-extractor"));
   try {
-    return normalizeIntentSlots(parseJsonObject(raw));
+    return {
+      slots: normalizeIntentSlots(parseJsonObject(first.content)),
+      costLog: calls.filter(Boolean),
+    };
   } catch (error) {
     if (process.env.INNER_AGORA_FAKE_LLM_RESPONSE) throw error;
-    const repairPrompt = `Верни только исправленный JSON для этого ответа:\n${raw}`;
+    const repairPrompt = `Верни только исправленный JSON для этого ответа:\n${first.content}`;
     const repaired = await callLocalModel(repairPrompt, options);
-    return normalizeIntentSlots(parseJsonObject(repaired));
+    calls.push(callCostEntry(repaired, "intent-extractor-repair"));
+    return {
+      slots: normalizeIntentSlots(parseJsonObject(repaired.content)),
+      costLog: calls.filter(Boolean),
+    };
   }
 }
 
@@ -523,11 +565,16 @@ export async function extractIntentSlots(userText, options = {}) {
   }
   if (routingMode === "llm") {
     try {
-      const slots = await extractWithLlm(userText, options);
-      if (needsDeterministicFallback(slots, userText, options.context || {})) {
-        return { source: "regex", fallbackReason: "llm_low_confidence_or_missing_critical_slot", slots: deterministic };
+      const extracted = await extractWithLlm(userText, options);
+      if (needsDeterministicFallback(extracted.slots, userText, options.context || {})) {
+        return {
+          source: "regex",
+          fallbackReason: "llm_low_confidence_or_missing_critical_slot",
+          slots: deterministic,
+          costLog: extracted.costLog,
+        };
       }
-      return { source: "llm", slots };
+      return { source: "llm", slots: extracted.slots, costLog: extracted.costLog };
     } catch (error) {
       return { source: "regex", fallbackReason: error?.message || String(error), slots: deterministic };
     }

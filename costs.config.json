@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "currency": "USD",
+  "rates": {
+    "gemma-4-26b-a4b-it-mlx": {
+      "inputPer1MTokens": 0,
+      "outputPer1MTokens": 0
+    },
+    "google/gemma-4-26b-a4b-qat": {
+      "inputPer1MTokens": 0,
+      "outputPer1MTokens": 0
+    },
+    "lmstudio_slots": {
+      "inputPer1MTokens": 0,
+      "outputPer1MTokens": 0
+    },
+    "hermes_local": {
+      "inputPer1MTokens": 0,
+      "outputPer1MTokens": 0
+    }
+  }
+}
