@@ -1,0 +1,139 @@
+# Completion Audit: Roadmap Realization
+
+Date: 2026-07-05
+Scope: `/Users/admin/Documents/The Inner Agora`
+
+This document is the current completion audit for the active goal: implement
+`docs/roadmap/README.md`. It is intentionally stricter than a status note:
+roadmap completion is not treated as true until every requirement has direct
+current-state evidence.
+
+## Verdict
+
+The roadmap is substantially implemented locally, but the full goal is not
+complete yet.
+
+The main blockers are not lack of random cleanup. They are specific acceptance
+gates:
+
+- live Telegram acceptance is still not fully proven;
+- Phase 1 legacy removal is blocked until the soak gate is eligible on
+  `2026-07-09T09:01:09.000Z`;
+- Phase 9 is partial: local token ledger and pricing exist, but Paperclip agent
+  usage and monetary preflight are not covered;
+- `scripts/agora.mjs` is still a large runtime file, so Pass C is not finished;
+- plugin/pack boundaries are documented, but install/publish/profile promotion
+  has intentionally not been run without operator approval.
+
+## Evidence Rules
+
+Completion evidence must be one of:
+
+- current file state;
+- current command output from non-live local checks;
+- live QA evidence explicitly gathered after operator approval;
+- a documented gate that explains why work must not proceed yet.
+
+A green unit test is useful evidence for local behavior. It is not, by itself,
+evidence that Telegram live UX is accepted.
+
+## Requirement Matrix
+
+| Requirement area | Current evidence | Audit status | Remaining acceptance |
+| --- | --- | --- | --- |
+| Roadmap entrypoint and status navigation | `README.md`, `CURRENT_STATUS.md`, `PLUGIN_BOUNDARIES.md`, this audit | Local docs current | Keep this audit updated after each slice |
+| Phase 0 regression baseline | `scripts/regression.mjs`, baseline fixtures, current soak check runs both legacy and chambers regression successfully | Locally proven | Keep running before behavior-changing slices |
+| QW-1 typo handling | `ask-unknown-philosopher-dry-run` in regression baseline, role search helpers | Locally proven | None for local scope |
+| QW-2 self-heal / guard direction | `scripts/inner-agora-guard.mjs`, monitor/guard tests and Phase 8 notes | Locally implemented | Live reliability still belongs to live acceptance, not cleanup |
+| QW-3 onboarding / compact Telegram entry | Telegram command boundary, `/start` aliases, compact home/help callbacks | Locally implemented | Live retest still pending for full service command surface |
+| QW-4 Paperclip backup before migrations | `scripts/backup-company.mjs`, `.gitignore` `backups/`, `tests/test_backup_company.py` | Locally implemented | Live Paperclip backup has not been run; do it only after explicit approval |
+| Phase 1 role schema and migration | `data/schema/role.schema.json`, `scripts/migrate-roles.mjs`, `chambers/philosophy/roles.json`, soak check `migration` ok | Locally proven except removal | T1.6 blocked until `2026-07-09T09:01:09.000Z` and must be separate |
+| Phase 2 chambers / packs | `data/schema/chamber.schema.json`, `scripts/chamber-loader.mjs`, philosophy and board-directors chambers | Locally implemented | Board role content quality T2.6b is not proven by voice tests |
+| Phase 3 skills layer | `data/schema/skill.schema.json`, `scripts/skill-loader.mjs`, `skills/*/skill.json`, skill tests | Locally implemented | Do not promote as public skill/plugin layer without a separate gate |
+| Phase 4 human assistant | `data/schema/intent-slots.schema.json`, `scripts/intent-slots.mjs`, wizard/follow-up tests | Locally implemented | Live profile/router drift can still break the intended UX |
+| Phase 5 model routing | `models.config.json`, `scripts/model-routing.mjs`, routing tests | Locally implemented | Cloud/provider route is not part of this phase |
+| Phase 6 per-chat state | `scripts/state-manager.mjs`, `data/schema/state.schema.json`, per-chat tests | Locally implemented | Live Telegram must prove chat id propagation in actual gateway |
+| Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill | Locally implemented | Runtime ancestry health before live ask still needs explicit guard coverage |
+| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes | Locally implemented but live-pending | BUG-2026-07-03-001 remains open; several fixed bugs still require live retest |
+| Phase 9 observability/cost | `scripts/agora/cost-utils.mjs`, `costs.config.json`, `/agora costs`, all-mode volume preflight | Partial | Paperclip agent usage, unknown pricing, and monetary preflight remain open |
+| Config source split | `config/cockpit/*.json`, build/check tooling, matching runtime sha | Locally proven | Humans should edit fragments, runtime keeps `paperclip-cockpit.json` |
+| Generic plugin boundary | `paperclip-cockpit` no longer owns Agora launch copy; `PLUGIN_BOUNDARIES.md` defines gates | Locally improved | No install/publish/profile copy without explicit approval |
+| Agora runtime cleanup | `scripts/agora/*.mjs` contains many extracted pure/helper modules | Partial | `scripts/agora.mjs` is still a large runtime file and not a thin dispatcher |
+| Telegram helper cleanup | `scripts/telegram/*.mjs` extracted payload, QA artifact, send, stop cleanup helpers | Locally started | Future UX/copy changes need focused contract tests |
+
+Latest local Pass C slice: `scripts/agora/cli-parse-utils.mjs` now owns pure
+CLI argument parsing for ask, council, follow-up, role-proposal, tasks, and
+full-output flags. `scripts/agora.mjs` still owns default mode resolution, help
+output, role selection, command execution, Paperclip API calls, and terminal
+printing, so the roadmap remains partial rather than complete.
+Next local Pass C slice: `scripts/agora/state-output-utils.mjs` now owns pure
+state patch and CLI line formatting for remembered issues, decorated token cost
+entries, compact cost summaries, active chamber readout, and mode readout.
+`scripts/agora.mjs` still owns state reads/writes, adapter/chamber selection,
+Paperclip API calls, command dispatch, and printing side effects.
+Previous local Pass C slice: `scripts/agora/role-output-utils.mjs` now owns pure
+role/skill presentation payloads and line rendering for role search, role
+proposal, and `skills` readouts. `scripts/agora.mjs` still owns roster loading,
+role selection, skill resolution, active chamber state, JSON output, and
+terminal printing.
+Previous local Pass C slice: `scripts/agora/finalize-utils.mjs` now owns pure
+finalize tree traversal and visible child sorting. `scripts/agora.mjs` still
+owns Paperclip issue reads, dry-run/write behavior, auto-close comments/status
+updates, and terminal output, so roadmap completion remains blocked on the
+larger runtime split and live/soak gates.
+Previous local Pass C slice: `scripts/agora/natural-utils.mjs` now also owns the
+pure natural command rewrite payload builder. `scripts/agora.mjs` still owns
+dry-run printing, JSON output, planned-command execution, state reads/writes,
+slot extraction, and cost-log persistence.
+Previous local Pass C slice: `scripts/agora/text-utils.mjs` now also owns the
+pure Paperclip issue title cleanup helper (`cleanTitle`). `scripts/agora.mjs`
+still owns session, follow-up, and dialogue issue creation, so this is another
+module-boundary cleanup, not a behavior or Paperclip write-path change.
+Latest local Pass C slice: `scripts/agora/issue-query-utils.mjs` now owns
+Paperclip read-side issue resolution for latest synthesis lookup, root session
+selection, and top-root traversal through an injected `api` dependency.
+`scripts/agora.mjs` still owns command flow, terminal output, state updates, and
+all Paperclip write paths.
+
+## Definition Of Ideal Check
+
+| Roadmap ideal | Current result |
+| --- | --- |
+| New chamber by config without editing `agora.mjs` | Mostly true for current board-directors chamber; some selection/runtime policy still passes through `agora.mjs`, so do not call the core fully pluginized yet |
+| New user can start in Telegram without README | Locally implemented with compact menus and `/start` aliases; live acceptance still pending |
+| Maximum one clarification question, no silent incomplete session | Locally implemented through slot/wizard planning and pending question flow; live profile drift remains a risk |
+| Follow-up after synthesis stays in session context | Locally implemented via follow-up and dialogue-context paths; live gateway state propagation still must be proven |
+| No hardcoded absolute path or duplicated en/ru dictionary outside manifest/config | Runtime config no longer shows `/Users/admin` paths; generic plugin is cleaner, but Agora-facing philosopher labels remain intentionally product config |
+| Regression runs before release | Harness exists and current non-live checks pass; release discipline must keep using it |
+| Per-chat state isolation | Locally implemented; live Telegram must still prove actual chat id propagation |
+
+## Live Acceptance Backlog
+
+`docs/roadmap/BUGS.md` is still authoritative for live acceptance failures.
+Current audit blockers:
+
+- `BUG-2026-07-03-001` is open: raw service tokens, internal reasoning fallback,
+  wrong operational persona, mode/status continuation, Paperclip hierarchy
+  failures, and help routing issues were observed in live Telegram.
+- `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and
+  `BUG-2026-07-04-004` are locally fixed or partially fixed, but still require
+  live retest before product acceptance.
+- Quick/deep live inbound verification through the actual Telegram gateway is
+  still separate from CLI/plugin diagnostics.
+- Project-action error UX handles the terminated-ancestor 409 path locally, but
+  command-not-found and provider timeout/error formatting remain open.
+
+No live retest should run until the operator explicitly says
+`можно трогать живую систему`.
+
+## Next Safe Work Order
+
+1. Continue Pass C as behavior-preserving `agora.mjs` module extraction.
+2. Add explicit dry/local guard coverage for selected voice ancestry before ask
+   creation.
+3. Extend Phase 9 only where usage data is actually available; keep unknown
+   pricing unknown.
+4. After `2026-07-09T09:01:09.000Z`, re-run the soak gates and handle T1.6 in a
+   separate legacy-removal slice if eligible.
+5. Only after explicit live approval, run Telegram live retests from `BUGS.md`
+   and update this audit from real evidence.

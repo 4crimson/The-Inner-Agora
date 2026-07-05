@@ -26,6 +26,7 @@ The Inner Agora сделана как рабочий контур для вду�
 - Проверять живой контур guard-скриптом: профиль Hermes, Paperclip, Telegram, callbacks, chamber loader, cockpit config.
 - Запускать repeatable Telegram QA suites через userbot, собирать evidence, баги и чистить тестовые сообщения/задачи.
 - Использовать один generic plugin-слой для других Paperclip-проектов: command boundary, меню и callbacks задаются через config, а не хардкодятся в Python.
+- Держать границы plugin/pack явно: текущая карта вынесения лежит в [docs/roadmap/PLUGIN_BOUNDARIES.md](docs/roadmap/PLUGIN_BOUNDARIES.md).
 
 ## Чем это не является
 
@@ -47,6 +48,8 @@ The Inner Agora сделана как рабочий контур для вду�
 - Активный Paperclip roster: `philosophers/active-roster.md`
 - Большой банк кандидатов, рейтинги и draft-промпты: `philosophers/candidates/`
 - Память экспортов: `memory/sessions/` (не коммитится в git)
+
+Reusable слои сейчас разделены так: `paperclip-cockpit` — generic Hermes runtime plugin; `paperclip-cockpit/qa-tool` — generic QA runtime; `telegram-paperclip-qa` — Codex workflow plugin; `chambers/*`, `skills/*`, `config/cockpit/*` и `scripts/agora*` остаются Agora-specific pack/runtime до отдельного promotion шага. Install/publish/live-проверки не запускаются из cleanup без явного `можно трогать живую систему`.
 
 ## Как устроено
 

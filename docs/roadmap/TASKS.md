@@ -22,6 +22,13 @@
 | QW-3 | Статический `/start`-онбординг: 2–3 захардкоженных сообщения с метафорой и примерами | P1 | S | — | Новый чат получает онбординг; умная версия — позже в T4.7 |
 | QW-4 | `scripts/backup-company.mjs`: дамп агентов/issues/comments в `backups/<date>/` | P0 | S | — | Дамп снят до первого миграционного прогона Фазы 1 |
 
+**Срез 2026-07-05:** QW-4 закрыт локально как read-only инструмент:
+`scripts/backup-company.mjs [--company-id ID|--company NAME] [--api-base URL] [--out DIR] [--json]`
+сохраняет `org`, `agents`, `issues` и comments в `backups/<timestamp>-<company>/backup.json`.
+`backups/` игнорируется git. Скрипт покрыт `tests/test_backup_company.py`.
+Снимок живой Paperclip-компании этим срезом не запускался; live-read остается за
+отдельным явным разрешением.
+
 ---
 
 ## Фаза 0 — Аудит, тесты, заморозка контракта
@@ -163,6 +170,21 @@
 | T9.2 | Предупреждение перед созданием сессии в `all`-режиме при превышении порога стоимости | P1 | S | T9.1 | Пользователь видит оценку до подтверждения, а не постфактум |
 | T9.3 | Контроль объёма на входе `ask --all` (сейчас есть только `clip()` на выходе синтеза) | P1 | M | — | 84-голосый режим не создаёт 84 child-задачи без явного подтверждения |
 | T9.4 | Дашборд/команда `/agora costs` за период | P2 | M | T9.1 | Показывает суммарную стоимость за последние N сессий |
+
+**Срез 2026-07-05:** T9.1 начат локально. `scripts/agora/cost-utils.mjs`
+нормализует token usage, `scripts/intent-slots.mjs` прокидывает usage локального
+intent extractor, `state.session.costLog[]` описан в state schema, а `status` и
+`latest` показывают сумму токенов. T9.4 локально закрыт как read-only dashboard:
+`node scripts/agora.mjs costs [--json] [--limit N] [--since ISO|--hours N]`, плюс
+`costs` action в cockpit config. Денежная оценка добавлена как явный pricing
+config: `costs.config.json` задает zero-cost для локальных LM Studio/Hermes
+моделей, а `node scripts/agora.mjs costs --pricing default` считает known cost и
+отдельно показывает unknown calls/tokens без тарифа. T9.2/T9.3 локально закрыты
+как volume/preflight guard: `ask --all` без `--confirm-all` останавливается до
+Paperclip API и показывает оценку количества голосов/child-задач; `--dry-run`
+остается безопасным просмотром состава, а `--confirm-all` явно сохраняет прежний
+путь создания задач. Еще не закрыто: usage Paperclip agent calls; текущий
+preflight пока не делает денежную оценку будущей сессии.
 
 ---
 

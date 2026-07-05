@@ -74,6 +74,31 @@ If a config defines a command name, that command replaces `/pc` in the Telegram 
 
 See `examples/paperclip-cockpit.example.json` for a generic placeholder config. The plugin itself should not contain project-specific nouns, scripts, or prompts.
 
+## Package Boundaries
+
+This package is the reusable Hermes runtime plugin. Keep project products as
+configuration or separate packs:
+
+- Runtime plugin: `paperclip-cockpit` owns command boundary, Paperclip reads,
+  explicitly enabled writes, configurable action dispatch, Telegram callback
+  dispatch, and generic builtins.
+- QA runtime: `qa-tool/` is project-neutral and reads a project config.
+- Codex workflow: `codex-plugin/telegram-paperclip-qa/` is optional workflow
+  guidance for Codex; it is not loaded by Hermes at runtime.
+- Project packs: chamber content, roles, prompts, labels, custom scripts, and
+  first-level UX copy belong outside this plugin.
+
+Promotion rule: do not add product-specific nouns to `__init__.py` or the
+generic QA tool. Put project behavior in `paperclip-cockpit.json`, source config
+fragments, or a project-owned pack. Installing, publishing, or copying this
+plugin into a live profile is an operator action, not a documentation cleanup
+step.
+
+Project-specific launch acknowledgements should use `telegram.launch_summary`.
+That config can define success markers, issue regexes, visible labels, callback
+names, ignored CLI flags, and the project role-list flag while keeping the
+runtime plugin generic.
+
 ## QA Runner
 
 The `qa-tool/` directory contains a project-neutral Telegram/Paperclip QA runner. It reads a project config, executes suites, captures Telegram messages and Paperclip issues in a manifest, performs manifest-scoped cleanup, writes reports, and can send a compact retained Telegram result summary after a live run.
