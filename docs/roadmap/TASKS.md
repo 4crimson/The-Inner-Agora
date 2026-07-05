@@ -136,6 +136,12 @@ wake/raw child row/CLI flag запретов; сценарные UX-лейблы
 5. В acceptance считать suite `accepted_with_repair` или `blocked`, но не чистым
    PASS, если cleanup оставил running/finalizing runs или guard red.
 
+Acceptance note: `adapter_failed` из-за
+`workspace_operations_issue_id_issues_id_fk` после успешного Hermes
+`Exit code: 0` считается lifecycle/release-gate failure. Это не должно попадать
+в UX/router backlog без доказательства, что cleanup и post-suite guard были
+зелеными.
+
 Статус 2026-07-06: RL-3 реализован локально в `paperclip-qa`.
 `cleanup hard` перед `DELETE` читает `/issues/:id/live-runs`; если есть active
 run, cleanup вызывает `/heartbeat-runs/:id/cancel`, poll'ит terminal state в

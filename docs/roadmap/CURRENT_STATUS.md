@@ -58,6 +58,12 @@ stay separate from cleanup commits.
 6. Roadmap and bug docs contain a mix of planned, done, locally fixed, and
    live-pending items. A current status document is needed to stop old plans from
    reading as current instructions.
+7. A visible Paperclip `adapter_failed` after Hermes exits with code 0 can be a
+   lifecycle race, not a model/router/Telegram UX bug. The observed pattern was
+   `hard cleanup` deleting an issue before `workspace_finalize` recorded its
+   `workspace_operations` row. Release evidence must therefore include
+   active-run-safe cleanup and post-suite guard status before it can be called a
+   clean pass.
 
 ## Plugin Candidates
 
@@ -428,8 +434,9 @@ node scripts/agora.mjs costs --pricing default
 ## Recommended Next Work
 
 1. Build the release live gate first: post-suite guard/manifest/acceptance
-   fields plus active-run-safe cleanup. This reduces the false confidence that
-   "cleanup passed" means "live system is healthy".
+   fields plus active-run-safe cleanup evidence. Treat blocked active runs,
+   cleanup residuals, red post-suite guard, or `workspace_finalize`/FK
+   `adapter_failed` as `blocked` or `accepted_with_repair`, not a clean pass.
 2. Centralize the Telegram first-level leak contract after that, so UX tests
    stop duplicating route/model/local URL/wake/raw child row exclusions.
 3. Continue Pass C runtime-module splits only after the release lane no longer

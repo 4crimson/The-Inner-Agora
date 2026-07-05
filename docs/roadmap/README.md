@@ -15,3 +15,10 @@
 фиксирует повторяемый release workflow для Agora/Telegram/Paperclip:
 `preflight -> backup -> profile/plugin sync -> live suite -> cleanup ->
 acceptance -> post-suite guard -> docs/commit`.
+
+Главный lifecycle-фикс этого трека: если Paperclip показывает
+`adapter_failed` после успешного Hermes exit code 0, это может быть не ошибка
+модели или UX, а race между `hard cleanup` и еще живым `workspace_finalize`.
+`RL-3` и `RL-2` фиксируют правило: cleanup сначала cancel/wait active runs,
+затем delete, затем post-suite guard; иначе release decision не может быть
+чистым `accepted`.
