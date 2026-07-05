@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
@@ -9,6 +10,7 @@ import { runSuiteHealthGuard, shouldRunSuiteHealthGuard } from "../src/guard-run
 import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, updateManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
+import { checkProfilePluginSync } from "../src/profile-plugin-sync.mjs";
 import { writeReleaseGate } from "../src/release-gate.mjs";
 import { appendBugsToDoc, bugBatch, buildTelegramSummary, writeAcceptance, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
 import { createRetestRun, executeRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
@@ -30,6 +32,10 @@ function parseArgs(argv) {
     mode: "",
     cleanup: "",
     backupId: "",
+    plugin: "paperclip-cockpit",
+    profile: "",
+    repoPluginDir: "",
+    profilePluginDir: "",
     profilePluginSync: "",
     appendDoc: "",
     area: "",
@@ -51,6 +57,10 @@ function parseArgs(argv) {
     else if (arg === "--mode") options.mode = tail[++index] || "";
     else if (arg === "--cleanup") options.cleanup = tail[++index] || "";
     else if (arg === "--backup-id") options.backupId = tail[++index] || "";
+    else if (arg === "--plugin") options.plugin = tail[++index] || "";
+    else if (arg === "--profile") options.profile = tail[++index] || "";
+    else if (arg === "--repo-plugin-dir") options.repoPluginDir = tail[++index] || "";
+    else if (arg === "--profile-plugin-dir") options.profilePluginDir = tail[++index] || "";
     else if (arg === "--profile-plugin-sync") options.profilePluginSync = tail[++index] || "";
     else if (arg === "--append-doc") options.appendDoc = tail[++index] || "";
     else if (arg === "--area") options.area = tail[++index] || "";
@@ -72,6 +82,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config FILE [--profile NAME] [--plugin NAME] [--repo-plugin-dir DIR] [--profile-plugin-dir DIR] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
@@ -103,6 +114,7 @@ function configSummary(config) {
       name: config.name,
       telegram: {
         target: config.telegram.target,
+        profile: config.telegram.profile || "",
       },
       paperclip: {
         apiBase: config.paperclip.apiBase,
@@ -180,6 +192,7 @@ function releasePlan({ configPath, config, cleanupMode }) {
     suites,
     preflightCommands: [
       `${base} completion-check --config ${quotedConfig} --json`,
+      ...(config.telegram.profile ? [`${base} profile-plugin-sync --config ${quotedConfig} --json`] : []),
       ...suites.map((suite) => `${base} readiness --config ${quotedConfig} --suite ${shellQuote(suite)} --cleanup ${quotedCleanup} --json`),
     ],
     acknowledgement: "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
@@ -242,6 +255,18 @@ function shouldNotifyTelegram(config, options) {
     return true;
   }
   return Boolean(config.reporting?.telegram?.enabled && config.reporting?.telegram?.sendResult);
+}
+
+function defaultRepoPluginDir() {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+}
+
+function profilePluginDir({ config, options }) {
+  if (options.profilePluginDir) return path.resolve(options.profilePluginDir);
+  const profile = options.profile || config.telegram?.profile || process.env.HERMES_PROFILE || "";
+  if (!profile) return "";
+  const hermesHome = process.env.HERMES_HOME || path.join(os.homedir(), ".hermes");
+  return path.join(hermesHome, "profiles", profile, "plugins", options.plugin);
 }
 
 function suitePreview({ config, suiteName, cleanupMode }) {
@@ -405,6 +430,18 @@ async function main(argv) {
   if (options.command === "release-plan") {
     printPayload(releasePlan({ configPath: options.config, config, cleanupMode: options.cleanup }), options.json);
     return 0;
+  }
+  if (options.command === "profile-plugin-sync") {
+    if (!options.plugin) throw new ConfigValidationError(["--plugin is required"]);
+    const profileDir = profilePluginDir({ config, options });
+    if (!profileDir) throw new ConfigValidationError(["--profile-plugin-dir or telegram.profile is required"]);
+    const result = checkProfilePluginSync({
+      plugin: options.plugin,
+      repoPluginDir: options.repoPluginDir || defaultRepoPluginDir(),
+      profilePluginDir: profileDir,
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
   }
   if (options.command === "release-gate") {
     if (options.profilePluginSync && !["ok", "warning", "blocked"].includes(options.profilePluginSync)) {

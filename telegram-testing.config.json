@@ -2,6 +2,7 @@
   "name": "inner-agora-telegram-qa",
   "telegram": {
     "target": "@crimson_philosophs_bot",
+    "profile": "inneragora",
     "userbot": {
       "session": ".telegram-userbot"
     }

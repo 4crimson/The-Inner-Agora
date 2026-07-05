@@ -76,6 +76,13 @@ decision, cleanup residuals, active-run cleanup evidence и post-suite guard в
 полученных evidence; следующий RL-1/RL-4 шаг — автоматизировать/проверять
 backup и repo-profile plugin sync preflight до live suite.
 
+Статус 2026-07-06: первый локальный срез RL-4 реализован как
+`paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
+repo plugin tree и установленного Hermes profile plugin tree, игнорируя
+`.DS_Store`, `__pycache__` и pyc/pyo. При `telegram.profile` в QA config
+`release-plan` добавляет эту проверку в preflight; mismatch возвращает
+`profilePluginSync=blocked` и reason `profile-plugin-digest-mismatch`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

@@ -18,7 +18,7 @@ Use the skill by naming the intended mode in plain language:
 - `Use Telegram Paperclip QA retest mode` to rerun failed test ids from a previous manifest.
 - `Use Telegram Paperclip QA release-review mode` to run goal-level gates and decide accepted, accepted-with-repair, or blocked.
 
-Start every mode by stating whether live side effects are allowed. In normal review or planning, run only non-live gates first: `completion-check`, `release-plan`, `readiness`, `live-plan`, and dry-run commands. Live Telegram/Paperclip actions require explicit operator confirmation and the exact live command must include `--live-ok`.
+Start every mode by stating whether live side effects are allowed. In normal review or planning, run only non-live gates first: `completion-check`, `release-plan`, `profile-plugin-sync`, `readiness`, `live-plan`, and dry-run commands. Live Telegram/Paperclip actions require explicit operator confirmation and the exact live command must include `--live-ok`.
 
 ## Non-Live Checks
 
@@ -26,6 +26,7 @@ Start every mode by stating whether live side effects are allowed. In normal rev
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs health --config telegram-testing.config.json --json

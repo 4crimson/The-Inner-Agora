@@ -281,6 +281,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             "completion-check",
             "release-plan",
             "release-gate",
+            "profile-plugin-sync",
             "readiness",
             "health",
             "telegram-check",
@@ -370,6 +371,18 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(len(payload["liveCommands"]), 2)
             self.assertTrue(all("--live-ok" in command for command in payload["liveCommands"]))
             self.assertFalse(artifacts_dir.exists())
+
+    def test_release_plan_includes_profile_plugin_sync_when_profile_is_configured(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = self.base_config()
+            config["telegram"]["profile"] = "inneragora"
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli("release-plan", "--config", config_path, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(any("profile-plugin-sync" in command for command in payload["preflightCommands"]))
 
     def test_release_gate_accepts_clean_runs_with_required_evidence(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -469,6 +482,69 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(payload["decision"], "blocked")
             self.assertIn(f"post-suite-guard:{run_id}", payload["reasons"])
 
+    def test_profile_plugin_sync_accepts_matching_plugin_directories(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            repo_plugin = temp_path / "repo" / "paperclip-cockpit"
+            profile_plugin = temp_path / "profile" / "plugins" / "paperclip-cockpit"
+            (repo_plugin / "qa-tool" / "src").mkdir(parents=True)
+            (profile_plugin / "qa-tool" / "src").mkdir(parents=True)
+            (repo_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (profile_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (repo_plugin / "qa-tool" / "src" / "runner.mjs").write_text("export const ok = true;\n", encoding="utf-8")
+            (profile_plugin / "qa-tool" / "src" / "runner.mjs").write_text("export const ok = true;\n", encoding="utf-8")
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            result = self.run_cli(
+                "profile-plugin-sync",
+                "--config",
+                config_path,
+                "--repo-plugin-dir",
+                repo_plugin,
+                "--profile-plugin-dir",
+                profile_plugin,
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["status"], "ok")
+            self.assertEqual(payload["profilePluginSync"], "ok")
+            self.assertEqual(payload["repo"]["fileCount"], 2)
+            self.assertEqual(payload["profile"]["fileCount"], 2)
+            self.assertEqual(payload["repo"]["sha256"], payload["profile"]["sha256"])
+
+    def test_profile_plugin_sync_blocks_when_profile_plugin_differs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            repo_plugin = temp_path / "repo" / "paperclip-cockpit"
+            profile_plugin = temp_path / "profile" / "plugins" / "paperclip-cockpit"
+            repo_plugin.mkdir(parents=True)
+            profile_plugin.mkdir(parents=True)
+            (repo_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (profile_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\nstale: true\n", encoding="utf-8")
+            config_path = self.write_config(temp_dir, self.base_config())
+
+            result = self.run_cli(
+                "profile-plugin-sync",
+                "--config",
+                config_path,
+                "--repo-plugin-dir",
+                repo_plugin,
+                "--profile-plugin-dir",
+                profile_plugin,
+                "--json",
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["status"], "blocked")
+            self.assertEqual(payload["profilePluginSync"], "blocked")
+            self.assertIn("profile-plugin-digest-mismatch", payload["reasons"])
+            self.assertEqual(payload["diff"]["changed"], ["plugin.yaml"])
+
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
             calls_path = Path(temp_dir) / "telegram-calls.jsonl"
@@ -509,6 +585,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["config"]["telegram"]["target"], "@crimson_philosophs_bot")
+        self.assertEqual(payload["config"]["telegram"]["profile"], "inneragora")
         self.assertEqual(payload["config"]["paperclip"]["company"], "The Inner Agora")
         self.assertEqual(payload["config"]["reporting"]["telegram"]["transport"], "userbot")
         self.assertFalse(payload["config"]["reporting"]["telegram"]["sendResult"])

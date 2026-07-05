@@ -78,6 +78,9 @@ stay separate from cleanup commits.
   run manifests plus backup/profile-sync evidence into `accepted`,
   `accepted_with_repair`, or `blocked`. It does not yet execute backup,
   profile sync, or live suites itself.
+- `profile-plugin-sync`: implemented in `paperclip-qa` as a read-only preflight
+  that compares the repo `paperclip-cockpit` plugin tree with the installed
+  Hermes profile plugin tree and blocks on digest mismatch before live suites.
 - `post-suite-health-gate`: a `paperclip-qa` gate for work-creating suites that
   now records `guardBefore` and `guardAfter` in the manifest and acceptance
   report; red before-guard blocks live side effects, and red after-guard rejects
