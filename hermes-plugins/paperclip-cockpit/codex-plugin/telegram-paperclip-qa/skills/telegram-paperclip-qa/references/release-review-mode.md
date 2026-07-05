@@ -9,10 +9,11 @@ Workflow:
 3. Ask for explicit live confirmation using the readiness/live-plan acknowledgement.
 4. Run the full suite.
 5. Run cleanup through the live run/retest command, or use standalone `cleanup --live-ok` for an existing manifest.
-6. Generate report, summary, bug output, and acceptance output.
-7. Use `acceptance --run RUN_ID --json` and `ACCEPTANCE.md` as the decision source.
-8. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
-9. Decide accept, accept-with-known-issues, or reject.
+6. Generate report, summary, bug output, and acceptance output for each run.
+7. Run `release-gate --config telegram-testing.config.json --run RUN_ID --backup-id BACKUP_ID --profile-plugin-sync ok --json` after backup/profile evidence is known.
+8. Use `release-gate.json` and `RELEASE_GATE.md` as the release decision source.
+9. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
+10. Decide `accepted`, `accepted_with_repair`, or `blocked`.
 
 Acceptance gates:
 
@@ -21,4 +22,5 @@ Acceptance gates:
 - Paperclip issue trees are valid and recoverable.
 - Synthesis completes and can navigate to individual voices.
 - Cleanup leaves no unreported test artifacts.
+- Backup id, profile/plugin sync status, run ids, cleanup status, and post-suite guard status are present in the release-gate artifact.
 - Any remaining bug has severity, area, evidence, and retest criteria.

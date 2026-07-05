@@ -108,9 +108,10 @@ Canonical CLI:
 ```bash
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --notify telegram --live-ok --json
+node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json
 ```
 
-Projects may keep their own wrapper command for compatibility. Live mutation commands such as `run`, `retest`, `cleanup`, and `notify` require explicit `--live-ok`; planning, readiness, dry-run, summary, report, acceptance, and bug-batch commands are non-live.
+Projects may keep their own wrapper command for compatibility. Live mutation commands such as `run`, `retest`, `cleanup`, and `notify` require explicit `--live-ok`; planning, readiness, dry-run, summary, report, acceptance, release-gate, and bug-batch commands are non-live. `release-gate` does not run live suites; it aggregates existing run manifests plus backup/profile-sync evidence into a release decision artifact.
 
 The optional Codex workflow plugin lives in `codex-plugin/telegram-paperclip-qa/`. It is not part of the Hermes runtime; it teaches Codex agents how to keep tester, developer, retest, and release-review work separate.
 

@@ -66,6 +66,16 @@ active-run safety и post-suite guard не доказывает live health.
 | RL-8 | Error UX tests для project-action failures | P1 | M | RL-5 | `command not found`, provider timeout и Paperclip 409 показывают короткий русский recovery; raw stderr/JSON доступны только в diagnostics |
 | RL-9 | Docs evidence checklist/updater | P1 | S | RL-1 | Перед commit есть checklist, какие run ids, backup ids, guard status, repair status и commit hashes должны попасть в `BUGS.md` / `COMPLETION_AUDIT.md` |
 
+Статус 2026-07-06: первый локальный срез RL-1 реализован как
+`paperclip-qa release-gate`. Команда не запускает live suites и не делает
+Telegram/Paperclip side effects; она агрегирует существующие run manifests,
+обязательный `--backup-id`, обязательный `--profile-plugin-sync ok`, acceptance
+decision, cleanup residuals, active-run cleanup evidence и post-suite guard в
+`release-gate.json` + `RELEASE_GATE.md`. Итог может быть `accepted`,
+`accepted_with_repair` или `blocked`. Сейчас это artifact gate для уже
+полученных evidence; следующий RL-1/RL-4 шаг — автоматизировать/проверять
+backup и repo-profile plugin sync preflight до live suite.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

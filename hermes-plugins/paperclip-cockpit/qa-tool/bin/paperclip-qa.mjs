@@ -9,6 +9,7 @@ import { runSuiteHealthGuard, shouldRunSuiteHealthGuard } from "../src/guard-run
 import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, updateManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
+import { writeReleaseGate } from "../src/release-gate.mjs";
 import { appendBugsToDoc, bugBatch, buildTelegramSummary, writeAcceptance, writeBugsJsonl, writeReport } from "../src/report-writer.mjs";
 import { createRetestRun, executeRetestRun, executeSuite, runSuite } from "../src/suite-runner.mjs";
 import { TelegramUserbot, TelegramUserbotError } from "../src/telegram-userbot.mjs";
@@ -25,8 +26,11 @@ function parseArgs(argv) {
     config: "",
     suite: "",
     run: "",
+    runs: [],
     mode: "",
     cleanup: "",
+    backupId: "",
+    profilePluginSync: "",
     appendDoc: "",
     area: "",
     kind: "",
@@ -40,9 +44,14 @@ function parseArgs(argv) {
     if (arg === "--json") options.json = true;
     else if (arg === "--config") options.config = tail[++index] || "";
     else if (arg === "--suite") options.suite = tail[++index] || "";
-    else if (arg === "--run") options.run = tail[++index] || "";
+    else if (arg === "--run") {
+      options.run = tail[++index] || "";
+      if (options.run) options.runs.push(options.run);
+    }
     else if (arg === "--mode") options.mode = tail[++index] || "";
     else if (arg === "--cleanup") options.cleanup = tail[++index] || "";
+    else if (arg === "--backup-id") options.backupId = tail[++index] || "";
+    else if (arg === "--profile-plugin-sync") options.profilePluginSync = tail[++index] || "";
     else if (arg === "--append-doc") options.appendDoc = tail[++index] || "";
     else if (arg === "--area") options.area = tail[++index] || "";
     else if (arg === "--kind") options.kind = tail[++index] || "";
@@ -63,6 +72,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--notify telegram] [--json] [--dry-run|--live-ok]
@@ -395,6 +405,19 @@ async function main(argv) {
   if (options.command === "release-plan") {
     printPayload(releasePlan({ configPath: options.config, config, cleanupMode: options.cleanup }), options.json);
     return 0;
+  }
+  if (options.command === "release-gate") {
+    if (options.profilePluginSync && !["ok", "warning", "blocked"].includes(options.profilePluginSync)) {
+      throw new ConfigValidationError(["--profile-plugin-sync must be ok, warning, or blocked"]);
+    }
+    const result = writeReleaseGate({
+      config,
+      runIds: options.runs,
+      backupId: options.backupId,
+      profilePluginSync: options.profilePluginSync,
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
   }
   if (options.command === "health") {
     const result = await runHealthChecks({

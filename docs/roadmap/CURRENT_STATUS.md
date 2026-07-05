@@ -73,7 +73,11 @@ stay separate from cleanup commits.
 
 - `release-live-gate`: a QA workflow mode that runs the release evidence chain
   explicitly: preflight, backup, profile/plugin sync, live suite, cleanup,
-  acceptance, post-suite guard, docs/commit evidence.
+  acceptance, post-suite guard, docs/commit evidence. First local slice is
+  implemented as non-live `paperclip-qa release-gate`: it aggregates existing
+  run manifests plus backup/profile-sync evidence into `accepted`,
+  `accepted_with_repair`, or `blocked`. It does not yet execute backup,
+  profile sync, or live suites itself.
 - `post-suite-health-gate`: a `paperclip-qa` gate for work-creating suites that
   now records `guardBefore` and `guardAfter` in the manifest and acceptance
   report; red before-guard blocks live side effects, and red after-guard rejects

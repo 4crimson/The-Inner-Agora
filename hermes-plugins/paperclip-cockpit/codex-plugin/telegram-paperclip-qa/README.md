@@ -16,7 +16,7 @@ Use the skill by naming the intended mode in plain language:
 - `Use Telegram Paperclip QA tester mode` to gather evidence without patching code.
 - `Use Telegram Paperclip QA developer mode` to fix one accepted bug area from `bug-batch`.
 - `Use Telegram Paperclip QA retest mode` to rerun failed test ids from a previous manifest.
-- `Use Telegram Paperclip QA release-review mode` to run goal-level gates and decide accept, accept-with-known-issues, or reject.
+- `Use Telegram Paperclip QA release-review mode` to run goal-level gates and decide accepted, accepted-with-repair, or blocked.
 
 Start every mode by stating whether live side effects are allowed. In normal review or planning, run only non-live gates first: `completion-check`, `release-plan`, `readiness`, `live-plan`, and dry-run commands. Live Telegram/Paperclip actions require explicit operator confirmation and the exact live command must include `--live-ok`.
 
@@ -33,6 +33,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config
 node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json
 ```
 
 Live runs, standalone cleanup, and retained Telegram notifications require explicit operator confirmation and the exact live command must include `--live-ok`.

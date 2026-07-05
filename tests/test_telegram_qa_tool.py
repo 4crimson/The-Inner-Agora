@@ -280,6 +280,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             "config-check",
             "completion-check",
             "release-plan",
+            "release-gate",
             "readiness",
             "health",
             "telegram-check",
@@ -369,6 +370,104 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(len(payload["liveCommands"]), 2)
             self.assertTrue(all("--live-ok" in command for command in payload["liveCommands"]))
             self.assertFalse(artifacts_dir.exists())
+
+    def test_release_gate_accepts_clean_runs_with_required_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-clean-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "release-gate",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--profile-plugin-sync",
+                "ok",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["decision"], "accepted")
+            self.assertEqual(payload["backup"]["id"], "backup-20260706-a1b2")
+            self.assertEqual(payload["profilePluginSync"]["status"], "ok")
+            self.assertEqual(payload["runs"][0]["runId"], run_id)
+            self.assertEqual(payload["runs"][0]["acceptanceDecision"], "accept")
+            self.assertEqual(payload["runs"][0]["guardAfter"], "ok")
+            release_gate_path = Path(payload["releaseGatePath"])
+            self.assertTrue(release_gate_path.exists())
+            release_gate_markdown_path = Path(payload["releaseGateMarkdownPath"])
+            self.assertTrue(release_gate_markdown_path.exists())
+            self.assertIn("Decision: accepted", release_gate_markdown_path.read_text(encoding="utf-8"))
+
+    def test_release_gate_blocks_without_backup_or_profile_sync_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-missing-evidence-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("release-gate", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["decision"], "blocked")
+            self.assertIn("backup-id-missing", payload["reasons"])
+            self.assertIn("profile-plugin-sync-missing", payload["reasons"])
+
+    def test_release_gate_blocks_when_post_suite_guard_is_red(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-guard-red-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": False, "events": [{"level": "error", "message": "agent drift"}], "agents": {"ok": False}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "release-gate",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--profile-plugin-sync",
+                "ok",
+                "--json",
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["decision"], "blocked")
+            self.assertIn(f"post-suite-guard:{run_id}", payload["reasons"])
 
     def test_health_checks_config_telegram_env_and_paperclip_company(self):
         with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
