@@ -4,7 +4,7 @@ This file tracks live Telegram acceptance failures separately from roadmap phase
 
 ## BUG-2026-07-04-004 — Telegram launch flow hides the question and leaks wake details
 
-**Status:** fixed locally, pending live retest
+**Status:** partially fixed; selected-mode natural launch still leaks raw CLI details in live Telegram
 **Severity:** P1 for Telegram launch UX
 **Reported:** 2026-07-04
 **Surface:** Telegram → New question → proposal/launch cards
@@ -16,6 +16,12 @@ Live Telegram screenshots showed:
 - `Глубокое исследование` displayed a launchable 6-philosopher composition before asking the user to enter the question.
 - The editable philosopher composition card showed selected philosophers but did not show the question text.
 - The launch acknowledgement leaked route/model, local Paperclip URL, child issue rows, and `wake=queued:...` ids.
+
+Live 2026-07-05 `mode-routing` retest accepted the routing behavior, but the
+default/custom natural launch replies still showed raw `scripts/agora.mjs ask`
+stdout: route/model details, local Paperclip URL, child issue rows, and
+`wake=queued:...` ids. Keep that as a separate Telegram launch-summary fix; do
+not mix it with router or Paperclip repair changes.
 
 ### Root Cause
 
@@ -43,7 +49,7 @@ The Telegram callback config mixed format selection with launch confirmation. `d
 
 ## BUG-2026-07-03-003 — Telegram has no visible mode routing control
 
-**Status:** fixed locally after first live failure, pending live retest
+**Status:** live accepted for `mode-routing` on 2026-07-05
 **Severity:** P1 for Telegram UX / route control
 **Reported:** 2026-07-03
 **Surface:** Telegram → Paperclip Cockpit → Inner Agora ask route
@@ -67,6 +73,17 @@ Telegram buttons were action callbacks only. There was no generic per-chat mode 
 - `custom_voices` is a local route that prompts the user to name participants in ordinary language; role resolution stays in Inner Agora scripts/config.
 - Live failure root causes found on first `mode-routing` run: action replies with empty keyboards lost mode buttons; QA evaluator did not read local route from reply text; regex participant parsing kept only the first named philosopher.
 - Added `mode-routing` QA suite and checklist entries.
+- Live 2026-07-05 root cause split: the first failed run was blocked by live
+  Paperclip agents in `error`; after read-only backup and `prepare local`, guard
+  returned `ok=true` with no `errorAgents`. The remaining pair-voices failure
+  was a router contract mismatch: exact pair count words were treated as vague
+  small-group confirmation instead of launch.
+- Router fix: exact pair/two-voice wording now rewrites to `/agora ask ...`,
+  letting the existing ask selector choose two voices. Vague `несколько
+  философов` still confirms before launch.
+- Live evidence: `QA-20260705-2054-mode-routing-234c17` passed 4/4 with hard
+  cleanup and no residual artifacts. Raw launch-summary leakage observed during
+  the same suite remains tracked under `BUG-2026-07-04-004`.
 
 ### Acceptance Criteria
 
@@ -80,7 +97,7 @@ Telegram buttons were action callbacks only. There was no generic per-chat mode 
 
 ## BUG-2026-07-03-002 — Telegram service commands leak raw Hermes UI
 
-**Status:** fixed locally, pending live retest
+**Status:** live accepted for `service-commands` on 2026-07-05
 **Severity:** P1 for Telegram UX
 **Reported:** 2026-07-03
 **Surface:** Telegram → Hermes BoF / Paperclip Cockpit
@@ -115,6 +132,8 @@ The 2026-07-04 follow-up root cause was narrower: `/start` and exact text aliase
 - Added `/start`, bot-addressed `/start@...`, and exact `Агора` / `The Inner Agora` home aliases to the same Telegram boundary.
 - Updated the fallback human home text in the root config and philosophy chamber override so stale Paperclip command-card copy no longer appears if the button path is bypassed.
 - Added regression coverage that `Агора статус` uses the compact `telegram_last_session` payload and skips raw `latest` output.
+- Live evidence: `QA-20260705-2040-service-commands-ca0477` passed 5/5 with hard
+  cleanup and no residual artifacts.
 
 ### Acceptance Criteria
 
@@ -389,6 +408,21 @@ Status 2026-07-03: partially implemented. `quick`/`deep` actions now force the l
 Status 2026-07-03: repair path implemented through `prepare local`. Existing agents now resync `reportsTo` to the active `Agora Assistant / Синтезатор`, switch to `hermes_local`, and clear `error` status after successful sync. Live verification: `node scripts/agora.mjs prepare local` passed; guard returned `ok=true`; `Хайдеггер` and `Аристотель` are `idle`, `hermes_local`, and report to the active синтезатор. A live max-depth create no longer hit the 409 and created `THE-82`; a follow-up forced-local create created `THE-91` and queued `Хайдеггер` successfully. Remaining: add explicit guard ancestry validation before ask creation.
 
 Live follow-up 2026-07-03: `node scripts/inner-agora-guard.mjs --json` now passes Telegram/router/callback checks after profile sync, but remains red because one Paperclip agent (`Фуко`) is in `error`. This is a separate Paperclip recovery task and should not be mixed with Telegram help/menu routing.
+
+Live recovery 2026-07-05: after explicit operator approval, a read-only backup
+was written to `backups/2026-07-05T20-48-53-793Z-the-inner-agora/backup.json`
+with 84 agents, 77 issues, and 821 comments. Then `node scripts/agora.mjs
+prepare local` re-synced the live company. Fresh guard returned `ok=true`,
+`agents.errorAgents=[]`, and all checked agents on `hermes_local`; the default
+mode-routing ask then passed and created Paperclip work successfully.
+
+Post-suite live health 2026-07-05: after the accepted full `mode-routing` run,
+hard cleanup left no issue residuals, but guard turned red because `Аристотель`
+was in `error`. A second backup
+`backups/2026-07-05T20-59-59-701Z-the-inner-agora/backup.json` was captured
+(85 agents, 77 issues, 821 comments), then `prepare local` restored guard to
+`ok=true`. Treat post-work-suite guard/repair as a release gate; QA cleanup can
+remove test artifacts without restoring Paperclip agent health.
 
 **Batch H — Per-Chat State Propagation**
 

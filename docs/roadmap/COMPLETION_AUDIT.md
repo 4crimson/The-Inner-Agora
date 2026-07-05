@@ -16,7 +16,7 @@ complete yet.
 The main blockers are not lack of random cleanup. They are specific acceptance
 gates:
 
-- live Telegram acceptance is still not fully proven;
+- live Telegram acceptance is only partially proven;
 - Phase 9 is partial: local token ledger and pricing exist, but Paperclip agent
   usage and monetary preflight are not covered;
 - `scripts/agora.mjs` is still a large runtime file, so Pass C is not finished;
@@ -44,7 +44,7 @@ evidence that Telegram live UX is accepted.
 | QW-1 typo handling | `ask-unknown-philosopher-dry-run` in regression baseline, role search helpers | Locally proven | None for local scope |
 | QW-2 self-heal / guard direction | `scripts/inner-agora-guard.mjs`, monitor/guard tests and Phase 8 notes | Locally implemented | Live reliability still belongs to live acceptance, not cleanup |
 | QW-3 onboarding / compact Telegram entry | Telegram command boundary, `/start` aliases, compact home/help callbacks | Locally implemented | Live retest still pending for full service command surface |
-| QW-4 Paperclip backup before migrations | `scripts/backup-company.mjs`, `.gitignore` `backups/`, `tests/test_backup_company.py` | Locally implemented | Live Paperclip backup has not been run; do it only after explicit approval |
+| QW-4 Paperclip backup before migrations | `scripts/backup-company.mjs`, `.gitignore` `backups/`, `tests/test_backup_company.py`, live backup `backups/2026-07-05T20-48-53-793Z-the-inner-agora/backup.json` | Locally implemented and used before approved live recovery | Keep backup-before-repair discipline for future live migrations |
 | Phase 1 role schema and migration | `data/schema/role.schema.json`, `scripts/migrate-roles.mjs`, `chambers/philosophy/roles.json`, importer/CLI chamber role source, readiness check `migration` ok | Locally complete | Keep migration check as a drift guard while `data/philosophers.json` remains the source for generated chamber roles |
 | Phase 2 chambers / packs | `data/schema/chamber.schema.json`, `scripts/chamber-loader.mjs`, philosophy and board-directors chambers | Locally implemented | Board role content quality T2.6b is not proven by voice tests |
 | Phase 3 skills layer | `data/schema/skill.schema.json`, `scripts/skill-loader.mjs`, `skills/*/skill.json`, skill tests | Locally implemented | Do not promote as public skill/plugin layer without a separate gate |
@@ -52,7 +52,7 @@ evidence that Telegram live UX is accepted.
 | Phase 5 model routing | `models.config.json`, `scripts/model-routing.mjs`, routing tests | Locally implemented | Cloud/provider route is not part of this phase |
 | Phase 6 per-chat state | `scripts/state-manager.mjs`, `data/schema/state.schema.json`, per-chat tests | Locally implemented | Live Telegram must prove chat id propagation in actual gateway |
 | Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill | Locally implemented | Runtime ancestry health before live ask still needs explicit guard coverage |
-| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes | Locally implemented but live-pending | BUG-2026-07-03-001 remains open; several fixed bugs still require live retest |
+| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Partially live-proven | `help`, `service-commands`, and `mode-routing` are accepted; BUG-2026-07-04-004 launch-summary leakage, post-suite agent-health drift, and BUG-2026-07-03-001 remain open |
 | Phase 9 observability/cost | `scripts/agora/cost-utils.mjs`, `costs.config.json`, `/agora costs`, all-mode volume preflight | Partial | Paperclip agent usage, unknown pricing, and monetary preflight remain open |
 | Config source split | `config/cockpit/*.json`, build/check tooling, matching runtime sha | Locally proven | Humans should edit fragments, runtime keeps `paperclip-cockpit.json` |
 | Generic plugin boundary | `paperclip-cockpit` no longer owns Agora launch copy; `PLUGIN_BOUNDARIES.md` defines gates | Locally improved | No install/publish/profile copy without explicit approval |
@@ -111,11 +111,16 @@ all Paperclip write paths.
 Current audit blockers:
 
 - `BUG-2026-07-03-001` is open: raw service tokens, internal reasoning fallback,
-  wrong operational persona, mode/status continuation, Paperclip hierarchy
-  failures, and help routing issues were observed in live Telegram.
-- `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and
-  `BUG-2026-07-04-004` are locally fixed or partially fixed, but still require
-  live retest before product acceptance.
+  wrong operational persona, and mode/status continuation were observed in live
+  Telegram. The Paperclip hierarchy part was recovered on 2026-07-05, but an
+  explicit selected-voice ancestry guard remains future hardening.
+- `BUG-2026-07-03-002` and `BUG-2026-07-03-003` have live accepted suites on
+  2026-07-05: `service-commands` and `mode-routing`.
+- `BUG-2026-07-04-004` remains partially open because live natural launches
+  still leak raw route/model, local URL, child issue rows, and wake ids.
+- Accepted work-creating live suites can still leave Paperclip agents in
+  `error` after issue cleanup. 2026-07-05 `mode-routing` required a second
+  backup plus `prepare local` before guard returned to `ok=true`.
 - Quick/deep live inbound verification through the actual Telegram gateway is
   still separate from CLI/plugin diagnostics.
 - Project-action error UX handles the terminated-ancestor 409 path locally, but

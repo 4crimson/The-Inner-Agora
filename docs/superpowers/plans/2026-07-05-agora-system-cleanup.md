@@ -452,11 +452,49 @@ Expected:
 - plugin manifest parses;
 - diff check exits 0.
 
+## Task 7: Approved Live Acceptance And Recovery
+
+Progress 2026-07-05:
+
+- Operator approval to touch the live system was granted after the initial
+  cleanup/doc passes.
+- Ran `help` live suite: first run exposed a transient missing-buttons failure;
+  focused retest passed, and the full `help` suite later passed 4/4 with hard
+  cleanup.
+- Ran `service-commands` live suite: `QA-20260705-2040-service-commands-ca0477`
+  passed 5/5 with hard cleanup and no residual artifacts.
+- Ran `mode-routing` live suite: first run split into two root causes.
+  Default route failed because live Paperclip agents were in `error`; pair route
+  failed because exact pair wording was treated as vague confirmation.
+- Before Paperclip recovery, wrote read-only backup
+  `backups/2026-07-05T20-48-53-793Z-the-inner-agora/backup.json`.
+- Ran `node scripts/agora.mjs prepare local`; fresh guard returned `ok=true`
+  with `agents.errorAgents=[]`.
+- Fixed pair routing locally so exact pair/two-voice wording launches
+  `/agora ask ...`, while vague `несколько философов` still confirms.
+- Full live `mode-routing` suite `QA-20260705-2054-mode-routing-234c17` passed
+  4/4 with hard cleanup and no residual artifacts.
+- A fresh guard after that accepted suite was red because `Аристотель` moved to
+  `error`; a second backup
+  `backups/2026-07-05T20-59-59-701Z-the-inner-agora/backup.json` plus
+  `prepare local` restored guard to `ok=true`. Cleanup artifact success is not
+  enough; work-creating suites need a post-suite guard/repair gate.
+- Observed separate Telegram launch-summary leakage in accepted live replies:
+  route/model, local URL, child issue rows, and `wake=queued` ids. This remains
+  `BUG-2026-07-04-004` and must be fixed in a focused Telegram UX slice.
+
 ## Completion Checklist
 
 - [x] Current status doc exists and is linked from roadmap README.
 - [x] Plugin candidates are classified as existing, extract later, or do not extract yet.
 - [x] Live/Paperclip/Telegram gates are explicit.
 - [x] Phase 1 legacy role runtime removal is handled as its own T1.6 slice.
+- [x] Approved live backup/recovery was run before live Paperclip repair.
+- [x] `help`, `service-commands`, and `mode-routing` live QA suites have accepted runs.
+- [x] Post-suite guard was rerun and live agent health was restored with
+  `prepare local`.
 - [x] Each later cleanup pass has acceptance criteria.
 - [x] Non-live verification passes before claiming completion of any pass.
+- [ ] Telegram launch-summary leakage is fixed and live-retested.
+- [ ] Work-creating live QA suites include an explicit post-suite agent-health
+  gate or documented repair step.
