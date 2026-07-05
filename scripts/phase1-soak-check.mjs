@@ -5,12 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SOAK_DAYS = 7;
 
 function usage(exitCode = 0) {
   console.log(`Usage:
-  node scripts/phase1-soak-check.mjs --started-at ISO_DATE [--now ISO_DATE] [--json]
-  node scripts/phase1-soak-check.mjs --started-at ISO_DATE [--fixtures-dir DIR] [--commands-file FILE]
+  node scripts/phase1-soak-check.mjs [--started-at ISO_DATE] [--now ISO_DATE] [--json]
+  node scripts/phase1-soak-check.mjs [--started-at ISO_DATE] [--fixtures-dir DIR] [--commands-file FILE]
 `);
   process.exit(exitCode);
 }
@@ -43,7 +42,6 @@ function parseArgs(argv) {
     }
   }
 
-  if (!options.startedAt) throw new Error("--started-at or PHASE1_SOAK_STARTED_AT is required");
   return options;
 }
 
@@ -51,10 +49,6 @@ function isoDate(value, label) {
   const date = new Date(value || Date.now());
   if (Number.isNaN(date.getTime())) throw new Error(`Invalid ${label}: ${value}`);
   return date;
-}
-
-function addDays(date, days) {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 function runNode(args, env = {}) {
@@ -90,29 +84,27 @@ function runChecks(options) {
 }
 
 function buildReport(options) {
-  const started = isoDate(options.startedAt, "started-at");
+  const started = options.startedAt ? isoDate(options.startedAt, "started-at") : null;
   const now = isoDate(options.now, "now");
-  const eligibleAt = addDays(started, SOAK_DAYS);
   const checks = runChecks(options);
   const ok = Object.values(checks).every((check) => check.status === 0);
 
   return {
     ok,
-    eligible: now.getTime() >= eligibleAt.getTime(),
-    soakDays: SOAK_DAYS,
-    startedAt: started.toISOString(),
+    eligible: ok,
+    gate: "migration-and-regression",
+    startedAt: started ? started.toISOString() : "",
     now: now.toISOString(),
-    eligibleAt: eligibleAt.toISOString(),
     checks,
   };
 }
 
 function printText(report) {
-  console.log("# Phase 1 soak check");
+  console.log("# Phase 1 readiness check");
   console.log(`checks=${report.ok ? "ok" : "failed"}`);
   console.log(`eligible=${report.eligible ? "yes" : "no"}`);
-  console.log(`startedAt=${report.startedAt}`);
-  console.log(`eligibleAt=${report.eligibleAt}`);
+  console.log(`gate=${report.gate}`);
+  if (report.startedAt) console.log(`startedAt=${report.startedAt}`);
   console.log(`now=${report.now}`);
   for (const [name, check] of Object.entries(report.checks)) {
     console.log(`${name}=exit:${check.status}`);

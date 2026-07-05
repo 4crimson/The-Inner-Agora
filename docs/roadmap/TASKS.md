@@ -53,7 +53,7 @@
 | T1.3 | Ввести флаг `CHAMBER_MODE=legacy|chambers` в `agora.mjs`/`import-inner-agora.mjs` | P0 | M | T1.2 | `CHAMBER_MODE=chambers node scripts/regression.mjs check` совпадает с `legacy` |
 | T1.4 | Переименовать функции (`philosopherLine`→`roleLine` и т.п.) с deprecated-алиасами | P1 | M | T1.3 | Старые имена работают, помечены `@deprecated` в комментарии |
 | T1.5 | `MINIMUM_COUNCIL_KEYS` → `chambers/philosophy/presets/mvp.json` | P1 | S | T1.2 | `council` читает пресет из файла, не из константы в коде |
-| T1.6 | Удалить legacy-путь и `CHAMBER_MODE` флаг после подтверждения совпадения ≥1 недели | P2 | S | T1.3, regression стабилен | Флаг удалён, остался только `chambers`-режим |
+| T1.6 | Удалить legacy-путь и `CHAMBER_MODE` флаг после зелёного readiness gate | P2 | S | T1.3, migration check, оба regression-режима зелёные | Флаг удалён, остался только `chambers`-режим |
 
 ---
 

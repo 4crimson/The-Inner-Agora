@@ -19,8 +19,9 @@ Make The Inner Agora easier to maintain as a product by separating:
 - documentation and roadmap state;
 - live Telegram/Paperclip operations.
 
-The first cleanup pass must be safe: no live side effects, no user-facing behavior
-change, no legacy removal before the soak gate.
+The first cleanup pass must be safe: no user-facing behavior change and no
+legacy removal outside a dedicated T1.6 readiness/removal slice. Live system
+touches are now operator-approved, but still stay separate from cleanup commits.
 
 ## Current Layer Map
 
@@ -36,7 +37,7 @@ change, no legacy removal before the soak gate.
 | Observability and cost | `scripts/agora/cost-utils.mjs`, `scripts/intent-slots.mjs`, `data/schema/state.schema.json`, `scripts/agora.mjs`, `costs.config.json` | Token ledger and explicit pricing table exist for retained local usage | Keep token capture separate from provider price discovery; extend to other LLM calls only when usage data is available |
 | Paperclip backup safety | `scripts/backup-company.mjs`, `backups/` | Read-only backup tool exists locally; no live backup run in this cleanup pass | Use before future migration/live repair runs, but only after explicit operator approval for live Paperclip reads |
 | Runtime state and artifacts | `.env`, `.inner-agora-state.json`, `.paperclip-cockpit-monitor-state.json`, `.paperclip-cockpit-telegram-mode-state.json`, `.telegram-userbot.session`, `.venv-telegram-userbot/`, `artifacts/`, `backups/`, `memory/`, `state/` | Ignored by git; useful operational evidence but not source | Document retention and cleanup policy before deleting anything |
-| Live Telegram/Paperclip | Hermes profile `inneragora`, Paperclip company/project, Telegram bot/userbot | Not touched by this cleanup pass | Requires explicit `можно трогать живую систему` and `--live-ok` where applicable |
+| Live Telegram/Paperclip | Hermes profile `inneragora`, Paperclip company/project, Telegram bot/userbot | Approved for separate live validation as of 2026-07-05 | Use explicit live QA commands and `--live-ok` where applicable; do not mix with cleanup patches |
 
 ## Root Causes Found
 
@@ -85,8 +86,8 @@ change, no legacy removal before the soak gate.
 
 - First-level Telegram UX copy and button policy. It is product-specific and
   still tied to the accepted Inner Agora contract.
-- Legacy/chamber compatibility removal. The soak gate blocks removal until the
-  documented eligibility date and verification gates pass.
+- Legacy/chamber compatibility removal. This remains a separate T1.6
+  readiness/removal slice after migration and both regression modes are green.
 - Live QA execution. It is an operational workflow, not a cleanup refactor.
 
 ## Cleanup Plan
@@ -388,10 +389,12 @@ node scripts/agora.mjs costs --pricing default
 
 ## Gates And Invariants
 
-- No live Telegram/Paperclip side effects without explicit
-  `можно трогать живую систему`.
-- No command with `--live-ok` during docs/code cleanup unless separately approved.
-- No deletion of legacy/chamber compatibility before the Phase 1 soak gate.
+- Live Telegram/Paperclip side effects are approved only as their own live QA
+  workstream, not as incidental cleanup.
+- No command with `--live-ok` during docs/code cleanup unless that cleanup slice
+  explicitly includes live validation.
+- No deletion of legacy/chamber compatibility outside the separate Phase 1 T1.6
+  readiness/removal slice.
 - Router changes, Telegram UI changes, Paperclip recovery, and plugin packaging
   must be separate changes.
 - A green unit test is not enough to claim live UX acceptance.
@@ -407,4 +410,4 @@ node scripts/agora.mjs costs --pricing default
 3. Consider Pass E plugin/pack promotion only after internal module boundaries
    stay stable across another verification pass.
 4. Keep live QA, production Telegram checks, plugin install/publish, and legacy
-   removal out of cleanup turns unless separately approved.
+   removal in their own focused turns even when approved.

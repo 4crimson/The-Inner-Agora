@@ -338,14 +338,14 @@ Run:
 python3 -m unittest tests.test_inner_agora_ask_flow tests.test_phase4_intent_slots -v
 node scripts/regression.mjs check
 CHAMBER_MODE=chambers node scripts/regression.mjs check
-node scripts/phase1-soak-check.mjs --started-at 2026-07-02T09:01:09.000Z --json
+node scripts/phase1-soak-check.mjs --json
 ```
 
 Expected:
 
 - focused tests pass;
 - both regression modes pass;
-- soak check remains not eligible before the documented date and does not authorize legacy removal.
+- readiness check is green, but legacy removal remains a separate T1.6 slice.
 
 ## Task 5: Telegram Helper Module Split
 
@@ -459,6 +459,6 @@ Expected:
 - [x] Current status doc exists and is linked from roadmap README.
 - [x] Plugin candidates are classified as existing, extract later, or do not extract yet.
 - [x] Live/Paperclip/Telegram gates are explicit.
-- [x] Legacy removal is blocked by the Phase 1 soak gate until eligibility and verification.
+- [x] Legacy removal is reserved for a separate Phase 1 T1.6 readiness/removal slice.
 - [x] Each later cleanup pass has acceptance criteria.
 - [x] Non-live verification passes before claiming completion of any pass.

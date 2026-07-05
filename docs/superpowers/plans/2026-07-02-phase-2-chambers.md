@@ -10,9 +10,14 @@
 
 ---
 
+> Superseded status, 2026-07-05: the elapsed-time requirement was removed by
+> operator decision. Phase 1 T1.6 is now gated by migration check plus both
+> regression modes, then handled as a separate legacy-removal slice.
+
 ## Scope Boundary
 
-Phase 1 T1.6 is still under soak until `2026-07-09T09:01:09Z`. Phase 2 work may proceed on top of `chambers/philosophy/roles.json`, but must not remove the Phase 1 legacy loader before T1.6 eligibility.
+Phase 2 work may proceed on top of `chambers/philosophy/roles.json`, but must
+not remove the Phase 1 legacy loader inside a Phase 2 change.
 
 Phase 2.6b content polishing is explicitly non-blocking for the code MVP. The board-directors chamber starts with honest draft roles and must be marked as draft in `chamber.json`.
 

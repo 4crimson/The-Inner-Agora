@@ -113,7 +113,8 @@ still evolving. Do not move first-level UX copy into the generic plugin.
 - Runtime `paperclip-cockpit.json` must stay generated from source fragments and
   pass `node scripts/build-cockpit-config.mjs --check --json`.
 - QA plugin manifest must parse before any packaging claim.
-- Legacy/chamber compatibility removal remains blocked by the Phase 1 soak gate.
+- Legacy/chamber compatibility removal remains a separate Phase 1 T1.6
+  readiness/removal slice.
 
 ## Local Verification
 

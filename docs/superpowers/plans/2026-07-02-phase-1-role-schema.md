@@ -10,14 +10,20 @@
 
 ---
 
+> Superseded status, 2026-07-05: the elapsed-time requirement was removed by
+> operator decision. Current T1.6 gating is migration check plus both regression
+> modes, followed by a separate legacy-removal slice.
+
 ## Scope Boundary
 
-T1.6 is intentionally out of scope for this execution pass. The roadmap requires deleting `CHAMBER_MODE` only after at least one week of confirmed regression stability, so this phase keeps both code paths and verifies parity.
+T1.6 is intentionally out of scope for this historical execution pass. This
+phase kept both code paths and verified parity.
 
-The soak gate is tracked by `docs/roadmap/PHASE1_SOAK.md` and verified with:
+The current readiness gate is tracked by `docs/roadmap/PHASE1_SOAK.md` and
+verified with:
 
 ```bash
-node scripts/phase1-soak-check.mjs --started-at 2026-07-02T09:01:09.000Z
+node scripts/phase1-soak-check.mjs
 ```
 
 ## Files
