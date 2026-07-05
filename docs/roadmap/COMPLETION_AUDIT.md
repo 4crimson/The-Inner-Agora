@@ -122,6 +122,12 @@ Current audit blockers:
   `error` after issue cleanup. 2026-07-05 `mode-routing`,
   `interface-contract-topics`, and `council-create` required backup plus
   `prepare local` before guard returned to `ok=true`.
+- A related Paperclip lifecycle race was observed in run
+  `20b5a4ed-9021-4830-9654-718e2c10534b`: `hard cleanup` deleted the issue
+  before `workspace_finalize` wrote its `workspace_operations` row, causing a
+  `workspace_operations_issue_id_issues_id_fk` failure and an `adapter_failed`
+  surface even though Hermes exited successfully. Cleanup must become
+  active-run-safe before it can be treated as release evidence.
 - Quick/deep and council live inbound verification through the actual Telegram
   gateway now have accepted release-suite evidence; future work should focus on
   making the post-suite guard/repair gate explicit and less manual.
@@ -134,10 +140,14 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Continue Pass C as behavior-preserving `agora.mjs` module extraction.
-2. Add explicit dry/local guard coverage for selected voice ancestry before ask
+1. Implement the release live gate first: post-suite guard fields in QA
+   manifests/acceptance, active-run-safe cleanup, and explicit
+   accepted/accepted-with-repair/blocked decisions.
+2. Centralize first-level Telegram leak expectations into a reusable
+   `noTechnicalFirstLevelLeak` contract.
+3. Add explicit dry/local guard coverage for selected voice ancestry before ask
    creation.
-3. Extend Phase 9 only where usage data is actually available; keep unknown
+4. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
+   after the release lane no longer needs manual post-suite investigation.
+5. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.
-4. Run Telegram live retests from `BUGS.md` as a separate approved live
-   acceptance pass and update this audit from real evidence.

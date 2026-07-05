@@ -10,3 +10,8 @@
 6. **TASKS.md** — атомарные задачи с ID/приоритетом/размером, привязанные к фазам выше.
 
 Статус: `CURRENT_STATUS.md` обновляет навигацию на 2026-07-05, а `COMPLETION_AUDIT.md` фиксирует доказательства и незакрытые acceptance gates. Остальные документы остаются полезными как roadmap/планы, но могут содержать уже выполненные или live-pending пункты.
+
+После live-ретро 2026-07-06 отдельный приоритетный трек `RL` в `TASKS.md`
+фиксирует повторяемый release workflow для Agora/Telegram/Paperclip:
+`preflight -> backup -> profile/plugin sync -> live suite -> cleanup ->
+acceptance -> post-suite guard -> docs/commit`.

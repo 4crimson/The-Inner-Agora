@@ -31,6 +31,56 @@
 
 ---
 
+## Трек RL — Release live workflow (ретро 2026-07-06)
+
+Цель трека: превратить последний live-прогон в повторяемый release workflow для
+Agora/Telegram/Paperclip, чтобы следующий запуск быстро отличал UX-баг,
+router-баг, stale QA expectation и живой Paperclip drift.
+
+Рабочая связка доказательства:
+
+```text
+preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptance -> post-suite guard -> docs/commit
+```
+
+Главный root cause из ретро: `hard cleanup` может удалить тестовый issue, пока
+heartbeat/run еще завершает работу. После этого Paperclip пытается записать
+`workspace_finalize` в `workspace_operations` со ссылкой на уже удаленный
+`issue_id` и получает `workspace_operations_issue_id_issues_id_fk`. Поэтому
+`cleanup` без post-suite guard не доказывает live health.
+
+| ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
+|---|---|---|---|---|---|
+| RL-1 | `release-live-gate` для Codex QA workflow plugin: единый release режим вместо ручной цепочки | P0 | M | live approval gate | Команда/режим пишет preflight, backup id, plugin/profile sync result, suite run ids, acceptance decision, post-suite guard и итог `accepted` / `accepted_with_repair` / `blocked` |
+| RL-2 | `post-suite-health-gate` в `paperclip-qa` | P0 | M | RL-1 | Work-creating suites автоматически пишут `guardBefore`, `guardAfter`, `repairBackup`, `repairCommand`, `guardRepeat` в manifest/ACCEPTANCE; красный guard не считается чистым PASS |
+| RL-3 | Cleanup safety для active heartbeat runs | P0 | M | RL-2 | `cleanup hard` перед удалением issue проверяет active runs, cancel/wait или блокирует cleanup; тест доказывает, что issue не удаляется до terminal run state |
+| RL-4 | Profile/plugin sync preflight | P1 | S | RL-1 | Перед live suite repo plugin sha сравнивается с Hermes profile plugin sha; mismatch блокирует suite или требует явный warning/override |
+| RL-5 | `visible-output-sanitizer` contract | P1 | M | RL-2 | Вместо копирования `replyNotContains` есть macro `noTechnicalFirstLevelLeak` для route/model/local URL/wake/raw child rows/CLI flags; first-level Telegram UX доказывается централизованно |
+| RL-6 | Operational intent tests для `BUG-2026-07-03-001` | P0 | S | RL-5 | Фразы `проверить что вышло`, `финал проверяем`, `давай acceptance` ведут в operational acceptance/status flow, а не в философский совет или roadmap persona |
+| RL-7 | Selected-voice ancestry guard перед ask creation | P0 | M | RL-2 | Если voice/manager hierarchy red, Paperclip work не создается; пользователь получает короткое recovery-сообщение, детали уходят в diagnostics |
+| RL-8 | Error UX tests для project-action failures | P1 | M | RL-5 | `command not found`, provider timeout и Paperclip 409 показывают короткий русский recovery; raw stderr/JSON доступны только в diagnostics |
+| RL-9 | Docs evidence checklist/updater | P1 | S | RL-1 | Перед commit есть checklist, какие run ids, backup ids, guard status, repair status и commit hashes должны попасть в `BUGS.md` / `COMPLETION_AUDIT.md` |
+
+Тестовую стратегию упростить:
+
+- route/local evidence не проверять через first-level Telegram text; маршрут
+  доказывать через artifacts, metadata или guard;
+- точные `replyContains` для авто-выбранных философов держать только в explicit
+  named-voice сценариях;
+- live suites не добавлять в обычный локальный regression; live остается
+  release lane с явным `--live-ok`;
+- старое ожидание `Я понял тему` оставить только для plain ambiguous flow;
+  pair/exact launch должен проверять clean launch summary.
+
+Рекомендуемый порядок:
+
+1. **Release Gate First:** RL-1, RL-2, RL-3.
+2. **UX Contract First:** RL-5, RL-6, RL-8.
+3. **Architecture First:** продолжать Pass C после того, как release lane
+   перестанет требовать ручного расследования после каждого suite.
+
+---
+
 ## Фаза 0 — Аудит, тесты, заморозка контракта
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |

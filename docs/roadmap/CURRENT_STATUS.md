@@ -69,6 +69,21 @@ stay separate from cleanup commits.
 - `telegram-paperclip-qa`: Codex workflow plugin for tester/developer/retest and
   release-review discipline.
 
+### Add To Workflow Plugins Next
+
+- `release-live-gate`: a QA workflow mode that runs the release evidence chain
+  explicitly: preflight, backup, profile/plugin sync, live suite, cleanup,
+  acceptance, post-suite guard, docs/commit evidence.
+- `post-suite-health-gate`: a `paperclip-qa` gate for work-creating suites that
+  records `guardBefore`, `guardAfter`, repair backup/command, and repeat guard
+  status in the manifest and acceptance report.
+- `visible-output-sanitizer`: a shared first-level Telegram leak policy for
+  route/model/local URL/wake/raw child rows/CLI flags, replacing duplicated
+  `replyNotContains` lists.
+- `docs-evidence-checklist`: a lightweight release checklist for run ids,
+  backup ids, guard status, repair status, and commit hashes that must be
+  reflected in `BUGS.md` and `COMPLETION_AUDIT.md`.
+
 ### Extract Later
 
 - `agora-chamber-pack`: content/config package for `chambers/*`, `roles`,
@@ -86,7 +101,9 @@ stay separate from cleanup commits.
 
 - First-level Telegram UX copy and button policy. It is product-specific and
   still tied to the accepted Inner Agora contract.
-- Live QA execution. It is an operational workflow, not a cleanup refactor.
+- Live QA execution as an incidental cleanup refactor. It should move only
+  through the explicit `release-live-gate` workflow, not through behavior or
+  architecture cleanup slices.
 
 ## Cleanup Plan
 
@@ -398,11 +415,12 @@ node scripts/agora.mjs costs --pricing default
 
 ## Recommended Next Work
 
-1. Continue Pass C only as focused runtime-module splits with no behavior
-   change: likely session orchestration next, not router or UX.
-2. Treat Pass D internal helper extraction as locally started; any future
-   Telegram UX/copy change still needs its own focused contract tests.
-3. Consider Pass E plugin/pack promotion only after internal module boundaries
-   stay stable across another verification pass.
-4. Keep live QA, production Telegram checks, and plugin install/publish in their
-   own focused turns even when approved.
+1. Build the release live gate first: post-suite guard/manifest/acceptance
+   fields plus active-run-safe cleanup. This reduces the false confidence that
+   "cleanup passed" means "live system is healthy".
+2. Centralize the Telegram first-level leak contract after that, so UX tests
+   stop duplicating route/model/local URL/wake/raw child row exclusions.
+3. Continue Pass C runtime-module splits only after the release lane no longer
+   requires manual investigation after every work-creating suite.
+4. Keep production Telegram checks and plugin install/publish in their own
+   focused turns even when approved.

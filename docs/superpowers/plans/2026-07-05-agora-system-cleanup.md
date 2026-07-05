@@ -505,6 +505,84 @@ Progress 2026-07-05:
   `backups/2026-07-05T21-31-39-714Z-the-inner-agora/backup.json`; final guard
   returned `ok=true` and stayed green on a 15-second repeat check.
 
+## Task 8: Retrospective Release Workflow
+
+Goal 2026-07-06: turn the last live run into a repeatable release workflow for
+Agora/Telegram/Paperclip, so the next pass quickly separates UX bugs, router
+bugs, stale QA expectations, and live Paperclip drift.
+
+The useful evidence chain is not "unit tests passed" or "one live suite passed"
+by itself. The release proof must be the full sequence:
+
+```text
+preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptance -> post-suite guard -> docs/commit
+```
+
+### Root Causes Captured
+
+- `post-suite guard` is the weak point: QA cleanup removes visible test issue and
+  message artifacts, but it does not prove Paperclip agents stayed healthy.
+- A concrete Paperclip race was observed: `hard cleanup` deleted a test issue
+  before the still-running heartbeat finalized. Paperclip then tried to insert a
+  `workspace_finalize` row into `workspace_operations` with a foreign key to the
+  deleted `issue_id`, causing `workspace_operations_issue_id_issues_id_fk` and
+  surfacing as `adapter_failed` even though Hermes had produced output.
+- Some QA expectations were stale: they still expected `Я понял тему` or route
+  details in user-visible replies while the accepted UX should show a clean
+  launch summary and hide technical route evidence.
+
+### Workflow/Plugin Candidates
+
+- `release-live-gate` for the Codex QA workflow plugin: one release mode that
+  records preflight, backup id, profile/plugin sync result, live run ids,
+  acceptance decision, post-suite guard, and docs/commit evidence.
+- `post-suite-health-gate` in `paperclip-qa`: after work-creating suites, write
+  `guardBefore`, `guardAfter`, `repairBackup`, `repairCommand`, and
+  `guardRepeat` into the manifest and `ACCEPTANCE.md`.
+- `visible-output-sanitizer` inside `paperclip-cockpit`: central first-level
+  Telegram leak policy for route/model/local URL/wake/raw child rows/CLI flags.
+- `docs-evidence-checklist`: a release checklist for run ids, backup ids, guard
+  status, repair status, and commit hashes that must be copied into roadmap
+  evidence docs.
+
+### Test Changes To Add
+
+- Post-suite guard test: fake suite creates work, cleanup passes, fake guard is
+  red; acceptance must not be a clean PASS.
+- Active-run cleanup test: `cleanup hard` sees an active heartbeat run and
+  cancels/waits or blocks instead of deleting the issue immediately.
+- Profile/plugin sync check: repo plugin sha must match Hermes profile plugin
+  sha before live suite, or the suite blocks/records an explicit warning.
+- Central `noTechnicalFirstLevelLeak` macro instead of duplicated
+  `replyNotContains` arrays.
+- `BUG-2026-07-03-001` operational intent tests for `проверить что вышло`,
+  `финал проверяем`, and `давай acceptance`.
+- Selected-voice ancestry guard before ask creation: red hierarchy returns a
+  short recovery message and does not create Paperclip work.
+- Error UX tests for `command not found`, provider timeout, and Paperclip 409:
+  user sees short Russian recovery text; raw details stay in diagnostics.
+
+### Test Expectations To Weaken Or Move
+
+- Remove route checks such as `localRouteContains` from first-level Telegram UX
+  assertions; prove route through artifacts/metadata/guard instead.
+- Avoid exact philosopher-name `replyContains` for auto-selected voices except
+  explicit named-voice scenarios.
+- Keep live suites out of normal local regression; live remains a release lane
+  with explicit `--live-ok`.
+- Keep `Я понял тему` only for plain ambiguous flow. Pair/exact launches should
+  assert the clean launch summary.
+
+### Recommended Order
+
+1. **Release Gate First:** add post-suite guard/manifest/acceptance and
+   active-run-safe cleanup. This removes the false signal that cleanup success
+   means live health.
+2. **UX Contract First:** centralize first-level leak policy and expectation
+   macros.
+3. **Architecture First:** continue Pass C only after the release lane no longer
+   needs manual investigation after every work-creating suite.
+
 ## Completion Checklist
 
 - [x] Current status doc exists and is linked from roadmap README.
@@ -522,3 +600,5 @@ Progress 2026-07-05:
 - [x] Telegram launch-summary leakage is fixed and live-retested.
 - [ ] Work-creating live QA suites include an explicit post-suite agent-health
   gate or documented repair step.
+- [ ] Release workflow has `release-live-gate`, post-suite guard manifest
+  fields, active-run-safe cleanup, and docs evidence checklist.
