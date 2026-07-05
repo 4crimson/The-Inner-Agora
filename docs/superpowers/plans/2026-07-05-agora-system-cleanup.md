@@ -527,9 +527,30 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
   `workspace_finalize` row into `workspace_operations` with a foreign key to the
   deleted `issue_id`, causing `workspace_operations_issue_id_issues_id_fk` and
   surfacing as `adapter_failed` even though Hermes had produced output.
+  Concrete run: `20b5a4ed-9021-4830-9654-718e2c10534b` started at
+  `2026-07-05T21:06:32Z`; issue
+  `357f13b2-ad4f-46a8-bbb5-0817b4029bab` was deleted by cleanup at
+  `21:08:36Z`; Hermes exited successfully at `21:18:14Z`; Paperclip then failed
+  when recording `workspace_finalize` for the deleted issue.
 - Some QA expectations were stale: they still expected `Я понял тему` or route
   details in user-visible replies while the accepted UX should show a clean
   launch summary and hide technical route evidence.
+
+### Cleanup Race Fix Plan
+
+1. Before `hard cleanup`, query active heartbeat/live runs for every issue that
+   the cleanup intends to delete.
+2. If a run is active, cancel/stop it and wait for a terminal state. If the run
+   does not reach terminal state within the cleanup budget, return a blocked
+   cleanup result and do not delete the issue.
+3. Only delete issue/message artifacts after active runs are terminal.
+4. After cleanup, run `inner-agora-guard`.
+5. Write `activeRunsBeforeCleanup`, `cancelledRuns`, `guardAfter`,
+   `repairBackup`, `repairCommand`, and `guardRepeat` into the QA manifest and
+   `ACCEPTANCE.md` when applicable.
+6. Do not mark a suite as clean PASS if cleanup removed visible artifacts but
+   left running/finalizing runs or a red guard. Use `accepted_with_repair` or
+   `blocked`.
 
 ### Workflow/Plugin Candidates
 
@@ -549,8 +570,9 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 
 - Post-suite guard test: fake suite creates work, cleanup passes, fake guard is
   red; acceptance must not be a clean PASS.
-- Active-run cleanup test: `cleanup hard` sees an active heartbeat run and
-  cancels/waits or blocks instead of deleting the issue immediately.
+- Active-run cleanup test: fake Paperclip issue has an active heartbeat run;
+  `cleanup hard` must cancel/wait or return blocked cleanup result instead of
+  deleting the issue immediately.
 - Profile/plugin sync check: repo plugin sha must match Hermes profile plugin
   sha before live suite, or the suite blocks/records an explicit warning.
 - Central `noTechnicalFirstLevelLeak` macro instead of duplicated

@@ -44,16 +44,21 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 ```
 
 Главный root cause из ретро: `hard cleanup` может удалить тестовый issue, пока
-heartbeat/run еще завершает работу. После этого Paperclip пытается записать
-`workspace_finalize` в `workspace_operations` со ссылкой на уже удаленный
-`issue_id` и получает `workspace_operations_issue_id_issues_id_fk`. Поэтому
-`cleanup` без post-suite guard не доказывает live health.
+heartbeat/run еще завершает работу. Конкретный пример: run
+`20b5a4ed-9021-4830-9654-718e2c10534b` стартовал в
+`2026-07-05T21:06:32Z`, связанный issue
+`357f13b2-ad4f-46a8-bbb5-0817b4029bab` был удален cleanup-ом в
+`21:08:36Z`, а Hermes завершился с `Exit code: 0` только в `21:18:14Z`.
+После этого Paperclip попытался записать `workspace_finalize` в
+`workspace_operations` со ссылкой на уже удаленный `issue_id` и получил
+`workspace_operations_issue_id_issues_id_fk`. Поэтому `cleanup` без
+active-run safety и post-suite guard не доказывает live health.
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
 |---|---|---|---|---|---|
 | RL-1 | `release-live-gate` для Codex QA workflow plugin: единый release режим вместо ручной цепочки | P0 | M | live approval gate | Команда/режим пишет preflight, backup id, plugin/profile sync result, suite run ids, acceptance decision, post-suite guard и итог `accepted` / `accepted_with_repair` / `blocked` |
 | RL-2 | `post-suite-health-gate` в `paperclip-qa` | P0 | M | RL-1 | Work-creating suites автоматически пишут `guardBefore`, `guardAfter`, `repairBackup`, `repairCommand`, `guardRepeat` в manifest/ACCEPTANCE; красный guard не считается чистым PASS |
-| RL-3 | Cleanup safety для active heartbeat runs | P0 | M | RL-2 | `cleanup hard` перед удалением issue проверяет active runs, cancel/wait или блокирует cleanup; тест доказывает, что issue не удаляется до terminal run state |
+| RL-3 | Cleanup safety для active heartbeat runs | P0 | M | RL-2 | `cleanup hard` перед удалением issue пишет `activeRunsBeforeCleanup`, cancel/stop для активных runs, ждет terminal state или возвращает blocked cleanup result; только потом удаляет issue; тест доказывает, что issue не удаляется до terminal run state |
 | RL-4 | Profile/plugin sync preflight | P1 | S | RL-1 | Перед live suite repo plugin sha сравнивается с Hermes profile plugin sha; mismatch блокирует suite или требует явный warning/override |
 | RL-5 | `visible-output-sanitizer` contract | P1 | M | RL-2 | Вместо копирования `replyNotContains` есть macro `noTechnicalFirstLevelLeak` для route/model/local URL/wake/raw child rows/CLI flags; first-level Telegram UX доказывается централизованно |
 | RL-6 | Operational intent tests для `BUG-2026-07-03-001` | P0 | S | RL-5 | Фразы `проверить что вышло`, `финал проверяем`, `давай acceptance` ведут в operational acceptance/status flow, а не в философский совет или roadmap persona |
@@ -71,6 +76,20 @@ heartbeat/run еще завершает работу. После этого Pape
   release lane с явным `--live-ok`;
 - старое ожидание `Я понял тему` оставить только для plain ambiguous flow;
   pair/exact launch должен проверять clean launch summary.
+
+Фикс для cleanup/finalize race:
+
+1. Перед `hard cleanup` получить active heartbeat/live runs для каждого issue,
+   который будет удален.
+2. Если runs активны, выполнить cancel/stop и дождаться terminal state; если
+   terminal state не наступил в budget, вернуть blocked cleanup result и не
+   удалять issue.
+3. После удаления artifacts запустить `inner-agora-guard`.
+4. В QA manifest записать `activeRunsBeforeCleanup`, `cancelledRuns`,
+   `guardAfter`, а при repair еще `repairBackup`, `repairCommand`,
+   `guardRepeat`.
+5. В acceptance считать suite `accepted_with_repair` или `blocked`, но не чистым
+   PASS, если cleanup оставил running/finalizing runs или guard red.
 
 Рекомендуемый порядок:
 
