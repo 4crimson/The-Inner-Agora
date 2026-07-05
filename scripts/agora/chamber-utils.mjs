@@ -1,11 +1,5 @@
 import path from "node:path";
 
-export function normalizeChamberMode(value) {
-  const normalized = String(value || "legacy").trim().toLowerCase();
-  if (["legacy", "chambers"].includes(normalized)) return normalized;
-  throw new Error(`Unsupported CHAMBER_MODE=${value}. Use legacy or chambers.`);
-}
-
 export function activeChamberIdFromState({
   env = process.env,
   state = {},
@@ -20,51 +14,23 @@ export function activeChamberIdFromState({
   ).trim();
 }
 
-export function shouldUseActiveChamberRoles({
-  chamberMode = "legacy",
-  env = process.env,
-  activeChamberId = "",
-  defaultChamberId = "philosophy",
-} = {}) {
-  return (
-    chamberMode === "chambers" ||
-    Boolean(env.INNER_AGORA_ACTIVE_CHAMBER) ||
-    activeChamberId !== defaultChamberId
-  );
-}
-
 export function chamberRelativePath(chambersDir, chamber, relativePath) {
   return path.isAbsolute(relativePath) ? relativePath : path.join(chambersDir, chamber.id, relativePath);
 }
 
 export function resolveRoleSourcePath({
-  chamberMode = "legacy",
-  env = process.env,
-  activeChamberId = "philosophy",
-  defaultChamberId = "philosophy",
-  legacyRolesPath,
   chambersDir,
   chamber,
 } = {}) {
-  if (!shouldUseActiveChamberRoles({ chamberMode, env, activeChamberId, defaultChamberId })) {
-    return legacyRolesPath;
-  }
   return chamberRelativePath(chambersDir, chamber, chamber.roles[0]);
 }
 
 export function resolveMvpPresetPath({
-  chamberMode = "legacy",
   env = process.env,
-  activeChamberId = "philosophy",
-  defaultChamberId = "philosophy",
-  defaultMvpPresetPath,
   chambersDir,
   chamber,
 } = {}) {
   if (env.INNER_AGORA_MVP_PRESET_PATH) return path.resolve(env.INNER_AGORA_MVP_PRESET_PATH);
-  if (!shouldUseActiveChamberRoles({ chamberMode, env, activeChamberId, defaultChamberId })) {
-    return defaultMvpPresetPath;
-  }
   return chamberRelativePath(chambersDir, chamber, chamber.presets[0]);
 }
 

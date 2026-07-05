@@ -181,7 +181,6 @@ class ImportInnerAgoraSyncTests(unittest.TestCase):
                     "PAPERCLIP_API_BASE": f"http://127.0.0.1:{server.server_port}/api",
                     "INNER_AGORA_CHAMBERS_DIR": str(chambers),
                     "INNER_AGORA_AGENT_ADAPTER": "hermes_local",
-                    "CHAMBER_MODE": "chambers",
                     "INNER_AGORA_PAPERCLIP_AGENT_WORKSPACE": str(temp / "workspace"),
                     "TEST_AGENT_WORKSPACE": str(temp / "workspace"),
                 }

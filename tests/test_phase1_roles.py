@@ -77,18 +77,19 @@ class Phase1RoleMigrationTests(unittest.TestCase):
             self.assertEqual(migrated_role["chamberId"], "philosophy")
             self.assertEqual(migrated_role["riskTier"], "reflective")
 
-    def test_chamber_mode_council_dry_run_matches_legacy(self):
-        args = [AGORA_SCRIPT, "council", "--dry-run", "Что такое свобода?"]
-        legacy = self.run_node(*args, env={"CHAMBER_MODE": "legacy"})
-        chambers = self.run_node(*args, env={"CHAMBER_MODE": "chambers"})
+    def test_chamber_roles_are_default_and_chamber_mode_no_longer_selects_legacy(self):
+        default_result = self.run_node(IMPORT_SCRIPT, "--print-roles")
+        legacy_env_result = self.run_node(IMPORT_SCRIPT, "--print-roles", env={"CHAMBER_MODE": "legacy"})
 
-        self.assertEqual(legacy.returncode, 0, legacy.stdout + legacy.stderr)
-        self.assertEqual(chambers.returncode, 0, chambers.stdout + chambers.stderr)
-        self.assertEqual(chambers.stdout, legacy.stdout)
-        self.assertIn("voices=Платон, Декарт, Хайдеггер", chambers.stdout)
+        self.assertEqual(default_result.returncode, 0, default_result.stdout + default_result.stderr)
+        self.assertEqual(legacy_env_result.returncode, 0, legacy_env_result.stdout + legacy_env_result.stderr)
+        self.assertIn("source=chambers/philosophy/roles.json", default_result.stdout)
+        self.assertIn("source=chambers/philosophy/roles.json", legacy_env_result.stdout)
+        self.assertNotIn("source=data/philosophers.json", default_result.stdout)
+        self.assertNotIn("source=data/philosophers.json", legacy_env_result.stdout)
 
     def test_importer_loads_chamber_roles_in_print_mode(self):
-        result = self.run_node(IMPORT_SCRIPT, "--print-roles", env={"CHAMBER_MODE": "chambers"})
+        result = self.run_node(IMPORT_SCRIPT, "--print-roles")
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("source=chambers/philosophy/roles.json", result.stdout)

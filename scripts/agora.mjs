@@ -12,10 +12,8 @@ import { composeChamberPolicy, fallbackTransparencyPolicy } from "./policy-loade
 import {
   activeChamberCompanyConfigFromChamber,
   activeChamberIdFromState,
-  normalizeChamberMode,
   resolveMvpPresetPath,
   resolveRoleSourcePath,
-  shouldUseActiveChamberRoles as shouldUseActiveChamberRolesFromConfig,
 } from "./agora/chamber-utils.mjs";
 import {
   adapterDisplayLine,
@@ -158,9 +156,6 @@ import {
 } from "./state-manager.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
-const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
-const DEFAULT_MVP_PRESET_PATH = path.join(ROOT, "chambers", "philosophy", "presets", "mvp.json");
 const CHAMBERS_DIR = process.env.INNER_AGORA_CHAMBERS_DIR
   ? path.resolve(process.env.INNER_AGORA_CHAMBERS_DIR)
   : path.join(ROOT, "chambers");
@@ -186,24 +181,8 @@ function readJsonFile(filePath, fallback = {}) {
   }
 }
 
-const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
-
-function shouldUseActiveChamberRoles() {
-  return shouldUseActiveChamberRolesFromConfig({
-    chamberMode: CHAMBER_MODE,
-    env: process.env,
-    activeChamberId: activeChamberId(),
-    defaultChamberId: DEFAULT_CHAMBER_ID,
-  });
-}
-
 function roleSourcePath() {
   return resolveRoleSourcePath({
-    chamberMode: CHAMBER_MODE,
-    env: process.env,
-    activeChamberId: activeChamberId(),
-    defaultChamberId: DEFAULT_CHAMBER_ID,
-    legacyRolesPath: LEGACY_ROLES_PATH,
     chambersDir: CHAMBERS_DIR,
     chamber: activeChamber(),
   });
@@ -220,11 +199,7 @@ function loadRoles() {
 
 function mvpPresetPath() {
   return resolveMvpPresetPath({
-    chamberMode: CHAMBER_MODE,
     env: process.env,
-    activeChamberId: activeChamberId(),
-    defaultChamberId: DEFAULT_CHAMBER_ID,
-    defaultMvpPresetPath: DEFAULT_MVP_PRESET_PATH,
     chambersDir: CHAMBERS_DIR,
     chamber: activeChamber(),
   });

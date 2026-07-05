@@ -26,10 +26,8 @@ class AgoraChamberUtilsTests(unittest.TestCase):
               activeChamberCompanyConfigFromChamber,
               activeChamberIdFromState,
               chamberRelativePath,
-              normalizeChamberMode,
               resolveMvpPresetPath,
               resolveRoleSourcePath,
-              shouldUseActiveChamberRoles,
             }} from {json.dumps(CHAMBER_UTILS.as_uri())};
 
             const env = {{}};
@@ -45,10 +43,6 @@ class AgoraChamberUtilsTests(unittest.TestCase):
                 goalTitle: "Board Goal",
               }},
             }};
-
-            assert.equal(normalizeChamberMode(""), "legacy");
-            assert.equal(normalizeChamberMode(" chambers "), "chambers");
-            assert.throws(() => normalizeChamberMode("future"), /Unsupported CHAMBER_MODE=future/);
 
             assert.equal(
               activeChamberIdFromState({{
@@ -70,43 +64,6 @@ class AgoraChamberUtilsTests(unittest.TestCase):
             );
 
             assert.equal(
-              shouldUseActiveChamberRoles({{
-                chamberMode: "legacy",
-                env,
-                activeChamberId: "philosophy",
-                defaultChamberId: "philosophy",
-              }}),
-              false,
-            );
-            assert.equal(
-              shouldUseActiveChamberRoles({{
-                chamberMode: "legacy",
-                env,
-                activeChamberId: "board-directors",
-                defaultChamberId: "philosophy",
-              }}),
-              true,
-            );
-            assert.equal(
-              shouldUseActiveChamberRoles({{
-                chamberMode: "chambers",
-                env,
-                activeChamberId: "philosophy",
-                defaultChamberId: "philosophy",
-              }}),
-              true,
-            );
-            assert.equal(
-              shouldUseActiveChamberRoles({{
-                chamberMode: "legacy",
-                env: {{ INNER_AGORA_ACTIVE_CHAMBER: "philosophy" }},
-                activeChamberId: "philosophy",
-                defaultChamberId: "philosophy",
-              }}),
-              true,
-            );
-
-            assert.equal(
               chamberRelativePath("/repo/chambers", chamber, "roles.json"),
               "/repo/chambers/board-directors/roles.json",
             );
@@ -114,48 +71,29 @@ class AgoraChamberUtilsTests(unittest.TestCase):
 
             assert.equal(
               resolveRoleSourcePath({{
-                chamberMode: "legacy",
                 env,
                 activeChamberId: "philosophy",
                 defaultChamberId: "philosophy",
-                legacyRolesPath: "/repo/data/philosophers.json",
-                chambersDir: "/repo/chambers",
-                chamber,
-              }}),
-              "/repo/data/philosophers.json",
-            );
-            assert.equal(
-              resolveRoleSourcePath({{
-                chamberMode: "chambers",
-                env,
-                activeChamberId: "philosophy",
-                defaultChamberId: "philosophy",
-                legacyRolesPath: "/repo/data/philosophers.json",
                 chambersDir: "/repo/chambers",
                 chamber,
               }}),
               "/repo/chambers/board-directors/roles.json",
             );
-
             assert.equal(
               resolveMvpPresetPath({{
-                chamberMode: "legacy",
                 env,
                 activeChamberId: "philosophy",
                 defaultChamberId: "philosophy",
-                defaultMvpPresetPath: "/repo/chambers/philosophy/presets/mvp.json",
                 chambersDir: "/repo/chambers",
                 chamber,
               }}),
-              "/repo/chambers/philosophy/presets/mvp.json",
+              "/repo/chambers/board-directors/presets/mvp.json",
             );
             assert.equal(
               resolveMvpPresetPath({{
-                chamberMode: "legacy",
                 env: {{ INNER_AGORA_MVP_PRESET_PATH: "/tmp/custom.json" }},
                 activeChamberId: "philosophy",
                 defaultChamberId: "philosophy",
-                defaultMvpPresetPath: "/repo/chambers/philosophy/presets/mvp.json",
                 chambersDir: "/repo/chambers",
                 chamber,
               }}),

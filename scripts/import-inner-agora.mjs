@@ -15,8 +15,6 @@ import {
 } from "./model-routing.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const LEGACY_ROLES_PATH = path.join(ROOT, "data", "philosophers.json");
-const PHILOSOPHY_ROLES_PATH = path.join(ROOT, "chambers", "philosophy", "roles.json");
 const PROMPTS_DIR = path.join(ROOT, "philosophers", "prompts");
 const PROMPT_START = "<!-- INNER_AGORA_PROMPT_START -->";
 const PROMPT_END = "<!-- INNER_AGORA_PROMPT_END -->";
@@ -65,24 +63,11 @@ function activeChamberCompanyConfig(state = readState()) {
   };
 }
 
-function normalizeChamberMode(value) {
-  const normalized = String(value || "legacy").trim().toLowerCase();
-  if (["legacy", "chambers"].includes(normalized)) return normalized;
-  throw new Error(`Unsupported CHAMBER_MODE=${value}. Use legacy or chambers.`);
-}
-
-const CHAMBER_MODE = normalizeChamberMode(process.env.CHAMBER_MODE || "legacy");
-
-function shouldUseActiveChamberRoles() {
-  return CHAMBER_MODE === "chambers" || Boolean(process.env.INNER_AGORA_ACTIVE_CHAMBER) || activeChamberId() !== DEFAULT_CHAMBER_ID;
-}
-
 function chamberRelativePath(chamber, relativePath) {
   return path.isAbsolute(relativePath) ? relativePath : path.join(CHAMBERS_DIR, chamber.id, relativePath);
 }
 
 function roleSourcePath() {
-  if (!shouldUseActiveChamberRoles()) return LEGACY_ROLES_PATH;
   const chamber = activeChamber();
   return chamberRelativePath(chamber, chamber.roles[0]);
 }
@@ -703,7 +688,6 @@ async function printRoles() {
   const roles = await loadRoles();
   const promptOverrides = new Map();
   console.log(`source=${path.relative(ROOT, roleSourcePath())}`);
-  console.log(`chamberMode=${CHAMBER_MODE}`);
   for (const roleDef of roleDefs(roles, promptOverrides, activeChamber())) {
     console.log(
       `role=${roleDef.key} chamberId=${roleDef.metadata.chamberId || ""} riskTier=${roleDef.metadata.riskTier || ""}`,

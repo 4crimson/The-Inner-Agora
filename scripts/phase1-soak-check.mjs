@@ -78,8 +78,7 @@ function regressionArgs(options) {
 function runChecks(options) {
   return {
     migration: runNode(["scripts/migrate-roles.mjs", "--check"]),
-    regressionLegacy: runNode(regressionArgs(options), { CHAMBER_MODE: "legacy" }),
-    regressionChambers: runNode(regressionArgs(options), { CHAMBER_MODE: "chambers" }),
+    regression: runNode(regressionArgs(options)),
   };
 }
 

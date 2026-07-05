@@ -17,8 +17,6 @@ The main blockers are not lack of random cleanup. They are specific acceptance
 gates:
 
 - live Telegram acceptance is still not fully proven;
-- Phase 1 legacy removal still requires a separate T1.6 slice after the
-  migration-and-regression readiness gate is green;
 - Phase 9 is partial: local token ledger and pricing exist, but Paperclip agent
   usage and monetary preflight are not covered;
 - `scripts/agora.mjs` is still a large runtime file, so Pass C is not finished;
@@ -42,12 +40,12 @@ evidence that Telegram live UX is accepted.
 | Requirement area | Current evidence | Audit status | Remaining acceptance |
 | --- | --- | --- | --- |
 | Roadmap entrypoint and status navigation | `README.md`, `CURRENT_STATUS.md`, `PLUGIN_BOUNDARIES.md`, this audit | Local docs current | Keep this audit updated after each slice |
-| Phase 0 regression baseline | `scripts/regression.mjs`, baseline fixtures, current readiness check runs both legacy and chambers regression successfully | Locally proven | Keep running before behavior-changing slices |
+| Phase 0 regression baseline | `scripts/regression.mjs`, baseline fixtures, current readiness check runs regression on the chamber role path | Locally proven | Keep running before behavior-changing slices |
 | QW-1 typo handling | `ask-unknown-philosopher-dry-run` in regression baseline, role search helpers | Locally proven | None for local scope |
 | QW-2 self-heal / guard direction | `scripts/inner-agora-guard.mjs`, monitor/guard tests and Phase 8 notes | Locally implemented | Live reliability still belongs to live acceptance, not cleanup |
 | QW-3 onboarding / compact Telegram entry | Telegram command boundary, `/start` aliases, compact home/help callbacks | Locally implemented | Live retest still pending for full service command surface |
 | QW-4 Paperclip backup before migrations | `scripts/backup-company.mjs`, `.gitignore` `backups/`, `tests/test_backup_company.py` | Locally implemented | Live Paperclip backup has not been run; do it only after explicit approval |
-| Phase 1 role schema and migration | `data/schema/role.schema.json`, `scripts/migrate-roles.mjs`, `chambers/philosophy/roles.json`, readiness check `migration` ok | Locally proven except removal | T1.6 must be a separate legacy-removal slice after the readiness gate is green |
+| Phase 1 role schema and migration | `data/schema/role.schema.json`, `scripts/migrate-roles.mjs`, `chambers/philosophy/roles.json`, importer/CLI chamber role source, readiness check `migration` ok | Locally complete | Keep migration check as a drift guard while `data/philosophers.json` remains the source for generated chamber roles |
 | Phase 2 chambers / packs | `data/schema/chamber.schema.json`, `scripts/chamber-loader.mjs`, philosophy and board-directors chambers | Locally implemented | Board role content quality T2.6b is not proven by voice tests |
 | Phase 3 skills layer | `data/schema/skill.schema.json`, `scripts/skill-loader.mjs`, `skills/*/skill.json`, skill tests | Locally implemented | Do not promote as public skill/plugin layer without a separate gate |
 | Phase 4 human assistant | `data/schema/intent-slots.schema.json`, `scripts/intent-slots.mjs`, wizard/follow-up tests | Locally implemented | Live profile/router drift can still break the intended UX |
@@ -134,7 +132,5 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
    creation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.
-4. Re-run the Phase 1 readiness gate and handle T1.6 in a separate
-   legacy-removal slice if it stays green.
-5. Run Telegram live retests from `BUGS.md` as a separate approved live
+4. Run Telegram live retests from `BUGS.md` as a separate approved live
    acceptance pass and update this audit from real evidence.

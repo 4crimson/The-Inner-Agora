@@ -231,10 +231,9 @@ Progress 2026-07-05:
   `scripts/agora.mjs`.
 - Created `scripts/agora/chamber-utils.mjs`.
 - Moved pure active-chamber/source mechanics from `scripts/agora.mjs`:
-  `CHAMBER_MODE` normalization, active-chamber id precedence,
-  chamber-relative paths, role roster source path, MVP preset path, and chamber
-  company config env overrides. State/profile reads and chamber command writes
-  remain in `scripts/agora.mjs`.
+  active-chamber id precedence, chamber-relative paths, role roster source path,
+  MVP preset path, and chamber company config env overrides. State/profile reads
+  and chamber command writes remain in `scripts/agora.mjs`.
 - Created `scripts/agora/natural-utils.mjs`.
 - Moved pure natural-language planning helpers from `scripts/agora.mjs`:
   natural CLI argument parsing, text normalization, explicit follow-up,
@@ -337,15 +336,14 @@ Run:
 ```bash
 python3 -m unittest tests.test_inner_agora_ask_flow tests.test_phase4_intent_slots -v
 node scripts/regression.mjs check
-CHAMBER_MODE=chambers node scripts/regression.mjs check
 node scripts/phase1-soak-check.mjs --json
 ```
 
 Expected:
 
 - focused tests pass;
-- both regression modes pass;
-- readiness check is green, but legacy removal remains a separate T1.6 slice.
+- regression passes on the chamber role path;
+- readiness check is green.
 
 ## Task 5: Telegram Helper Module Split
 
@@ -459,6 +457,6 @@ Expected:
 - [x] Current status doc exists and is linked from roadmap README.
 - [x] Plugin candidates are classified as existing, extract later, or do not extract yet.
 - [x] Live/Paperclip/Telegram gates are explicit.
-- [x] Legacy removal is reserved for a separate Phase 1 T1.6 readiness/removal slice.
+- [x] Phase 1 legacy role runtime removal is handled as its own T1.6 slice.
 - [x] Each later cleanup pass has acceptance criteria.
 - [x] Non-live verification passes before claiming completion of any pass.

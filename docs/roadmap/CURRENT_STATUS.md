@@ -19,9 +19,9 @@ Make The Inner Agora easier to maintain as a product by separating:
 - documentation and roadmap state;
 - live Telegram/Paperclip operations.
 
-The first cleanup pass must be safe: no user-facing behavior change and no
-legacy removal outside a dedicated T1.6 readiness/removal slice. Live system
-touches are now operator-approved, but still stay separate from cleanup commits.
+The cleanup pass must be safe: no user-facing behavior change unless a slice is
+explicitly UX-scoped. Live system touches are now operator-approved, but still
+stay separate from cleanup commits.
 
 ## Current Layer Map
 
@@ -86,8 +86,6 @@ touches are now operator-approved, but still stay separate from cleanup commits.
 
 - First-level Telegram UX copy and button policy. It is product-specific and
   still tied to the accepted Inner Agora contract.
-- Legacy/chamber compatibility removal. This remains a separate T1.6
-  readiness/removal slice after migration and both regression modes are green.
 - Live QA execution. It is an operational workflow, not a cleanup refactor.
 
 ## Cleanup Plan
@@ -186,12 +184,12 @@ roster/catalog helpers for tag extraction, tag normalization, tag summaries, and
 `philosophers` CLI argument parsing. Paperclip reads and user-facing printing
 remain in `scripts/agora.mjs`, keeping this slice local and read-only.
 Twelfth extraction completed: `scripts/agora/chamber-utils.mjs` now owns pure
-active-chamber and source-path mechanics: `CHAMBER_MODE` normalization,
-active-chamber id precedence, chamber-relative paths, role roster source path,
-MVP preset source path, and chamber company config env overrides. `scripts/agora.mjs`
-still owns state/profile reads, chamber command writes, and active runtime
-loading, so this slice does not change router semantics, Telegram UX, Paperclip
-writes, or live checks.
+active-chamber and source-path mechanics: active-chamber id precedence,
+chamber-relative paths, role roster source path, MVP preset source path, and
+chamber company config env overrides. `scripts/agora.mjs` still owns
+state/profile reads, chamber command writes, and active runtime loading, so this
+slice does not change router semantics, Telegram UX, Paperclip writes, or live
+checks.
 Thirteenth extraction completed: `scripts/agora/natural-utils.mjs` now owns pure
 natural-language CLI parsing and follow-up context predicates: natural text
 normalization, explicit follow-up/new-topic/new-session/read-only detection,
@@ -259,8 +257,7 @@ Acceptance criteria:
 - Paperclip client, session orchestration, role/chamber planning, synthesis,
   memory export, and natural-language planning live in focused modules.
 - Existing CLI and Telegram behavior remains unchanged.
-- Regression and focused unit tests pass in legacy and chambers modes where
-  applicable.
+- Regression and focused unit tests pass on the chamber role path.
 
 Current Pass C progress:
 
@@ -393,8 +390,6 @@ node scripts/agora.mjs costs --pricing default
   workstream, not as incidental cleanup.
 - No command with `--live-ok` during docs/code cleanup unless that cleanup slice
   explicitly includes live validation.
-- No deletion of legacy/chamber compatibility outside the separate Phase 1 T1.6
-  readiness/removal slice.
 - Router changes, Telegram UI changes, Paperclip recovery, and plugin packaging
   must be separate changes.
 - A green unit test is not enough to claim live UX acceptance.
@@ -409,5 +404,5 @@ node scripts/agora.mjs costs --pricing default
    Telegram UX/copy change still needs its own focused contract tests.
 3. Consider Pass E plugin/pack promotion only after internal module boundaries
    stay stable across another verification pass.
-4. Keep live QA, production Telegram checks, plugin install/publish, and legacy
-   removal in their own focused turns even when approved.
+4. Keep live QA, production Telegram checks, and plugin install/publish in their
+   own focused turns even when approved.

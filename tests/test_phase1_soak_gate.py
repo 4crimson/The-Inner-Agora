@@ -22,7 +22,7 @@ class Phase1ReadinessGateTests(unittest.TestCase):
     def write_json(self, path, payload):
         path.write_text(json.dumps(payload), encoding="utf-8")
 
-    def test_readiness_check_authorizes_when_migration_and_both_regression_modes_pass(self):
+    def test_readiness_check_authorizes_when_migration_and_regression_pass(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
             fixtures = base / "fixtures"
@@ -54,9 +54,10 @@ class Phase1ReadinessGateTests(unittest.TestCase):
         self.assertNotIn("eligibleAt", payload)
         self.assertNotIn("soakDays", payload)
         self.assertEqual(payload["checks"]["migration"]["status"], 0)
-        self.assertEqual(payload["checks"]["regressionLegacy"]["status"], 0)
-        self.assertEqual(payload["checks"]["regressionChambers"]["status"], 0)
-        self.assertEqual(payload["checks"]["regressionChambers"]["env"]["CHAMBER_MODE"], "chambers")
+        self.assertEqual(payload["checks"]["regression"]["status"], 0)
+        self.assertNotIn("regressionLegacy", payload["checks"])
+        self.assertNotIn("regressionChambers", payload["checks"])
+        self.assertNotIn("CHAMBER_MODE", payload["checks"]["regression"]["env"])
 
     def test_readiness_check_no_longer_requires_started_at(self):
         with tempfile.TemporaryDirectory() as temp_dir:
