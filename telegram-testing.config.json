@@ -15,6 +15,13 @@
     "dir": "artifacts/telegram-test-runs"
   },
   "guards": {
+    "postSuiteHealth": {
+      "enabled": true,
+      "command": "node",
+      "args": ["scripts/inner-agora-guard.mjs", "--json"],
+      "timeoutMs": 90000,
+      "runFor": "work-creating"
+    },
     "allowWarnings": [
       {
         "name": "paperclip-roster-sync-pending",

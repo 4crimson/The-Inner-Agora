@@ -24,10 +24,17 @@ function testCounts(manifest) {
   };
 }
 
-function statusForSummary({ counts, bugs, residuals }) {
+function guardFailures(manifest) {
+  return [
+    manifest.guardBefore?.ok === false ? "pre-suite-guard" : "",
+    manifest.guardAfter?.ok === false ? "post-suite-guard" : "",
+  ].filter(Boolean);
+}
+
+function statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards = [] }) {
   const blockingBugs = bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
   if (counts.planned > 0 && counts.pass === 0 && counts.fail === 0) return "BLOCKED";
-  if (counts.fail > 0 || residuals.length > 0 || blockingBugs.length > 0) return "FAIL";
+  if (counts.fail > 0 || residuals.length > 0 || blockingBugs.length > 0 || failedGuards.length > 0) return "FAIL";
   return "PASS";
 }
 
@@ -37,15 +44,17 @@ function compactObjectSummary(value) {
   return entries.map(([key, count]) => `${key}:${count}`).join(", ");
 }
 
-function topFinding({ status, bugs, residuals }) {
+function topFinding({ status, bugs, residuals, guardFailures: failedGuards = [] }) {
+  if (failedGuards.length) return `health guard failed: ${failedGuards.join(", ")}`;
   if (residuals.length) return `cleanup residuals: ${residuals.length}`;
   if (bugs.length) return `${bugs[0].area || "unknown"} ${bugs[0].severity || "P2"}: ${bugs[0].title || bugs[0].testId}`;
   if (status === "PASS") return "критичных проблем не найдено";
   return "run blocked before acceptance";
 }
 
-function nextStep({ status, bugs, residuals }) {
+function nextStep({ status, bugs, residuals, guardFailures: failedGuards = [] }) {
   if (status === "PASS") return "live suite complete";
+  if (failedGuards.length) return "developer batch: post-suite health";
   if (status === "BLOCKED") return "readiness or live approval";
   if (residuals.length) return "developer batch: cleanup";
   const firstP1 = bugs.find((bug) => bug.severity === "P0" || bug.severity === "P1") || bugs[0];
@@ -250,9 +259,11 @@ export function writeAcceptance({ manifest, outputDir }) {
   const counts = testCounts(manifest);
   const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
   const blockingBugs = batch.bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
+  const failedGuards = guardFailures(manifest);
   const reasons = [];
   if (counts.fail > 0) reasons.push("failed-tests");
   if (residuals.length > 0) reasons.push("cleanup-residuals");
+  reasons.push(...failedGuards);
   if (blockingBugs.length > 0) reasons.push("blocking-bugs");
 
   const decision = reasons.length
@@ -283,6 +294,11 @@ export function writeAcceptance({ manifest, outputDir }) {
     "",
     residuals.length ? `Residuals: ${residuals.length}` : "Residuals: none",
     "",
+    "## Guards",
+    "",
+    `Before: ${manifest.guardBefore ? (manifest.guardBefore.ok ? "ok" : "failed") : "not-run"}`,
+    `After: ${manifest.guardAfter ? (manifest.guardAfter.ok ? "ok" : "failed") : "not-run"}`,
+    "",
   ];
   if (reasons.length) {
     lines.push("## Blocking Reasons", "");
@@ -302,6 +318,7 @@ export function writeAcceptance({ manifest, outputDir }) {
       byArea: batch.summary.byArea,
       bySeverity: batch.summary.bySeverity,
       cleanupResiduals: residuals.length,
+      guardFailures: failedGuards,
     },
   };
 }
@@ -311,7 +328,8 @@ export function buildTelegramSummary({ manifest, outputDir }) {
   const batch = bugBatch({ manifest });
   const bugs = batch.bugs;
   const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
-  const status = statusForSummary({ counts, bugs, residuals });
+  const failedGuards = guardFailures(manifest);
+  const status = statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards });
   const reportPath = path.join(outputDir, "REPORT.md");
   const acceptancePath = path.join(outputDir, "ACCEPTANCE.md");
   const bugsPath = path.join(outputDir, "bugs.jsonl");
@@ -324,14 +342,14 @@ export function buildTelegramSummary({ manifest, outputDir }) {
     `Cleanup: ${residuals.length ? `residuals ${residuals.length}` : "clean"}`,
     "",
     "Главное:",
-    `- ${redact(topFinding({ status, bugs, residuals }))}`,
+    `- ${redact(topFinding({ status, bugs, residuals, guardFailures: failedGuards }))}`,
     "",
     "Артефакты:",
     `- REPORT.md: ${redact(reportPath)}`,
     `- ACCEPTANCE.md: ${redact(acceptancePath)}`,
     `- bugs.jsonl: ${redact(bugsPath)}`,
     "",
-    `Следующий шаг: ${redact(nextStep({ status, bugs, residuals }))}`,
+    `Следующий шаг: ${redact(nextStep({ status, bugs, residuals, guardFailures: failedGuards }))}`,
   ].join("\n");
   return {
     status,
@@ -342,7 +360,8 @@ export function buildTelegramSummary({ manifest, outputDir }) {
       byArea: batch.summary.byArea,
       bySeverity: batch.summary.bySeverity,
       cleanupResiduals: residuals.length,
-      nextStep: nextStep({ status, bugs, residuals }),
+      guardFailures: failedGuards,
+      nextStep: nextStep({ status, bugs, residuals, guardFailures: failedGuards }),
     },
   };
 }

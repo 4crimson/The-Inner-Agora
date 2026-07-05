@@ -88,6 +88,7 @@ async function executeTestList({
   now = new Date(),
   previousRunId = "",
   runSuiteName = suiteName,
+  beforeSuite = null,
 }) {
   const mode = cleanupMode || config.paperclip.cleanup;
   if (!["hard", "soft", "none"].includes(mode)) throw new ConfigValidationError(["--cleanup must be hard, soft, or none"]);
@@ -102,6 +103,27 @@ async function executeTestList({
       mode,
     },
   };
+
+  if (beforeSuite) {
+    const guardBefore = await beforeSuite({ manifest, manifestPath: run.manifestPath, suiteName, tests });
+    manifest.guardBefore = guardBefore;
+    if (!guardBefore.ok) {
+      manifest.finishedAt = now.toISOString();
+      writeManifest(run.manifestPath, manifest);
+      return {
+        ok: false,
+        blockedBeforeSuite: true,
+        guardBefore,
+        dryRun: false,
+        runId: run.runId,
+        manifestPath: run.manifestPath,
+        suite: suiteName,
+        cleanup: mode,
+        tests: [],
+        bugs: 0,
+      };
+    }
+  }
 
   const company = await paperclipClient.findCompanyByName(config.paperclip.company);
   if (!company) throw new ConfigValidationError([`paperclip company not found: ${config.paperclip.company}`]);
@@ -163,6 +185,7 @@ async function executeTestList({
   writeManifest(run.manifestPath, manifest);
   return {
     ok: manifest.tests.every((test) => test.status === "pass"),
+    ...(manifest.guardBefore ? { guardBefore: manifest.guardBefore } : {}),
     dryRun: false,
     runId: run.runId,
     manifestPath: run.manifestPath,
@@ -173,7 +196,15 @@ async function executeTestList({
   };
 }
 
-export async function executeSuite({ config, suiteName, userbot, paperclipClient, cleanupMode = "", now = new Date() }) {
+export async function executeSuite({
+  config,
+  suiteName,
+  userbot,
+  paperclipClient,
+  cleanupMode = "",
+  now = new Date(),
+  beforeSuite = null,
+}) {
   const suite = config.suites[suiteName];
   if (!suite) throw new ConfigValidationError([`suite not found: ${suiteName}`]);
   return executeTestList({
@@ -184,6 +215,7 @@ export async function executeSuite({ config, suiteName, userbot, paperclipClient
     paperclipClient,
     cleanupMode,
     now,
+    beforeSuite,
   });
 }
 

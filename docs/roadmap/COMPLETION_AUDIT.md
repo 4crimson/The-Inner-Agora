@@ -121,7 +121,11 @@ Current audit blockers:
 - Accepted work-creating live suites can still leave Paperclip agents in
   `error` after issue cleanup. 2026-07-05 `mode-routing`,
   `interface-contract-topics`, and `council-create` required backup plus
-  `prepare local` before guard returned to `ok=true`.
+  `prepare local` before guard returned to `ok=true`. First local
+  post-suite-health slice is now implemented: work-creating `paperclip-qa run`
+  writes `guardBefore`/`guardAfter`, blocks live side effects on red before
+  guard, and rejects acceptance on red after guard. Automated repair backup,
+  repair command, and guard repeat remain open.
 - A related Paperclip lifecycle race was observed in run
   `20b5a4ed-9021-4830-9654-718e2c10534b`: `hard cleanup` deleted the issue
   before `workspace_finalize` wrote its `workspace_operations` row, causing a
@@ -134,7 +138,8 @@ Current audit blockers:
   open.
 - Quick/deep and council live inbound verification through the actual Telegram
   gateway now have accepted release-suite evidence; future work should focus on
-  making the post-suite guard/repair gate explicit and less manual.
+  making the repair/repeat part of the post-suite guard explicit and less
+  manual.
 - Project-action error UX handles the terminated-ancestor 409 path locally, but
   command-not-found and provider timeout/error formatting remain open.
 

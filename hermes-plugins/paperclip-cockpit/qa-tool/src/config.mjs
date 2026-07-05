@@ -35,18 +35,37 @@ function validateGuardWarnings(config, errors) {
     errors.push("guards");
     return;
   }
-  if (guards.allowWarnings === undefined) return;
-  if (!Array.isArray(guards.allowWarnings)) {
-    errors.push("guards.allowWarnings");
-    return;
-  }
-  for (const warning of guards.allowWarnings) {
-    if (!warning || typeof warning !== "object" || Array.isArray(warning)) {
+  if (guards.allowWarnings !== undefined) {
+    if (!Array.isArray(guards.allowWarnings)) {
       errors.push("guards.allowWarnings");
-      continue;
+    } else {
+      for (const warning of guards.allowWarnings) {
+        if (!warning || typeof warning !== "object" || Array.isArray(warning)) {
+          errors.push("guards.allowWarnings");
+          continue;
+        }
+        requireString(warning.name, "guards.allowWarnings.name", errors);
+        requireString(warning.reason, "guards.allowWarnings.reason", errors);
+      }
     }
-    requireString(warning.name, "guards.allowWarnings.name", errors);
-    requireString(warning.reason, "guards.allowWarnings.reason", errors);
+  }
+  if (guards.postSuiteHealth !== undefined) {
+    const guard = guards.postSuiteHealth;
+    if (!guard || typeof guard !== "object" || Array.isArray(guard)) {
+      errors.push("guards.postSuiteHealth");
+      return;
+    }
+    if (guard.enabled !== undefined && typeof guard.enabled !== "boolean") errors.push("guards.postSuiteHealth.enabled");
+    if (guard.command !== undefined) requireString(guard.command, "guards.postSuiteHealth.command", errors);
+    if (guard.args !== undefined && (!Array.isArray(guard.args) || !guard.args.every((arg) => typeof arg === "string"))) {
+      errors.push("guards.postSuiteHealth.args");
+    }
+    if (guard.timeoutMs !== undefined && (!Number.isFinite(Number(guard.timeoutMs)) || Number(guard.timeoutMs) <= 0)) {
+      errors.push("guards.postSuiteHealth.timeoutMs");
+    }
+    if (guard.runFor !== undefined && !["work-creating", "always"].includes(guard.runFor)) {
+      errors.push("guards.postSuiteHealth.runFor");
+    }
   }
 }
 
@@ -179,6 +198,14 @@ export function normalizeConfig(config) {
     guards: {
       allowWarnings: [],
       ...(config.guards || {}),
+      postSuiteHealth: {
+        enabled: false,
+        command: process.execPath,
+        args: ["scripts/inner-agora-guard.mjs", "--json"],
+        timeoutMs: 60000,
+        runFor: "work-creating",
+        ...(config.guards?.postSuiteHealth || {}),
+      },
     },
     reporting: {
       ...(config.reporting || {}),

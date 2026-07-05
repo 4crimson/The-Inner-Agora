@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
 import { cleanupRun } from "../src/cleanup-runner.mjs";
+import { runSuiteHealthGuard, shouldRunSuiteHealthGuard } from "../src/guard-runner.mjs";
 import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, updateManifest } from "../src/manifest.mjs";
 import { PaperclipClient } from "../src/paperclip-client.mjs";
@@ -103,6 +104,7 @@ function configSummary(config) {
       },
       guards: {
         allowWarnings: config.guards.allowWarnings,
+        postSuiteHealth: config.guards.postSuiteHealth,
       },
       reporting: {
         telegram: config.reporting.telegram,
@@ -292,9 +294,33 @@ function writeRunArtifacts({ config, runId, manifestPath }) {
     reportPath: report.reportPath,
     acceptancePath: acceptance.acceptancePath,
     decision: acceptance.decision,
+    reasons: acceptance.reasons,
     bugsPath: bugs.bugsPath,
     bugs: bugs.bugs.length,
   };
+}
+
+function beforeSuiteHealthGuard({ config, suite }) {
+  if (!shouldRunSuiteHealthGuard({ config, suite })) return null;
+  return ({ manifest, manifestPath }) => runSuiteHealthGuard({
+    config,
+    manifest,
+    manifestPath,
+    phase: "before",
+  });
+}
+
+function runAfterSuiteHealthGuard({ config, suite, manifestPath }) {
+  const manifest = readManifest(manifestPath);
+  if (!shouldRunSuiteHealthGuard({ config, suite, manifest })) return null;
+  const guardAfter = runSuiteHealthGuard({
+    config,
+    manifest,
+    manifestPath,
+    phase: "after",
+  });
+  updateManifest(manifestPath, (current) => ({ ...current, guardAfter }));
+  return guardAfter;
 }
 
 function summarizeRun({ config, runId }) {
@@ -405,6 +431,7 @@ async function main(argv) {
     if (!options.dryRun && !options.liveOk) {
       throw new ConfigValidationError(["--live-ok is required for non-dry-run suite execution"]);
     }
+    const suite = config.suites[options.suite];
     const result = options.dryRun
       ? runSuite({ config, suiteName: options.suite, dryRun: true, cleanupMode: options.cleanup })
       : await executeSuite({
@@ -413,8 +440,9 @@ async function main(argv) {
         cleanupMode: options.cleanup,
         userbot: new TelegramUserbot({ config }),
         paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+        beforeSuite: beforeSuiteHealthGuard({ config, suite }),
       });
-    if (!options.dryRun && result.cleanup !== "none") {
+    if (!options.dryRun && result.cleanup !== "none" && !result.blockedBeforeSuite) {
       const cleanupResult = await runCleanupForManifest({
         config,
         manifestPath: result.manifestPath,
@@ -422,6 +450,13 @@ async function main(argv) {
       });
       result.cleanup = cleanupResult.cleanup;
       result.ok = result.ok && cleanupResult.ok;
+    }
+    if (!options.dryRun && !result.blockedBeforeSuite) {
+      const guardAfter = runAfterSuiteHealthGuard({ config, suite, manifestPath: result.manifestPath });
+      if (guardAfter) {
+        result.guardAfter = guardAfter;
+        result.ok = result.ok && guardAfter.ok;
+      }
     }
     if (!options.dryRun) {
       Object.assign(result, writeRunArtifacts({ config, runId: result.runId, manifestPath: result.manifestPath }));

@@ -99,6 +99,15 @@ blocked result через residual `active-runs-before-cleanup`, а manifest п�
 `test_cleanup_hard_blocks_issue_delete_when_live_run_is_active`. Следующий срез:
 auto-cancel/wait terminal state и post-suite `inner-agora-guard`.
 
+Статус 2026-07-06: первый кодовый срез RL-2 реализован в `paperclip-qa`.
+Для work-creating suites `run --live-ok` запускает configurable
+`guards.postSuiteHealth` до Telegram/Paperclip side effects и после cleanup.
+Красный `guardBefore` блокирует suite до создания work; красный `guardAfter`
+пишется в manifest и `ACCEPTANCE.md` как `post-suite-guard`, а decision не
+может быть clean accept. Реальный `telegram-testing.config.json` включает
+`node scripts/inner-agora-guard.mjs --json` для work-creating release suites.
+Осталось: repair backup/command, `guardRepeat`, и общий `release-live-gate`.
+
 Рекомендуемый порядок:
 
 1. **Release Gate First:** RL-1, RL-2, RL-3.

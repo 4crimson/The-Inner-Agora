@@ -75,12 +75,13 @@ stay separate from cleanup commits.
   explicitly: preflight, backup, profile/plugin sync, live suite, cleanup,
   acceptance, post-suite guard, docs/commit evidence.
 - `post-suite-health-gate`: a `paperclip-qa` gate for work-creating suites that
-  records `guardBefore`, `guardAfter`, repair backup/command, and repeat guard
-  status in the manifest and acceptance report.
+  now records `guardBefore` and `guardAfter` in the manifest and acceptance
+  report; red before-guard blocks live side effects, and red after-guard rejects
+  acceptance. Repair backup/command and repeat guard remain next.
 - `cleanup-active-run-guard`: implemented first slice in `paperclip-qa`; hard
   cleanup now blocks issue delete when `/issues/:id/live-runs` reports active
   runs and records `activeRunsBeforeCleanup` in the manifest. Auto-cancel/wait
-  and post-suite guard wiring remain next.
+  remains next.
 - `visible-output-sanitizer`: a shared first-level Telegram leak policy for
   route/model/local URL/wake/raw child rows/CLI flags, replacing duplicated
   `replyNotContains` lists.

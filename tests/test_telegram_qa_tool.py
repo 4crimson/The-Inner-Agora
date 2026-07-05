@@ -644,6 +644,38 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         )
         return script
 
+    def write_fake_guard_driver(self, temp_dir, *, fail_phase=None):
+        script = Path(temp_dir) / "fake-guard-driver.py"
+        script.write_text(
+            textwrap.dedent(
+                f"""
+                import json
+                import os
+                import pathlib
+
+                phase = os.environ.get("PAPERCLIP_QA_GUARD_PHASE", "")
+                calls_path = pathlib.Path(os.environ["FAKE_GUARD_CALLS"])
+                calls_path.parent.mkdir(parents=True, exist_ok=True)
+                with calls_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps({{
+                        "phase": phase,
+                        "runId": os.environ.get("PAPERCLIP_QA_RUN_ID", ""),
+                        "manifestPath": os.environ.get("PAPERCLIP_QA_MANIFEST_PATH", ""),
+                    }}))
+                    handle.write("\\n")
+                ok = phase != {json.dumps(fail_phase)}
+                print(json.dumps({{
+                    "ok": ok,
+                    "events": [] if ok else [{{"level": "error", "message": f"{{phase}} guard failed"}}],
+                    "agents": {{"ok": ok}},
+                }}))
+                raise SystemExit(0 if ok else 1)
+                """
+            ),
+            encoding="utf-8",
+        )
+        return script
+
     def write_report_manifest(self, artifacts_dir, run_id):
         run_dir = Path(artifacts_dir) / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -1366,6 +1398,154 @@ console.log(JSON.stringify(result));
             manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
             self.assertEqual(manifest["cleanup"]["telegram"][0]["messageIds"], [101, 102])
             self.assertEqual(manifest["cleanup"]["paperclip"][0]["issueId"], "new-root")
+
+    def test_run_blocks_work_creating_suite_when_guard_before_fails(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(issues_responses=[before_issues]) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            guard_calls_path = Path(temp_dir) / "guard-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            fake_guard = self.write_fake_guard_driver(temp_dir, fail_phase="before")
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["guards"]["postSuiteHealth"] = {
+                "enabled": True,
+                "command": "python3",
+                "args": [str(fake_guard)],
+                "timeoutMs": 5000,
+            }
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "FAKE_GUARD_CALLS": str(guard_calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertIn("guardBefore", payload)
+            self.assertEqual(payload["guardBefore"]["ok"], False)
+            self.assertTrue(payload["blockedBeforeSuite"])
+            self.assertFalse(calls_path.exists())
+            self.assertEqual([call[0] for call in server.calls], [])
+            guard_calls = [json.loads(line) for line in guard_calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call["phase"] for call in guard_calls], ["before"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertFalse(manifest["guardBefore"]["ok"])
+            self.assertEqual(manifest["tests"], [])
+            acceptance = Path(payload["acceptancePath"]).read_text(encoding="utf-8")
+            self.assertIn("Decision: reject", acceptance)
+            self.assertIn("pre-suite-guard", acceptance)
+
+    def test_run_with_cleanup_rejects_when_post_suite_guard_fails(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_issues = [
+            *before_issues,
+            {"id": "new-root", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(issues_responses=[before_issues, after_issues]) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            calls_path = Path(temp_dir) / "telegram-calls.jsonl"
+            guard_calls_path = Path(temp_dir) / "guard-calls.jsonl"
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            fake_guard = self.write_fake_guard_driver(temp_dir, fail_phase="after")
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["guards"]["postSuiteHealth"] = {
+                "enabled": True,
+                "command": "python3",
+                "args": [str(fake_guard)],
+                "timeoutMs": 5000,
+            }
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "run",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "FAKE_GUARD_CALLS": str(guard_calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertTrue(payload["guardBefore"]["ok"])
+            self.assertFalse(payload["guardAfter"]["ok"])
+            self.assertEqual(payload["decision"], "reject")
+            self.assertIn("post-suite-guard", payload["reasons"])
+            guard_calls = [json.loads(line) for line in guard_calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call["phase"] for call in guard_calls], ["before", "after"])
+            calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(calls, [["send", "агора помощь", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
+            delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
+            self.assertEqual(delete_paths, ["/api/issues/new-root"])
+            manifest = json.loads(Path(payload["manifestPath"]).read_text(encoding="utf-8"))
+            self.assertTrue(manifest["guardBefore"]["ok"])
+            self.assertFalse(manifest["guardAfter"]["ok"])
+            acceptance = Path(payload["acceptancePath"]).read_text(encoding="utf-8")
+            self.assertIn("post-suite-guard", acceptance)
 
     def test_run_with_notify_sends_retained_result_after_cleanup(self):
         before_issues = [

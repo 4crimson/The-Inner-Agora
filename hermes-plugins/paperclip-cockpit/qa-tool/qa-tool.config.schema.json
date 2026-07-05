@@ -47,6 +47,19 @@
               "reason": { "type": "string", "minLength": 1 }
             }
           }
+        },
+        "postSuiteHealth": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "command": { "type": "string", "minLength": 1 },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "timeoutMs": { "type": "number", "exclusiveMinimum": 0 },
+            "runFor": { "enum": ["work-creating", "always"] }
+          }
         }
       }
     },

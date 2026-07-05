@@ -598,6 +598,19 @@ associated Paperclip run is still running or finalizing.
 Still open: auto-cancel active heartbeat runs, wait for terminal state within a
 budget, and run/write post-suite `inner-agora-guard` in manifest and acceptance.
 
+### 2026-07-06 RL-2 Implementation Note
+
+The first post-suite-health slice is implemented locally in `paperclip-qa`.
+Configs can set `guards.postSuiteHealth`; the real Telegram QA config enables
+`node scripts/inner-agora-guard.mjs --json` for work-creating suites. The live
+run path now writes `guardBefore` before Telegram/Paperclip side effects and
+`guardAfter` after cleanup. A red before guard blocks the suite before work is
+created. A red after guard records `post-suite-guard` in `ACCEPTANCE.md` and
+prevents a clean accept.
+
+Still open: automated repair backup, repair command, and repeat guard evidence
+(`guardRepeat`) inside the same release workflow.
+
 ### Test Expectations To Weaken Or Move
 
 - Remove route checks such as `localRouteContains` from first-level Telegram UX
