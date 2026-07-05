@@ -51,8 +51,8 @@ evidence that Telegram live UX is accepted.
 | Phase 4 human assistant | `data/schema/intent-slots.schema.json`, `scripts/intent-slots.mjs`, wizard/follow-up tests | Locally implemented | Live profile/router drift can still break the intended UX |
 | Phase 5 model routing | `models.config.json`, `scripts/model-routing.mjs`, routing tests | Locally implemented | Cloud/provider route is not part of this phase |
 | Phase 6 per-chat state | `scripts/state-manager.mjs`, `data/schema/state.schema.json`, per-chat tests | Locally implemented | Live Telegram must prove chat id propagation in actual gateway |
-| Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill | Locally implemented | Runtime ancestry health before live ask still needs explicit guard coverage |
-| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Live-proven for release suites | `help`, `service-commands`, `mode-routing`, `natural-dialogue`, `interface-contract-topics`, and `council-create` are accepted; post-suite agent-health drift and BUG-2026-07-03-001 remain open |
+| Phase 7 chamber safety | `scripts/policy-loader.mjs`, chamber risk/status fields, high-stakes disclaimer skill, selected voice ancestry pre-ask guard | Locally implemented | Live replay of a red hierarchy remains optional evidence; local guard coverage now blocks writes before ask creation |
+| Phase 8 Telegram UX | Compact callbacks, mode selector, payload helpers, QA surfaces, `BUGS.md` fixes, live QA runs | Live-proven for release suites | `help`, `service-commands`, `mode-routing`, `natural-dialogue`, `interface-contract-topics`, and `council-create` are accepted; post-suite agent-health drift and UX leak/intent portions of BUG-2026-07-03-001 remain open |
 | Phase 9 observability/cost | `scripts/agora/cost-utils.mjs`, `costs.config.json`, `/agora costs`, all-mode volume preflight | Partial | Paperclip agent usage, unknown pricing, and monetary preflight remain open |
 | Config source split | `config/cockpit/*.json`, build/check tooling, matching runtime sha | Locally proven | Humans should edit fragments, runtime keeps `paperclip-cockpit.json` |
 | Generic plugin boundary | `paperclip-cockpit` no longer owns Agora launch copy; `PLUGIN_BOUNDARIES.md` defines gates | Locally improved | No install/publish/profile copy without explicit approval |
@@ -112,8 +112,10 @@ Current audit blockers:
 
 - `BUG-2026-07-03-001` is open: raw service tokens, internal reasoning fallback,
   wrong operational persona, and mode/status continuation were observed in live
-  Telegram. The Paperclip hierarchy part was recovered on 2026-07-05, but an
-  explicit selected-voice ancestry guard remains future hardening.
+  Telegram. The Paperclip hierarchy repair path was recovered on 2026-07-05,
+  and local selected-voice ancestry guard coverage was added on 2026-07-06:
+  red `reportsTo` ancestry now blocks `ask` before any Paperclip issue write.
+  Live replay of a deliberately red hierarchy was not run in this slice.
 - `BUG-2026-07-03-002`, `BUG-2026-07-03-003`, and `BUG-2026-07-04-004` have
   live accepted suites on 2026-07-05: `help`, `service-commands`,
   strengthened `mode-routing`, `natural-dialogue`, `interface-contract-topics`,
@@ -161,8 +163,8 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
    accepted/accepted-with-repair/blocked decisions.
 2. Centralize first-level Telegram leak expectations into a reusable
    `noTechnicalFirstLevelLeak` contract.
-3. Add explicit dry/local guard coverage for selected voice ancestry before ask
-   creation.
+3. Centralize operational-intent expectations for `проверить что вышло`,
+   `финал проверяем`, and `давай acceptance`.
 4. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 5. Extend Phase 9 only where usage data is actually available; keep unknown

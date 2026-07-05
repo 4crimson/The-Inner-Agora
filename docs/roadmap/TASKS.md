@@ -88,6 +88,13 @@ restart` вернулся `profilePluginSync=ok`. Guard repair был выпол
 `backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json`, `prepare local`
 и repeat guard `ok=true`.
 
+Статус 2026-07-06: RL-7 закрыт локальным pre-ask guard. `scripts/agora.mjs ask`
+проверяет выбранных voice-агентов и их `reportsTo`-цепочку до первого
+`createIssue`; если выбранный голос идет через `terminated`/`error`/archived
+ancestor, команда останавливается коротким recovery-сообщением с подсказкой
+`node scripts/agora.mjs prepare local`, а Paperclip work/wakeup не создаются.
+Покрытие: `tests.test_inner_agora_ask_flow.InnerAgoraAskFlowTests.test_ask_blocks_selected_voice_with_terminated_ancestor_before_writes`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

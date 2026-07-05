@@ -675,6 +675,32 @@ class InnerAgoraAskFlowTests(unittest.TestCase):
         self.assertEqual(result["issues"][0]["title"].split(":", 1)[0], "Agora all")
         self.assertEqual(result["issues"][0]["priority"], "critical")
 
+    def test_ask_blocks_selected_voice_with_terminated_ancestor_before_writes(self):
+        agents = [
+            {"id": "assistant-1", "name": "Agora Assistant / Синтезатор", "status": "terminated"},
+            {"id": "plato-1", "name": "Платон", "status": "idle", "reportsTo": "assistant-1"},
+            {"id": "descartes-1", "name": "Декарт", "status": "idle"},
+            {"id": "heidegger-1", "name": "Хайдеггер", "status": "idle"},
+            {"id": "socrates-1", "name": "Сократ", "status": "idle"},
+            {"id": "sartre-1", "name": "Жан-Поль Сартр", "status": "idle"},
+        ]
+        result = self.run_ask_args(
+            "--philosophers",
+            "plato",
+            "что такое справедливость",
+            agents=agents,
+        )
+
+        self.assertNotEqual(result["returncode"], 0)
+        self.assertIn("Paperclip-иерархия", result["stderr"])
+        self.assertIn("Платон", result["stderr"])
+        self.assertIn("Agora Assistant / Синтезатор", result["stderr"])
+        self.assertIn("prepare local", result["stderr"])
+        self.assertEqual(result["issues"], [])
+        self.assertEqual(result["comments"], [])
+        self.assertEqual(result["wakeups"], [])
+        self.assertEqual(result["state"], {})
+
     def test_follow_up_creates_child_task_against_existing_root(self):
         result = self.run_follow_up("THE-900", "уточни у Платона понятие долга")
 

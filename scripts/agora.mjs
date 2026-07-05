@@ -83,6 +83,10 @@ import {
 } from "./agora/roster-utils.mjs";
 import { allModePreflight } from "./agora/preflight-utils.mjs";
 import {
+  selectedAgentAncestryProblems,
+  selectedAgentAncestryRecoveryMessage,
+} from "./agora/agent-ancestry-utils.mjs";
+import {
   hasSynthesisShape,
   normalizedDigestBody,
   printFallbackDigest,
@@ -631,6 +635,10 @@ async function ask(args) {
   const missingAgents = selected.filter((item) => !agora.agentsByName.get(item.name));
   if (missingAgents.length) {
     throw new Error(`Missing Paperclip agents: ${missingAgents.map((item) => item.name).join(", ")}`);
+  }
+  const ancestryProblems = selectedAgentAncestryProblems(selected, agora.agentsByName);
+  if (ancestryProblems.length) {
+    throw new Error(selectedAgentAncestryRecoveryMessage(ancestryProblems));
   }
 
   const rootIssue = await createIssue(agora.company.id, {
