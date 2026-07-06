@@ -306,6 +306,10 @@ Twenty-eighth extraction completed: `scripts/agora/cli-help-utils.mjs` now owns
 the top-level `agora.mjs` usage text. `scripts/agora.mjs` still owns when help
 is printed and when the process exits; this slice is a help-text module boundary
 only and does not change CLI copy.
+Twenty-ninth extraction completed: `scripts/agora/roster-utils.mjs` now also
+owns pure `philosophers --tags` and Paperclip roster status line formatting.
+`scripts/agora.mjs` still owns Paperclip reads and command dispatch; this slice
+only moves roster output formatting out of the dispatcher.
 
 Acceptance criteria:
 

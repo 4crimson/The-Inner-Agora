@@ -105,6 +105,10 @@ Latest local Pass C slice: `scripts/agora/cli-help-utils.mjs` now owns the
 top-level `agora.mjs` usage text. `scripts/agora.mjs` still owns help dispatch
 and process exit, so this is a CLI-help boundary cleanup with no intended copy
 change.
+Latest local Pass C slice: `scripts/agora/roster-utils.mjs` now also owns pure
+`philosophers --tags` and Paperclip roster status line formatting.
+`scripts/agora.mjs` still owns Paperclip reads and command dispatch, so this is
+an output-boundary cleanup rather than a roster/API behavior change.
 
 ## Definition Of Ideal Check
 

@@ -76,10 +76,9 @@ import {
   parseCostsArgs,
 } from "./agora/cost-utils.mjs";
 import {
-  normalizeTag,
   parsePhilosophersArgs,
-  tagList,
-  tagSummary,
+  rosterStatusLines,
+  tagSummaryLines,
 } from "./agora/roster-utils.mjs";
 import { allModePreflight } from "./agora/preflight-utils.mjs";
 import {
@@ -926,46 +925,12 @@ async function listPhilosophers(args = []) {
   }
 
   if (options.showTags) {
-    console.log("# Теги философов");
-    const summary = tagSummary(roles);
-    for (const [tag, count] of summary) console.log(`- ${tag}: ${count}`);
-    console.log("");
-    console.log(`Всего тегов: ${summary.length}`);
-    console.log(`Философов: ${roles.length}`);
+    for (const line of tagSummaryLines(roles)) console.log(line);
     return;
   }
 
   const { agents } = await getAgora();
-  const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
-  const expectedNames = new Set(roles.map((item) => item.name));
-  const filteredPhilosophers = options.tag
-    ? roles.filter((item) => tagList(item).map(normalizeTag).includes(options.tag))
-    : roles;
-  const present = filteredPhilosophers.filter((item) => agentsByName.has(item.name));
-  const extra = agents.filter((agent) => agent.name !== ASSISTANT_NAME && !expectedNames.has(agent.name));
-  const assistant = agentsByName.get(ASSISTANT_NAME);
-
-  console.log(options.tag ? `# Философы в Paperclip: tag=${options.tag}` : "# Философы в Paperclip");
-  for (const item of filteredPhilosophers) {
-    const agent = agentsByName.get(item.name);
-    const statusLabel = agent ? String(agent.status || "unknown").padEnd(8) : "missing ";
-    const dataTags = tagList(item);
-    const paperclipTags = Array.isArray(agent?.metadata?.tags) ? agent.metadata.tags : [];
-    const tagSync = agent && JSON.stringify(dataTags) !== JSON.stringify(paperclipTags) ? " metadata-tags=stale" : "";
-    console.log(`- ${statusLabel} ${item.name} (${item.key}) tags=${dataTags.join(", ")}${tagSync}`);
-  }
-
-  console.log("");
-  console.log(`Итого философов: ${present.length}/${filteredPhilosophers.length}`);
-  if (options.tag) console.log(`Фильтр tag=${options.tag}; всего в roster: ${roles.length}`);
-  console.log(`Agora Assistant: ${assistant ? assistant.status || "unknown" : "missing"}`);
-  console.log(`Всего агентов в Paperclip: ${agents.length}`);
-
-  if (extra.length) {
-    console.log("");
-    console.log("Лишние агенты не из активного roster:");
-    for (const agent of extra) console.log(`- ${agent.status || "unknown"} ${agent.name}`);
-  }
+  for (const line of rosterStatusLines({ roles, agents, assistantName: ASSISTANT_NAME, tag: options.tag })) console.log(line);
 }
 
 async function tasks(args) {

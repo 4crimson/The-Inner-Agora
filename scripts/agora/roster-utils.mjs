@@ -14,6 +14,50 @@ export function tagSummary(roles) {
   return [...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
 }
 
+export function tagSummaryLines(roles = []) {
+  const summary = tagSummary(roles);
+  return [
+    "# Теги философов",
+    ...summary.map(([tag, count]) => `- ${tag}: ${count}`),
+    "",
+    `Всего тегов: ${summary.length}`,
+    `Философов: ${roles.length}`,
+  ];
+}
+
+export function rosterStatusLines({ roles = [], agents = [], assistantName = "", tag = "" } = {}) {
+  const agentsByName = new Map(agents.map((agent) => [agent.name, agent]));
+  const expectedNames = new Set(roles.map((item) => item.name));
+  const filteredRoles = tag ? roles.filter((item) => tagList(item).map(normalizeTag).includes(tag)) : roles;
+  const present = filteredRoles.filter((item) => agentsByName.has(item.name));
+  const extra = agents.filter((agent) => agent.name !== assistantName && !expectedNames.has(agent.name));
+  const assistant = agentsByName.get(assistantName);
+  const lines = [tag ? `# Философы в Paperclip: tag=${tag}` : "# Философы в Paperclip"];
+
+  for (const item of filteredRoles) {
+    const agent = agentsByName.get(item.name);
+    const statusLabel = agent ? String(agent.status || "unknown").padEnd(8) : "missing ";
+    const dataTags = tagList(item);
+    const paperclipTags = Array.isArray(agent?.metadata?.tags) ? agent.metadata.tags : [];
+    const tagSync = agent && JSON.stringify(dataTags) !== JSON.stringify(paperclipTags) ? " metadata-tags=stale" : "";
+    lines.push(`- ${statusLabel} ${item.name} (${item.key}) tags=${dataTags.join(", ")}${tagSync}`);
+  }
+
+  lines.push("");
+  lines.push(`Итого философов: ${present.length}/${filteredRoles.length}`);
+  if (tag) lines.push(`Фильтр tag=${tag}; всего в roster: ${roles.length}`);
+  lines.push(`Agora Assistant: ${assistant ? assistant.status || "unknown" : "missing"}`);
+  lines.push(`Всего агентов в Paperclip: ${agents.length}`);
+
+  if (extra.length) {
+    lines.push("");
+    lines.push("Лишние агенты не из активного roster:");
+    for (const agent of extra) lines.push(`- ${agent.status || "unknown"} ${agent.name}`);
+  }
+
+  return lines;
+}
+
 export function parsePhilosophersArgs(args) {
   const options = {
     showTags: false,

@@ -25,8 +25,10 @@ class AgoraRosterUtilsTests(unittest.TestCase):
             import {{
               normalizeTag,
               parsePhilosophersArgs,
+              rosterStatusLines,
               tagList,
               tagSummary,
+              tagSummaryLines,
             }} from {json.dumps(ROSTER_UTILS.as_uri())};
 
             const roles = [
@@ -46,6 +48,49 @@ class AgoraRosterUtilsTests(unittest.TestCase):
               ["method", 2],
               ["metaphysics", 1],
             ]);
+            assert.deepEqual(tagSummaryLines(roles), [
+              "# Теги философов",
+              "- classic: 2",
+              "- ethics: 2",
+              "- method: 2",
+              "- metaphysics: 1",
+              "",
+              "Всего тегов: 4",
+              "Философов: 5",
+            ]);
+
+            const statusRoles = [
+              {{ key: "plato", name: "Платон", tags: ["classic", "ethics"] }},
+              {{ key: "aristotle", name: "Аристотель", tags: ["classic"] }},
+              {{ key: "descartes", name: "Декарт", tags: ["method"] }},
+            ];
+            const agents = [
+              {{ name: "Платон", status: "idle", metadata: {{ tags: ["classic"] }} }},
+              {{ name: "Декарт", status: "done", metadata: {{ tags: ["method"] }} }},
+              {{ name: "Agora Assistant / Синтезатор", status: "idle" }},
+              {{ name: "Extra Agent", status: "error" }},
+            ];
+            assert.deepEqual(
+              rosterStatusLines({{
+                roles: statusRoles,
+                agents,
+                assistantName: "Agora Assistant / Синтезатор",
+                tag: "classic",
+              }}),
+              [
+                "# Философы в Paperclip: tag=classic",
+                "- idle     Платон (plato) tags=classic, ethics metadata-tags=stale",
+                "- missing  Аристотель (aristotle) tags=classic",
+                "",
+                "Итого философов: 1/2",
+                "Фильтр tag=classic; всего в roster: 3",
+                "Agora Assistant: idle",
+                "Всего агентов в Paperclip: 4",
+                "",
+                "Лишние агенты не из активного roster:",
+                "- error Extra Agent",
+              ],
+            );
 
             assert.deepEqual(parsePhilosophersArgs([]), {{ showTags: false, tag: "", help: false }});
             assert.deepEqual(parsePhilosophersArgs(["--tags"]), {{ showTags: true, tag: "", help: false }});
