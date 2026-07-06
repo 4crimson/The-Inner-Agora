@@ -529,6 +529,16 @@ backup
 profile/plugin sync `ok`, tests 5/5 pass, cleanup residuals `0`, no Paperclip
 work, `activeRunsBeforeCleanup=0`, `cancelledRuns=0`, guardRequired `false`.
 
+Natural-dialogue release-gate follow-up 2026-07-06: wrapper
+`RLG-20260706-093712-e47310` / release gate `RG-20260706-093712-3558bb` accepted
+run `QA-20260706-0936-natural-dialogue-490a3f` with backup
+`artifacts/telegram-test-runs/backups/2026-07-06t09-36-35-861z-the-inner-agora/backup.json`.
+The suite passed 3/3. It usefully exercised both sides of the contract:
+`dialogue.freedom-adult-child` did not create Paperclip work, while
+`dialogue.ask-two-philosophers` created root `THE-268` and active child runs
+`THE-269`/`THE-270`. Active-run-safe cleanup cancelled 2 live runs and left
+cleanup residuals `0`; guardAfter and post-run guard were `ok`.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

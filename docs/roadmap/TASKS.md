@@ -144,6 +144,17 @@ tests 5/5 pass, `profilePluginSync=ok`, cleanup residuals `0`, no Paperclip
 work, `activeRunsBeforeCleanup=0`, `cancelledRuns=0`,
 guardBefore/guardAfter/guardRepeat `not-run`, `guardRequired=false`.
 
+Live evidence 2026-07-06: focused `release-live-gate --live-ok --suite
+natural-dialogue` accepted с wrapper `RLG-20260706-093712-e47310`, release gate
+`RG-20260706-093712-3558bb`, run `QA-20260706-0936-natural-dialogue-490a3f`,
+backup
+`artifacts/telegram-test-runs/backups/2026-07-06t09-36-35-861z-the-inner-agora/backup.json`.
+Tests 3/3 pass. Ambiguous first phrase stayed no-work (`paperclipRootsCreated=0`);
+the "пару философов" path created root `THE-268` plus active child runs
+`THE-269`/`THE-270`, and cleanup proved RL-3: residuals `0`,
+`activeRunsBeforeCleanup=2`, `cancelledRuns=2`. GuardAfter `ok`,
+`profilePluginSync=ok`; post-run guard stayed `ok=true`.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

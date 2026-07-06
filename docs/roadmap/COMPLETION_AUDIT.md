@@ -179,8 +179,15 @@ Current audit blockers:
   `QA-20260706-0929-service-commands-b51db6`, backup
   `artifacts/telegram-test-runs/backups/2026-07-06t09-29-40-389z-the-inner-agora/backup.json`:
   tests 5/5 pass, cleanup residuals `0`, no Paperclip work, profile/plugin sync
-  `ok`, and `guardRequired=false`. Broader release-live-gate coverage across
-  the remaining work-creating/natural suites remains open.
+  `ok`, and `guardRequired=false`. `natural-dialogue` is now also accepted
+  through release-live-gate: wrapper `RLG-20260706-093712-e47310`, release gate
+  `RG-20260706-093712-3558bb`, run
+  `QA-20260706-0936-natural-dialogue-490a3f`, backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t09-36-35-861z-the-inner-agora/backup.json`,
+  tests 3/3 pass, cleanup residuals `0`, active runs before cleanup `2`,
+  cancelled runs `2`, profile/plugin sync `ok`, and guardAfter `ok`. Broader
+  release-live-gate coverage across the remaining `mode-routing` and
+  `council-create` suites remains open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -221,9 +228,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Continue focused release-live-gate coverage for `mode-routing`,
-   `natural-dialogue`, and `council-create`, then record each accepted or
-   blocked artifact in `BUGS.md` / `COMPLETION_AUDIT.md`.
+1. Continue focused release-live-gate coverage for `mode-routing` and
+   `council-create`, then record each accepted or blocked artifact in
+   `BUGS.md` / `COMPLETION_AUDIT.md`.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown
