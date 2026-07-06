@@ -97,6 +97,19 @@ suite через существующий live runner, cleanup, configured guard
 before/after попадают в release evidence. Реальный live запуск все еще требует
 операторского подтверждения и не был выполнен этим срезом.
 
+Live evidence 2026-07-06: focused `release-live-gate --live-ok --suite
+interface-contract-topics` создал backup
+`artifacts/telegram-test-runs/backups/2026-07-06t08-49-59-171z-the-inner-agora/backup.json`
+и run `QA-20260706-0849-interface-contract-topics-646217`. Первый wrapper
+`RLG-20260706-085238-68837e` корректно заблокировался из-за cleanup
+residuals: active runs были отменены, но Paperclip terminal recovery поставил
+новые runs на `Agora Assistant / Синтезатор`, пока child issues оставались
+assigned `in_progress`. После RL-3 cleanup fix и retry cleanup wrapper
+`RLG-20260706-085927-629b7c` accepted с release gate
+`RG-20260706-085927-02df11`: tests 4/4 pass, `profilePluginSync=ok`,
+guardBefore/guardAfter/guardRepeat `ok`, cleanup residuals `0`,
+`activeRunsBeforeCleanup=5`, `cancelledRuns=5`.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя
@@ -197,10 +210,16 @@ run, cleanup вызывает `/heartbeat-runs/:id/cancel`, poll'ит terminal s
 настроенном budget (`cleanupRunWaitAttempts` / `cleanupRunWaitDelayMs`) и только
 после этого удаляет issue. Если run остается active, cleanup возвращает blocked
 result через residual `active-runs-before-cleanup` и не удаляет issue. Manifest
-пишет `activeRunsBeforeCleanup` и `cancelledRuns`. Покрыто регрессиями
+пишет `activeRunsBeforeCleanup` и `cancelledRuns`. После live terminal-recovery
+drift cleanup стабилизирует assigned/in_progress issues через
+hidden/cancelled/released execution fields до cancel/wait, а успешный retry
+cleanup заменяет stale current residuals, сохраняя старые попытки в
+`residualHistory`. Покрыто регрессиями
 `test_cleanup_hard_blocks_issue_delete_when_live_run_is_active`,
 `test_cleanup_hard_cancels_active_run_then_deletes_after_terminal_poll` и
-`test_cleanup_hard_blocks_delete_when_cancelled_run_stays_active`.
+`test_cleanup_hard_blocks_delete_when_cancelled_run_stays_active`,
+`test_cleanup_hard_stabilizes_assigned_issue_when_active_run_stays_active` и
+`test_cleanup_retry_replaces_stale_residuals_after_success`.
 
 Статус 2026-07-06: первый кодовый срез RL-2 реализован в `paperclip-qa`.
 Для work-creating suites `run --live-ok` запускает configurable

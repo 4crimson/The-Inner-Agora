@@ -484,6 +484,24 @@ issue `357f13b2-ad4f-46a8-bbb5-0817b4029bab` был удален hard cleanup-о
 `workspace_operations.issue_id` ссылался на уже удаленный issue. Это точный
 RL-3 cleanup/finalize race, а не model, router или Telegram UX failure.
 
+Live release-gate follow-up 2026-07-06: focused `interface-contract-topics`
+run `QA-20260706-0849-interface-contract-topics-646217` passed all 4 UX tests
+with guardBefore/guardAfter green, but first release-live-gate
+`RLG-20260706-085238-68837e` blocked because hard cleanup cancelled active
+runs and then Paperclip terminal recovery queued replacement
+`Agora Assistant / Синтезатор` runs while child issues stayed assigned
+`in_progress`. Fix: `paperclip-qa cleanup hard` now stabilizes assigned active
+issues as hidden/cancelled and clears execution locks before cancel/wait; retry
+cleanup can clear current residuals while preserving old attempts in
+`residualHistory`. Accepted evidence after retry: release-live-gate
+`RLG-20260706-085927-629b7c`, release gate `RG-20260706-085927-02df11`, backup
+`artifacts/telegram-test-runs/backups/2026-07-06t08-49-59-171z-the-inner-agora/backup.json`,
+profile/plugin sync `ok`, guardBefore/guardAfter/guardRepeat `ok`, cleanup
+residuals `0`, active runs before cleanup `5`, cancelled runs `5`. A post-run
+guard later found transient `Платон` error; backup
+`backups/2026-07-06T08-58-55-378Z-the-inner-agora/backup.json` plus
+`node scripts/agora.mjs prepare local` restored guard to `ok=true`.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

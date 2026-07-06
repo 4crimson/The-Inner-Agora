@@ -1496,6 +1496,92 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertEqual(manifest["cleanup"]["paperclip"][-1]["method"], "SKIP_DELETE_ACTIVE_RUNS")
             self.assertEqual(manifest["cleanup"]["residuals"][0]["reason"], "active-runs-before-cleanup")
 
+    def test_cleanup_hard_stabilizes_assigned_issue_when_active_run_stays_active(self):
+        routes = {
+            ("GET", "/api/issues/child-1/live-runs"): [
+                (200, [{"id": "run-active-1", "status": "running", "phase": "workspace_finalize"}]),
+                (200, [{"id": "run-retry-1", "status": "running", "phase": ""}]),
+            ],
+            ("POST", "/api/heartbeat-runs/run-active-1/cancel"): (200, {"id": "run-active-1", "status": "cancelled"}),
+            ("PATCH", "/api/issues/child-1"): (200, {"ok": True}),
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(routes) as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["cleanupRunWaitAttempts"] = 1
+            config["paperclip"]["cleanupRunWaitDelayMs"] = 0
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260706-cleanup-stabilize-assigned-a1b2c3"
+            self.write_manifest(
+                artifacts_dir,
+                run_id,
+                [
+                    {
+                        "id": "child-1",
+                        "identifier": "THE-2",
+                        "parentId": "root-1",
+                        "status": "in_progress",
+                        "assigneeAgentId": "agent-1",
+                        "checkoutRunId": "run-active-1",
+                        "executionRunId": "run-active-1",
+                        "executionAgentNameKey": "платон",
+                        "executionLockedAt": "2026-07-06T08:51:15.400Z",
+                        "matchedBy": "manifest",
+                    }
+                ],
+            )
+
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--live-ok", "--json")
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn(("DELETE", "/api/issues/child-1", None), server.calls)
+            patch_calls = [call for call in server.calls if call[0] == "PATCH" and call[1] == "/api/issues/child-1"]
+            self.assertEqual(len(patch_calls), 1)
+            self.assertEqual(
+                patch_calls[0][2],
+                {
+                    "hiddenAt": patch_calls[0][2]["hiddenAt"],
+                    "status": "cancelled",
+                    "assigneeAgentId": None,
+                    "checkoutRunId": None,
+                    "executionRunId": None,
+                    "executionAgentNameKey": None,
+                    "executionLockedAt": None,
+                },
+            )
+            manifest = json.loads((artifacts_dir / run_id / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                [item["method"] for item in manifest["cleanup"]["paperclip"]],
+                ["PATCH", "CANCEL_RUN", "SKIP_DELETE_ACTIVE_RUNS"],
+            )
+            self.assertEqual(manifest["cleanup"]["residuals"][0]["reason"], "active-runs-before-cleanup")
+
+    def test_cleanup_retry_replaces_stale_residuals_after_success(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260706-cleanup-retry-clear-residuals-a1b2c3"
+            manifest_path = self.write_manifest(
+                artifacts_dir,
+                run_id,
+                [{"id": "root-1", "identifier": "THE-1", "parentId": None, "status": "todo", "matchedBy": "manifest"}],
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["cleanup"]["residuals"] = [
+                {"type": "paperclip", "issueId": "root-1", "reason": "active-runs-before-cleanup"}
+            ]
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("cleanup", "--config", config_path, "--run", run_id, "--mode", "hard", "--live-ok", "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["cleanup"]["residuals"], [])
+            self.assertIn(("DELETE", "/api/issues/root-1", None), server.calls)
+
     def test_cleanup_hard_delete_failure_falls_back_to_hidden_cancelled_patch(self):
         routes = {
             ("DELETE", "/api/issues/root-1"): (500, {"error": "Internal server error"}),

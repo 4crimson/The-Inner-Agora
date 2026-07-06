@@ -23,6 +23,14 @@ export async function cleanupRun({
     runWaitDelayMs,
   });
   const residuals = [...telegramResult.residuals, ...paperclipResult.residuals];
+  const previousResiduals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
+  const residualHistory = [...(manifest.cleanup?.residualHistory || [])];
+  if (previousResiduals.length) {
+    residualHistory.push({
+      attemptedAt: manifest.cleanup?.attemptedAt || "",
+      residuals: previousResiduals,
+    });
+  }
 
   manifest.cleanup = {
     ...(manifest.cleanup || {}),
@@ -35,7 +43,8 @@ export async function cleanupRun({
       ...(paperclipResult.activeRunsBeforeCleanup || []),
     ],
     cancelledRuns: [...(manifest.cleanup?.cancelledRuns || []), ...(paperclipResult.cancelledRuns || [])],
-    residuals: [...(manifest.cleanup?.residuals || []), ...residuals],
+    residuals,
+    residualHistory,
   };
   writeManifest(manifestPath, manifest);
 

@@ -37,6 +37,28 @@ function fallbackPatchBody(issue, now) {
   return body;
 }
 
+function activeRunStabilizationBody(issue, now) {
+  return {
+    ...fallbackPatchBody(issue, now),
+    assigneeAgentId: null,
+    checkoutRunId: null,
+    executionRunId: null,
+    executionAgentNameKey: null,
+    executionLockedAt: null,
+  };
+}
+
+function shouldStabilizeActiveRunIssue(issue) {
+  return Boolean(
+    issue?.assigneeAgentId
+      || issue?.checkoutRunId
+      || issue?.executionRunId
+      || issue?.executionAgentNameKey
+      || issue?.executionLockedAt
+      || String(issue?.status || "").toLowerCase() === "in_progress",
+  );
+}
+
 export function isActivePaperclipRun(run) {
   return !TERMINAL_RUN_STATUSES.has(String(run?.status || "").toLowerCase());
 }
@@ -113,6 +135,29 @@ async function waitForTerminalRuns({ client, issue, attempts, delayMs }) {
   return { ok: false, activeRuns, attempts: totalAttempts };
 }
 
+async function stabilizeActiveRunIssue({ client, issue, now, actions, residuals }) {
+  if (!shouldStabilizeActiveRunIssue(issue)) return;
+  const body = activeRunStabilizationBody(issue, now);
+  const action = { type: "paperclip", method: "PATCH", issueId: issue.id, ref: issue.identifier || issue.id, body };
+  actions.push(action);
+  try {
+    await client.patchIssue(issue.id, body);
+    action.ok = true;
+  } catch (error) {
+    action.ok = false;
+    action.error = error instanceof PaperclipApiError ? error.message : String(error?.message || error);
+    residuals.push({
+      type: "paperclip",
+      kind: "paperclip",
+      issueId: issue.id,
+      id: issue.identifier || issue.id,
+      ref: issue.identifier || issue.id,
+      reason: "active-run-stabilization-failed",
+      error: action.error,
+    });
+  }
+}
+
 function pushActiveRunBlocked({ issue, activeRuns, actions, residuals, waitAttempts = 0 }) {
   actions.push({
     type: "paperclip",
@@ -184,6 +229,7 @@ export async function cleanupPaperclipIssues({
         if (activeRuns.length) {
           const record = { issueId: issue.id, ref: issue.identifier || issue.id, runs: activeRuns };
           activeRunsBeforeCleanupRecords.push(record);
+          await stabilizeActiveRunIssue({ client, issue, now, actions, residuals });
           const cancelled = await cancelActiveRuns({ client, issue, activeRuns, actions });
           cancelledRuns.push(...cancelled);
           const wait = await waitForTerminalRuns({

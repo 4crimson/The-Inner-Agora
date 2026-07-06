@@ -87,7 +87,10 @@ stay separate from cleanup commits.
   explicit `--live-ok`, `release-live-gate` now creates a read-only Paperclip
   backup, runs one suite through the existing live runner, performs cleanup,
   records configured guards, and writes release-gate/evidence-checklist
-  artifacts. Auto-repair remains manual/explicit.
+  artifacts. Focused live evidence exists for `interface-contract-topics`:
+  `RLG-20260706-085927-629b7c` accepted run
+  `QA-20260706-0849-interface-contract-topics-646217` after cleanup retry and
+  repeat guard evidence. Auto-repair remains manual/explicit.
 - `profile-plugin-sync`: implemented in `paperclip-qa` as a read-only preflight
   that compares the repo `paperclip-cockpit` plugin tree with the installed
   Hermes profile plugin tree and blocks on digest mismatch before live suites.
@@ -100,7 +103,11 @@ stay separate from cleanup commits.
 - `cleanup-active-run-guard`: implemented in `paperclip-qa`; hard cleanup now
   blocks issue delete when `/issues/:id/live-runs` reports active runs, cancels
   active heartbeat runs, waits for terminal state, and records
-  `activeRunsBeforeCleanup` plus `cancelledRuns` in the manifest.
+  `activeRunsBeforeCleanup` plus `cancelledRuns` in the manifest. Assigned
+  `in_progress` issues are stabilized with hidden/cancelled/released execution
+  fields before cancel/wait, so Paperclip terminal recovery does not immediately
+  enqueue replacement runs. Cleanup retry residuals now reflect the latest
+  attempt while prior residuals move to `residualHistory`.
 - `visible-output-sanitizer`: a shared first-level Telegram leak policy for
   route/model/local URL/wake/raw child rows/CLI flags, replacing duplicated
   `replyNotContains` lists.
@@ -460,10 +467,10 @@ node scripts/agora.mjs costs --pricing default
 
 ## Recommended Next Work
 
-1. Build the release live gate first: post-suite guard/manifest/acceptance
-   fields plus active-run-safe cleanup evidence. Treat blocked active runs,
-   cleanup residuals, red post-suite guard, or `workspace_finalize`/FK
-   `adapter_failed` as `blocked` or `accepted_with_repair`, not a clean pass.
+1. Broaden the focused release-live-gate proof to the remaining release suites,
+   using the same evidence chain: backup, profile/plugin sync, live suite,
+   active-run-safe cleanup, acceptance, post-suite guard, optional repair
+   backup/repeat guard, docs/commit evidence.
 2. Centralize the Telegram first-level leak contract after that, so UX tests
    stop duplicating route/model/local URL/wake/raw child row exclusions.
 3. Continue Pass C runtime-module splits only after the release lane no longer

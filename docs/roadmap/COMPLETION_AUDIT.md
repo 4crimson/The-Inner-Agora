@@ -154,8 +154,17 @@ Current audit blockers:
   non-live evidence wrapper around profile sync, run ids, backup id,
   release-gate, and evidence-checklist. With explicit `--live-ok`, the same
   command now creates a read-only Paperclip backup, runs one suite, cleanup,
-  configured guards, release-gate, and evidence-checklist in one lane. Real
-  live acceptance with this lane and any auto-repair policy remain open.
+  configured guards, release-gate, and evidence-checklist in one lane. Focused
+  live evidence exists for `interface-contract-topics`: initial live wrapper
+  `RLG-20260706-085238-68837e` correctly blocked on active-run cleanup
+  residuals, then cleanup stabilization/retry produced accepted wrapper
+  `RLG-20260706-085927-629b7c` and release gate
+  `RG-20260706-085927-02df11` for run
+  `QA-20260706-0849-interface-contract-topics-646217`. Evidence includes backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t08-49-59-171z-the-inner-agora/backup.json`,
+  `profilePluginSync=ok`, guard before/after/repeat `ok`, cleanup residuals
+  `0`, `activeRunsBeforeCleanup=5`, and `cancelledRuns=5`. Broader
+  release-live-gate coverage across the remaining suites remains open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -171,8 +180,10 @@ Current audit blockers:
   active-run-safe before it can be treated as release evidence. Local cleanup
   lifecycle protection is now present: `paperclip-qa cleanup hard` cancels
   active heartbeat runs, waits for terminal state before delete, records
-  `activeRunsBeforeCleanup` and `cancelledRuns`, and blocks delete if runs stay
-  active.
+  `activeRunsBeforeCleanup` and `cancelledRuns`, blocks delete if runs stay
+  active, stabilizes assigned/in_progress issues before cancel/wait, and treats
+  successful cleanup retry residuals as the current state while preserving old
+  residuals in `residualHistory`.
 - Quick/deep and council live inbound verification through the actual Telegram
   gateway now have accepted release-suite evidence; future work should focus on
   making the repair/repeat part of the post-suite guard explicit and less
