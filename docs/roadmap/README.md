@@ -23,3 +23,6 @@ acceptance -> post-suite guard -> docs/commit`.
 затем delete, затем post-suite guard. Если guard красный и был ручной repair,
 `guard-repeat` должен записать backup, repair command и repeat guard; иначе
 release decision не может быть чистым `accepted`.
+Текущий `release-live-gate` пока non-live: он собирает evidence wrapper вокруг
+уже полученных run ids/backup/profile-sync/guard/docs данных, но не запускает
+живую suite и не делает backup сам.

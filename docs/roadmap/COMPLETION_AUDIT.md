@@ -133,8 +133,10 @@ Current audit blockers:
   slice adds `paperclip-qa guard-repeat`: after manual repair and backup it
   writes `repairBackup`, `repairCommand`, and `guardRepeat`, making acceptance
   `accept-with-repair` and release-gate `accepted_with_repair` instead of a
-  clean pass. A single release-live-gate orchestrator and any auto-repair policy
-  remain open.
+  clean pass. `paperclip-qa release-live-gate` now writes the top-level
+  non-live evidence wrapper around profile sync, run ids, backup id,
+  release-gate, and evidence-checklist. Live suite execution, backup
+  orchestration, and any auto-repair policy remain open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -173,9 +175,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Implement the release live gate first: post-suite guard fields in QA
-   manifests/acceptance, active-run-safe cleanup, and explicit
-   accepted/accepted-with-repair/blocked decisions.
+1. Finish the release live gate first: keep the non-live evidence wrapper, then
+   add explicit live execution/backup orchestration only behind `--live-ok` and
+   operator confirmation.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown

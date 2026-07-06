@@ -79,11 +79,12 @@ stay separate from cleanup commits.
 
 - `release-live-gate`: a QA workflow mode that runs the release evidence chain
   explicitly: preflight, backup, profile/plugin sync, live suite, cleanup,
-  acceptance, post-suite guard, docs/commit evidence. First local slice is
-  implemented as non-live `paperclip-qa release-gate`: it aggregates existing
-  run manifests plus backup/profile-sync evidence into `accepted`,
-  `accepted_with_repair`, or `blocked`. It does not yet execute backup,
-  profile sync, or live suites itself.
+  acceptance, post-suite guard, docs/commit evidence. Current local slices are
+  non-live: `paperclip-qa release-gate` aggregates existing run manifests plus
+  backup/profile-sync evidence, and `paperclip-qa release-live-gate` writes the
+  top-level wrapper artifact with release-plan commands, profile/plugin sync,
+  run ids, backup id, release-gate, and evidence-checklist status. It does not
+  yet execute live suites, create backups, or perform auto-repair itself.
 - `profile-plugin-sync`: implemented in `paperclip-qa` as a read-only preflight
   that compares the repo `paperclip-cockpit` plugin tree with the installed
   Hermes profile plugin tree and blocks on digest mismatch before live suites.

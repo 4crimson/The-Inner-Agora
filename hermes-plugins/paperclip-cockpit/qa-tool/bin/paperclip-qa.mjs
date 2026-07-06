@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -93,6 +94,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config FILE [--profile NAME] [--plugin NAME] [--repo-plugin-dir DIR] [--profile-plugin-dir DIR] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs release-live-gate --config FILE [--suite NAME] [--run RUN_ID...] [--backup-id ID] [--profile-plugin-sync ok|warning|blocked] [--commit HASH...] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config FILE --release-gate FILE [--commit HASH...] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config FILE --run RUN_ID --backup-id ID --repair-command COMMAND [--json]
@@ -279,6 +281,180 @@ function profilePluginDir({ config, options }) {
   if (!profile) return "";
   const hermesHome = process.env.HERMES_HOME || path.join(os.homedir(), ".hermes");
   return path.join(hermesHome, "profiles", profile, "plugins", options.plugin);
+}
+
+function releaseLiveGateId(now = new Date(), random = crypto.randomUUID()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  const suffix = String(random).replace(/[^a-z0-9]/gi, "").slice(0, 6).toLowerCase() || "gate";
+  return [
+    now.getUTCFullYear(),
+    pad(now.getUTCMonth() + 1),
+    pad(now.getUTCDate()),
+    "-",
+    pad(now.getUTCHours()),
+    pad(now.getUTCMinutes()),
+    pad(now.getUTCSeconds()),
+    "-",
+    suffix,
+  ].join("");
+}
+
+function releaseLiveGateCommands({ configPath, config, suiteName, cleanupMode }) {
+  const cleanup = cleanupMode || config.paperclip.cleanup;
+  const base = "node paperclip-qa-tool/bin/paperclip-qa.mjs";
+  const quotedConfig = shellQuote(configPath);
+  const quotedCleanup = shellQuote(cleanup);
+  const suites = suiteName ? [suiteName] : releasePlan({ configPath, config, cleanupMode }).suites;
+  return [
+    `${base} release-plan --config ${quotedConfig} --cleanup ${quotedCleanup} --json`,
+    ...(config.telegram.profile ? [`${base} profile-plugin-sync --config ${quotedConfig} --json`] : []),
+    ...suites.map((suite) => `${base} readiness --config ${quotedConfig} --suite ${shellQuote(suite)} --cleanup ${quotedCleanup} --json`),
+    ...suites.map((suite) => `${base} run --config ${quotedConfig} --suite ${shellQuote(suite)} --cleanup ${quotedCleanup}${notifyArgument(config)} --live-ok --json`),
+    `${base} release-gate --config ${quotedConfig} --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json`,
+    `${base} evidence-checklist --config ${quotedConfig} --release-gate RELEASE_GATE_JSON --commit COMMIT --json`,
+  ];
+}
+
+function profileSyncForReleaseLiveGate({ config, options }) {
+  if (options.profilePluginSync) {
+    const status = options.profilePluginSync;
+    return {
+      ok: status === "ok",
+      status,
+      profilePluginSync: status,
+      source: "explicit",
+      reasons: status === "ok" ? [] : [`profile-plugin-sync-${status}`],
+    };
+  }
+
+  const shouldCheck = Boolean(options.profile || options.profilePluginDir || config.telegram?.profile);
+  if (!shouldCheck) {
+    return {
+      ok: false,
+      status: "missing",
+      profilePluginSync: "missing",
+      source: "missing",
+      reasons: ["profile-plugin-sync-missing"],
+    };
+  }
+
+  const profileDir = profilePluginDir({ config, options });
+  const result = checkProfilePluginSync({
+    plugin: options.plugin,
+    repoPluginDir: options.repoPluginDir || defaultRepoPluginDir(),
+    profilePluginDir: profileDir,
+  });
+  return {
+    ...result,
+    source: "checked",
+  };
+}
+
+function releaseLiveGateMarkdown(gate) {
+  const lines = [
+    `# Release Live Gate: ${gate.gateId}`,
+    "",
+    `Decision: ${gate.decision}`,
+    `Live: ${gate.live ? "yes" : "no"}`,
+    `Suites: ${gate.suites.join(", ") || "none"}`,
+    `Runs: ${gate.runs.join(", ") || "missing"}`,
+    `Backup: ${gate.backup.id || "missing"}`,
+    `Profile/plugin sync: ${gate.preflight.profilePluginSync.status}`,
+    "",
+    "## Commands",
+    "",
+    ...gate.preflight.commands.map((command) => `- \`${command}\``),
+    "",
+    "## Evidence",
+    "",
+    `Release gate: ${gate.releaseGate?.releaseGatePath || "missing"}`,
+    `Evidence checklist: ${gate.evidenceChecklist?.evidenceChecklistPath || "missing"}`,
+    "",
+  ];
+  if (gate.reasons.length) {
+    lines.push("## Blocking Reasons", "");
+    for (const reason of gate.reasons) lines.push(`- ${reason}`);
+    lines.push("");
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function writeReleaseLiveGateArtifact({ config, payload }) {
+  const outputDir = path.resolve(config.artifacts.dir, "release-live-gates", payload.gateId);
+  fs.mkdirSync(outputDir, { recursive: true });
+  const releaseLiveGatePath = path.join(outputDir, "release-live-gate.json");
+  const releaseLiveGateMarkdownPath = path.join(outputDir, "RELEASE_LIVE_GATE.md");
+  const written = {
+    ...payload,
+    releaseLiveGatePath,
+    releaseLiveGateMarkdownPath,
+  };
+  fs.writeFileSync(releaseLiveGatePath, `${JSON.stringify(written, null, 2)}\n`, "utf8");
+  fs.writeFileSync(releaseLiveGateMarkdownPath, releaseLiveGateMarkdown(written), "utf8");
+  return written;
+}
+
+function releaseLiveGate({ configPath, config, options }) {
+  if (options.profilePluginSync && !["ok", "warning", "blocked"].includes(options.profilePluginSync)) {
+    throw new ConfigValidationError(["--profile-plugin-sync must be ok, warning, or blocked"]);
+  }
+  if (options.suite && !config.suites[options.suite]) throw new ConfigValidationError([`suite not found: ${options.suite}`]);
+
+  const plan = releasePlan({ configPath, config, cleanupMode: options.cleanup });
+  const suites = options.suite ? [options.suite] : plan.suites;
+  const profileSync = profileSyncForReleaseLiveGate({ config, options });
+  const releaseGate = writeReleaseGate({
+    config,
+    runIds: options.runs,
+    backupId: options.backupId,
+    profilePluginSync: profileSync.status === "missing" ? "" : profileSync.status,
+  });
+  const evidenceChecklist = writeEvidenceChecklist({
+    releaseGatePath: releaseGate.releaseGatePath,
+    commits: options.commits,
+    projectRoot: PROJECT_ROOT,
+  });
+  const evidenceReasons = (evidenceChecklist.missingEvidence || []).map((item) => item.id);
+  const reasons = [...new Set([
+    ...(profileSync.reasons || []),
+    ...(releaseGate.reasons || []),
+    ...evidenceReasons,
+  ])];
+  const decision = reasons.length ? "blocked" : releaseGate.decision;
+  return writeReleaseLiveGateArtifact({
+    config,
+    payload: {
+      ok: decision !== "blocked",
+      gateId: `RLG-${releaseLiveGateId()}`,
+      decision,
+      reasons,
+      live: false,
+      generatedAt: new Date().toISOString(),
+      configPath: path.resolve(configPath),
+      suites,
+      runs: options.runs,
+      backup: {
+        id: options.backupId,
+        status: options.backupId ? "recorded" : "missing",
+      },
+      preflight: {
+        releasePlan: {
+          ok: plan.ok,
+          cleanup: plan.cleanup,
+          suites: plan.suites,
+        },
+        profilePluginSync: profileSync,
+        commands: releaseLiveGateCommands({
+          configPath,
+          config,
+          suiteName: options.suite,
+          cleanupMode: options.cleanup,
+        }),
+      },
+      releaseGate,
+      evidenceChecklist,
+    },
+  });
 }
 
 function suitePreview({ config, suiteName, cleanupMode }) {
@@ -484,6 +660,11 @@ async function main(argv) {
       repoPluginDir: options.repoPluginDir || defaultRepoPluginDir(),
       profilePluginDir: profileDir,
     });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
+  }
+  if (options.command === "release-live-gate") {
+    const result = releaseLiveGate({ configPath: options.config, config, options });
     printPayload(result, options.json);
     return result.ok ? 0 : 1;
   }

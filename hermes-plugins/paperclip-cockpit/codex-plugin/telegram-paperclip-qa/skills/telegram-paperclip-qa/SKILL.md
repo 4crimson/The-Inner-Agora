@@ -33,6 +33,7 @@ Prefer non-live commands until an operator confirms live testing:
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs release-live-gate --config telegram-testing.config.json --suite help --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --commit COMMIT --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json

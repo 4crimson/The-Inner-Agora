@@ -26,6 +26,7 @@ Start every mode by stating whether live side effects are allowed. In normal rev
 node paperclip-qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config telegram-testing.config.json --cleanup hard --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs release-live-gate --config telegram-testing.config.json --suite help --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --commit COMMIT --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config telegram-testing.config.json --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json
@@ -38,6 +39,12 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testi
 node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config telegram-testing.config.json --release-gate artifacts/telegram-test-runs/release-gates/RG-.../release-gate.json --commit COMMIT --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --repair-command "node scripts/agora.mjs prepare local" --json
 ```
+
+Use `release-live-gate` after a suite run has produced run evidence. It writes
+`release-live-gate.json` / `RELEASE_LIVE_GATE.md`, runs profile/plugin sync
+preflight, delegates to `release-gate` and `evidence-checklist`, and returns
+`accepted`, `accepted_with_repair`, or `blocked`. It is non-live; it does not
+send Telegram messages or create Paperclip work.
 
 Use `guard-repeat` only after a red post-suite guard has been repaired manually
 and a repair backup id exists. It records `repairBackup`, `repairCommand`, and

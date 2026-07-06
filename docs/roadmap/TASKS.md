@@ -76,6 +76,16 @@ decision, cleanup residuals, active-run cleanup evidence и post-suite guard в
 полученных evidence; следующий RL-1/RL-4 шаг — автоматизировать/проверять
 backup и repo-profile plugin sync preflight до live suite.
 
+Статус 2026-07-06: второй локальный срез RL-1 добавил
+`paperclip-qa release-live-gate`. Это non-live верхний wrapper над release
+evidence: он пишет `release-live-gate.json` / `RELEASE_LIVE_GATE.md`, собирает
+release-plan команды, profile/plugin sync preflight, переданные run ids,
+backup id, `release-gate` и `evidence-checklist`, а затем возвращает
+`accepted`, `accepted_with_repair` или `blocked`. Команда не отправляет
+Telegram, не создает Paperclip work и не делает backup сама; live suite
+execution, backup orchestration и возможный auto-repair остаются следующими
+политическими/операционными шагами.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

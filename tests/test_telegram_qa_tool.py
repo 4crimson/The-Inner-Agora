@@ -280,6 +280,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             "config-check",
             "completion-check",
             "release-plan",
+            "release-live-gate",
             "release-gate",
             "evidence-checklist",
             "guard-repeat",
@@ -652,6 +653,89 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertIn("Decision: accepted_with_repair", release_gate_markdown)
             self.assertIn("Guard repeat: ok", release_gate_markdown)
             self.assertIn("Repair: backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json via node scripts/agora.mjs prepare local", release_gate_markdown)
+
+    def test_release_live_gate_accepts_existing_run_evidence_without_live_side_effects(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            artifacts_dir = temp_path / "runs"
+            repo_plugin = temp_path / "repo" / "paperclip-cockpit"
+            profile_plugin = temp_path / "profile" / "plugins" / "paperclip-cockpit"
+            repo_plugin.mkdir(parents=True)
+            profile_plugin.mkdir(parents=True)
+            (repo_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (profile_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-live-clean-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "release-live-gate",
+                "--config",
+                config_path,
+                "--suite",
+                "help",
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--repo-plugin-dir",
+                repo_plugin,
+                "--profile-plugin-dir",
+                profile_plugin,
+                "--commit",
+                "a42785f",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertFalse(payload["live"])
+            self.assertEqual(payload["decision"], "accepted")
+            self.assertEqual(payload["preflight"]["profilePluginSync"]["status"], "ok")
+            self.assertEqual(payload["releaseGate"]["decision"], "accepted")
+            self.assertTrue(payload["evidenceChecklist"]["ok"])
+            self.assertEqual(payload["runs"], [run_id])
+            gate_path = Path(payload["releaseLiveGatePath"])
+            self.assertTrue(gate_path.exists())
+            gate = json.loads(gate_path.read_text(encoding="utf-8"))
+            self.assertEqual(gate["decision"], "accepted")
+            self.assertIn("release-plan", "\n".join(gate["preflight"]["commands"]))
+            markdown = Path(payload["releaseLiveGateMarkdownPath"]).read_text(encoding="utf-8")
+            self.assertIn("Decision: accepted", markdown)
+            self.assertIn("Profile/plugin sync: ok", markdown)
+
+    def test_release_live_gate_blocks_when_required_evidence_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+
+            result = self.run_cli(
+                "release-live-gate",
+                "--config",
+                config_path,
+                "--suite",
+                "help",
+                "--json",
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload.get("decision"), "blocked")
+            self.assertIn("run-ids-missing", payload.get("reasons", []))
+            self.assertIn("backup-id-missing", payload.get("reasons", []))
+            self.assertIn("profile-plugin-sync-missing", payload.get("reasons", []))
+            self.assertIn("commit-hash", payload.get("reasons", []))
+            self.assertTrue(Path(payload.get("releaseLiveGatePath", "/missing")).exists())
+            self.assertFalse((artifacts_dir / "QA-should-not-exist").exists())
 
     def test_profile_plugin_sync_accepts_matching_plugin_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir:
