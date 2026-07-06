@@ -83,8 +83,11 @@ stay separate from cleanup commits.
   non-live: `paperclip-qa release-gate` aggregates existing run manifests plus
   backup/profile-sync evidence, and `paperclip-qa release-live-gate` writes the
   top-level wrapper artifact with release-plan commands, profile/plugin sync,
-  run ids, backup id, release-gate, and evidence-checklist status. It does not
-  yet execute live suites, create backups, or perform auto-repair itself.
+  run ids, backup id, release-gate, and evidence-checklist status. With an
+  explicit `--live-ok`, `release-live-gate` now creates a read-only Paperclip
+  backup, runs one suite through the existing live runner, performs cleanup,
+  records configured guards, and writes release-gate/evidence-checklist
+  artifacts. Auto-repair remains manual/explicit.
 - `profile-plugin-sync`: implemented in `paperclip-qa` as a read-only preflight
   that compares the repo `paperclip-cockpit` plugin tree with the installed
   Hermes profile plugin tree and blocks on digest mismatch before live suites.

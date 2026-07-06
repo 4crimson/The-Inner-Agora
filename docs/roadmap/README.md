@@ -23,6 +23,8 @@ acceptance -> post-suite guard -> docs/commit`.
 затем delete, затем post-suite guard. Если guard красный и был ручной repair,
 `guard-repeat` должен записать backup, repair command и repeat guard; иначе
 release decision не может быть чистым `accepted`.
-Текущий `release-live-gate` пока non-live: он собирает evidence wrapper вокруг
-уже полученных run ids/backup/profile-sync/guard/docs данных, но не запускает
-живую suite и не делает backup сам.
+`release-live-gate` без `--live-ok` собирает evidence wrapper вокруг уже
+полученных run ids/backup/profile-sync/guard/docs данных. С `--live-ok` он
+создает read-only Paperclip backup, запускает одну suite, cleanup, guard и
+release artifacts в одном контролируемом lane; реальный запуск все равно
+требует отдельного операторского подтверждения.

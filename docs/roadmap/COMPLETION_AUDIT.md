@@ -135,8 +135,10 @@ Current audit blockers:
   `accept-with-repair` and release-gate `accepted_with_repair` instead of a
   clean pass. `paperclip-qa release-live-gate` now writes the top-level
   non-live evidence wrapper around profile sync, run ids, backup id,
-  release-gate, and evidence-checklist. Live suite execution, backup
-  orchestration, and any auto-repair policy remain open.
+  release-gate, and evidence-checklist. With explicit `--live-ok`, the same
+  command now creates a read-only Paperclip backup, runs one suite, cleanup,
+  configured guards, release-gate, and evidence-checklist in one lane. Real
+  live acceptance with this lane and any auto-repair policy remain open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -175,9 +177,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Finish the release live gate first: keep the non-live evidence wrapper, then
-   add explicit live execution/backup orchestration only behind `--live-ok` and
-   operator confirmation.
+1. Run a focused release-review cycle with `release-live-gate --live-ok` after
+   explicit operator confirmation, then record its release-live-gate artifact in
+   `BUGS.md` / `COMPLETION_AUDIT.md`.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown

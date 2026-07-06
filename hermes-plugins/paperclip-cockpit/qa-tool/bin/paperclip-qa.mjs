@@ -94,7 +94,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config FILE --suite NAME [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config FILE [--profile NAME] [--plugin NAME] [--repo-plugin-dir DIR] [--profile-plugin-dir DIR] [--json]
-  node paperclip-qa-tool/bin/paperclip-qa.mjs release-live-gate --config FILE [--suite NAME] [--run RUN_ID...] [--backup-id ID] [--profile-plugin-sync ok|warning|blocked] [--commit HASH...] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs release-live-gate --config FILE [--suite NAME] [--run RUN_ID...] [--backup-id ID] [--profile-plugin-sync ok|warning|blocked] [--commit HASH...] [--json] [--live-ok]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config FILE --release-gate FILE [--commit HASH...] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config FILE --run RUN_ID --backup-id ID --repair-command COMMAND [--json]
@@ -315,6 +315,16 @@ function releaseLiveGateCommands({ configPath, config, suiteName, cleanupMode })
   ];
 }
 
+function safePathPart(value, fallback = "item") {
+  const text = String(value || "")
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}TZ_+-]+/gu, "-")
+    .replace(/[:.]/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return text || fallback;
+}
+
 function profileSyncForReleaseLiveGate({ config, options }) {
   if (options.profilePluginSync) {
     const status = options.profilePluginSync;
@@ -394,7 +404,103 @@ function writeReleaseLiveGateArtifact({ config, payload }) {
   return written;
 }
 
-function releaseLiveGate({ configPath, config, options }) {
+async function writePaperclipBackup({ config, client, now = new Date() }) {
+  const company = await client.findCompanyByName(config.paperclip.company);
+  if (!company) throw new ConfigValidationError([`paperclip company not found: ${config.paperclip.company}`]);
+  const companyId = encodeURIComponent(company.id);
+  const [org, agents, issues] = await Promise.all([
+    client.request("GET", `/companies/${companyId}/org`),
+    client.request("GET", `/companies/${companyId}/agents`),
+    client.listIssues(company.id),
+  ]);
+  const commentsByIssueId = {};
+  for (const issue of Array.isArray(issues) ? issues : []) {
+    const issueId = String(issue?.id || "").trim();
+    if (!issueId) continue;
+    commentsByIssueId[issueId] = await client.request("GET", `/issues/${encodeURIComponent(issueId)}/comments`);
+  }
+  const commentCount = Object.values(commentsByIssueId).reduce(
+    (total, comments) => total + (Array.isArray(comments) ? comments.length : 0),
+    0,
+  );
+  const createdAt = now.toISOString();
+  const backup = {
+    manifest: {
+      schemaVersion: 1,
+      createdAt,
+      apiBase: config.paperclip.apiBase,
+      companyId: company.id,
+      companyName: company.name,
+      counts: {
+        agents: Array.isArray(agents) ? agents.length : 0,
+        issues: Array.isArray(issues) ? issues.length : 0,
+        comments: commentCount,
+      },
+    },
+    company,
+    org,
+    agents,
+    issues,
+    commentsByIssueId,
+  };
+  const dir = path.resolve(
+    config.artifacts.dir,
+    "backups",
+    `${safePathPart(createdAt)}-${safePathPart(company.name || company.id, "company")}`,
+  );
+  fs.mkdirSync(dir, { recursive: true });
+  const backupPath = path.join(dir, "backup.json");
+  fs.writeFileSync(backupPath, `${JSON.stringify(backup, null, 2)}\n`, "utf8");
+  return {
+    ok: true,
+    backupPath,
+    companyId: company.id,
+    companyName: company.name,
+    counts: backup.manifest.counts,
+  };
+}
+
+async function executeLiveSuiteForReleaseGate({ config, suiteName, cleanupMode, options }) {
+  const suite = config.suites[suiteName];
+  const result = await executeSuite({
+    config,
+    suiteName,
+    cleanupMode,
+    userbot: new TelegramUserbot({ config }),
+    paperclipClient: new PaperclipClient({ apiBase: config.paperclip.apiBase }),
+    beforeSuite: beforeSuiteHealthGuard({ config, suite }),
+  });
+  if (result.cleanup !== "none" && !result.blockedBeforeSuite) {
+    const cleanupResult = await runCleanupForManifest({
+      config,
+      manifestPath: result.manifestPath,
+      mode: result.cleanup,
+    });
+    result.cleanup = cleanupResult.cleanup;
+    result.ok = result.ok && cleanupResult.ok;
+  }
+  if (!result.blockedBeforeSuite) {
+    const guardAfter = runAfterSuiteHealthGuard({ config, suite, manifestPath: result.manifestPath });
+    if (guardAfter) {
+      result.guardAfter = guardAfter;
+      result.ok = result.ok && guardAfter.ok;
+    }
+  }
+  Object.assign(result, writeRunArtifacts({ config, runId: result.runId, manifestPath: result.manifestPath }));
+  if (shouldNotifyTelegram(config, options)) {
+    const notification = notifyRunSummary({
+      config,
+      runId: result.runId,
+      kind: "result",
+      userbot: new TelegramUserbot({ config }),
+    });
+    result.notification = notification.notification;
+    result.summary = notification.summary;
+  }
+  return result;
+}
+
+async function releaseLiveGate({ configPath, config, options }) {
   if (options.profilePluginSync && !["ok", "warning", "blocked"].includes(options.profilePluginSync)) {
     throw new ConfigValidationError(["--profile-plugin-sync must be ok, warning, or blocked"]);
   }
@@ -403,10 +509,42 @@ function releaseLiveGate({ configPath, config, options }) {
   const plan = releasePlan({ configPath, config, cleanupMode: options.cleanup });
   const suites = options.suite ? [options.suite] : plan.suites;
   const profileSync = profileSyncForReleaseLiveGate({ config, options });
+  let backup = {
+    id: options.backupId,
+    status: options.backupId ? "recorded" : "missing",
+  };
+  const runResults = [];
+  let runIds = options.runs;
+  if (options.liveOk) {
+    if (!options.suite) throw new ConfigValidationError(["--suite is required for release-live-gate --live-ok"]);
+    if (!profileSync.ok) {
+      runIds = [];
+    } else {
+      const paperclipClient = new PaperclipClient({ apiBase: config.paperclip.apiBase });
+      const backupResult = options.backupId
+        ? null
+        : await writePaperclipBackup({ config, client: paperclipClient });
+      if (backupResult) {
+        backup = {
+          id: backupResult.backupPath,
+          status: "recorded",
+          ...backupResult,
+        };
+      }
+      const runResult = await executeLiveSuiteForReleaseGate({
+        config,
+        suiteName: options.suite,
+        cleanupMode: options.cleanup,
+        options,
+      });
+      runResults.push(runResult);
+      runIds = [runResult.runId];
+    }
+  }
   const releaseGate = writeReleaseGate({
     config,
-    runIds: options.runs,
-    backupId: options.backupId,
+    runIds,
+    backupId: backup.id,
     profilePluginSync: profileSync.status === "missing" ? "" : profileSync.status,
   });
   const evidenceChecklist = writeEvidenceChecklist({
@@ -428,15 +566,13 @@ function releaseLiveGate({ configPath, config, options }) {
       gateId: `RLG-${releaseLiveGateId()}`,
       decision,
       reasons,
-      live: false,
+      live: Boolean(options.liveOk),
       generatedAt: new Date().toISOString(),
       configPath: path.resolve(configPath),
       suites,
-      runs: options.runs,
-      backup: {
-        id: options.backupId,
-        status: options.backupId ? "recorded" : "missing",
-      },
+      runs: runIds,
+      runResults,
+      backup,
       preflight: {
         releasePlan: {
           ok: plan.ok,
@@ -664,7 +800,7 @@ async function main(argv) {
     return result.ok ? 0 : 1;
   }
   if (options.command === "release-live-gate") {
-    const result = releaseLiveGate({ configPath: options.config, config, options });
+    const result = await releaseLiveGate({ configPath: options.config, config, options });
     printPayload(result, options.json);
     return result.ok ? 0 : 1;
   }

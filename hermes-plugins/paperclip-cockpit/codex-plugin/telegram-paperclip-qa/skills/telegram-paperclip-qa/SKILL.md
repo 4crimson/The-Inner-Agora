@@ -52,6 +52,10 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.
 node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json
 ```
 
+`release-live-gate --live-ok` is a live command: it creates a Paperclip backup,
+runs the suite, cleans artifacts, runs configured guards, and writes release
+evidence. Use it only after the explicit live acknowledgement below.
+
 Before a live run, say plainly:
 
 ```text

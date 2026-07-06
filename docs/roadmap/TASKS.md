@@ -86,6 +86,17 @@ Telegram, не создает Paperclip work и не делает backup сам�
 execution, backup orchestration и возможный auto-repair остаются следующими
 политическими/операционными шагами.
 
+Статус 2026-07-06: третий локальный срез RL-1 добавил live orchestration за
+явным `--live-ok`. `paperclip-qa release-live-gate --suite SUITE --commit HASH
+--live-ok --json` сначала проверяет profile/plugin sync, затем делает read-only
+Paperclip backup в `artifacts/telegram-test-runs/backups/`, запускает одну
+suite через существующий live runner, cleanup, configured guards,
+`release-gate` и `evidence-checklist`, после чего пишет
+`release-live-gate.json` / `RELEASE_LIVE_GATE.md`. В fake-live регрессии
+доказано, что backup идет до suite, cleanup удаляет тестовый issue, а guard
+before/after попадают в release evidence. Реальный live запуск все еще требует
+операторского подтверждения и не был выполнен этим срезом.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

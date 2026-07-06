@@ -40,11 +40,14 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config telegram
 node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --repair-command "node scripts/agora.mjs prepare local" --json
 ```
 
-Use `release-live-gate` after a suite run has produced run evidence. It writes
+Use `release-live-gate` after a suite run has produced run evidence, or with
+`--live-ok` to execute one suite end-to-end. Without `--live-ok`, it writes
 `release-live-gate.json` / `RELEASE_LIVE_GATE.md`, runs profile/plugin sync
 preflight, delegates to `release-gate` and `evidence-checklist`, and returns
-`accepted`, `accepted_with_repair`, or `blocked`. It is non-live; it does not
-send Telegram messages or create Paperclip work.
+`accepted`, `accepted_with_repair`, or `blocked` without live side effects. With
+`--live-ok`, it first creates a read-only Paperclip backup from the configured
+company, runs the suite, cleanup, configured guards, acceptance artifacts,
+`release-gate`, and `evidence-checklist`.
 
 Use `guard-repeat` only after a red post-suite guard has been repaired manually
 and a repair backup id exists. It records `repairBackup`, `repairCommand`, and

@@ -737,6 +737,179 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertTrue(Path(payload.get("releaseLiveGatePath", "/missing")).exists())
             self.assertFalse((artifacts_dir / "QA-should-not-exist").exists())
 
+    def test_release_live_gate_live_ok_runs_backup_suite_cleanup_and_release_artifacts(self):
+        before_issues = [
+            {"id": "old-root", "identifier": "THE-1", "parentId": None, "title": "Old", "status": "todo"}
+        ]
+        after_issues = [
+            *before_issues,
+            {"id": "new-root", "identifier": "THE-2", "parentId": None, "title": "New", "status": "todo"},
+        ]
+        routes = {
+            ("GET", "/api/companies/company-1/org"): (200, {"nodes": [{"id": "agent-root", "name": "Root"}]}),
+            ("GET", "/api/companies/company-1/agents"): (200, [{"id": "agent-1", "name": "Agora Assistant"}]),
+            ("GET", "/api/issues/old-root/comments"): (200, [{"id": "comment-old", "body": "before suite"}]),
+        }
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer(
+            routes=routes,
+            issues_responses=[before_issues, before_issues, after_issues],
+        ) as server:
+            temp_path = Path(temp_dir)
+            artifacts_dir = temp_path / "runs"
+            calls_path = temp_path / "telegram-calls.jsonl"
+            guard_calls_path = temp_path / "guard-calls.jsonl"
+            repo_plugin = temp_path / "repo" / "paperclip-cockpit"
+            profile_plugin = temp_path / "profile" / "plugins" / "paperclip-cockpit"
+            repo_plugin.mkdir(parents=True)
+            profile_plugin.mkdir(parents=True)
+            (repo_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (profile_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            fake_guard = self.write_fake_guard_driver(temp_dir, fail_phase="")
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["guards"]["postSuiteHealth"] = {
+                "enabled": True,
+                "command": "python3",
+                "args": [str(fake_guard)],
+                "timeoutMs": 5000,
+            }
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "release-live-gate",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--repo-plugin-dir",
+                repo_plugin,
+                "--profile-plugin-dir",
+                profile_plugin,
+                "--commit",
+                "f6fc152",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "FAKE_GUARD_CALLS": str(guard_calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["live"])
+            self.assertEqual(payload["decision"], "accepted")
+            self.assertEqual(len(payload["runs"]), 1)
+            self.assertEqual(payload["runResults"][0]["suite"], "liveish")
+            self.assertEqual(payload["runResults"][0]["decision"], "accept")
+            self.assertEqual(payload["backup"]["status"], "recorded")
+            backup_path = Path(payload["backup"]["id"])
+            self.assertTrue(backup_path.exists())
+            backup = json.loads(backup_path.read_text(encoding="utf-8"))
+            self.assertEqual(backup["manifest"]["counts"]["issues"], 1)
+            self.assertEqual(payload["releaseGate"]["decision"], "accepted")
+            self.assertTrue(payload["evidenceChecklist"]["ok"])
+            telegram_calls = [json.loads(line) for line in calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(telegram_calls, [["send", "агора помощь", "--wait", "8", "--limit", "20"], ["delete", "--ids", "101,102"]])
+            guard_calls = [json.loads(line) for line in guard_calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call["phase"] for call in guard_calls], ["before", "after"])
+            delete_paths = [path for method, path, _ in server.calls if method == "DELETE"]
+            self.assertEqual(delete_paths, ["/api/issues/new-root"])
+            markdown = Path(payload["releaseLiveGateMarkdownPath"]).read_text(encoding="utf-8")
+            self.assertIn("Live: yes", markdown)
+            self.assertIn("Decision: accepted", markdown)
+
+    def test_release_live_gate_live_ok_blocks_before_side_effects_when_profile_sync_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir, FakePaperclipServer() as server:
+            temp_path = Path(temp_dir)
+            artifacts_dir = temp_path / "runs"
+            calls_path = temp_path / "telegram-calls.jsonl"
+            repo_plugin = temp_path / "repo" / "paperclip-cockpit"
+            profile_plugin = temp_path / "profile" / "plugins" / "paperclip-cockpit"
+            repo_plugin.mkdir(parents=True)
+            profile_plugin.mkdir(parents=True)
+            (repo_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\n", encoding="utf-8")
+            (profile_plugin / "plugin.yaml").write_text("name: paperclip-cockpit\nstale: true\n", encoding="utf-8")
+            fake_driver = self.write_fake_send_driver(temp_dir)
+            config = self.config_with_artifacts(artifacts_dir)
+            config["paperclip"]["apiBase"] = server.api_base
+            config["paperclip"]["company"] = "Example"
+            config["suites"] = {
+                "liveish": {
+                    "tests": [
+                        {
+                            "id": "liveish.basic",
+                            "message": "агора помощь",
+                            "expect": {
+                                "replyContains": "Готово",
+                                "paperclipRootsCreated": 1,
+                            },
+                        }
+                    ]
+                }
+            }
+            config_path = self.write_config(temp_dir, config)
+
+            result = self.run_cli(
+                "release-live-gate",
+                "--config",
+                config_path,
+                "--suite",
+                "liveish",
+                "--cleanup",
+                "hard",
+                "--repo-plugin-dir",
+                repo_plugin,
+                "--profile-plugin-dir",
+                profile_plugin,
+                "--commit",
+                "f6fc152",
+                "--live-ok",
+                "--json",
+                env={
+                    "PAPERCLIP_QA_TELEGRAM_DRIVER": str(fake_driver),
+                    "FAKE_TELEGRAM_CALLS": str(calls_path),
+                    "TELEGRAM_API_ID": "12345",
+                    "TELEGRAM_API_HASH": "abcdef0123456789",
+                },
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload["ok"])
+            self.assertTrue(payload["live"])
+            self.assertEqual(payload["decision"], "blocked")
+            self.assertEqual(payload["runs"], [])
+            self.assertEqual(payload["runResults"], [])
+            self.assertEqual(payload["backup"]["status"], "missing")
+            self.assertEqual(payload["preflight"]["profilePluginSync"]["status"], "blocked")
+            self.assertIn("profile-plugin-digest-mismatch", payload["preflight"]["profilePluginSync"]["reasons"])
+            self.assertFalse(calls_path.exists())
+            self.assertEqual(server.calls, [])
+            self.assertFalse((artifacts_dir / "backups").exists())
+
     def test_profile_plugin_sync_accepts_matching_plugin_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
