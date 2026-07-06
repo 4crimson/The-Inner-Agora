@@ -501,6 +501,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
             manifest["cleanup"]["residuals"] = []
             manifest["bugs"] = []
+            manifest["paperclip"]["issues"] = [{"id": "child-1", "identifier": "THE-2", "parentId": "root-1"}]
             manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             gate = self.run_cli("release-gate", "--config", config_path, "--run", run_id, "--json")
@@ -580,6 +581,59 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["decision"], "blocked")
             self.assertIn(f"post-suite-guard:{run_id}", payload["reasons"])
+
+    def test_release_gate_accepts_read_only_suite_without_post_suite_guard(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-read-only-no-guard-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["suite"] = "help"
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest.pop("guardAfter", None)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "release-gate",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--profile-plugin-sync",
+                "ok",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["decision"], "accepted")
+            self.assertEqual(payload["runs"][0]["guardAfter"], "not-run")
+            self.assertFalse(payload["runs"][0]["guardRequired"])
+            self.assertNotIn(f"post-suite-guard-missing:{run_id}", payload["reasons"])
+
+            checklist = self.run_cli(
+                "evidence-checklist",
+                "--config",
+                config_path,
+                "--release-gate",
+                payload["releaseGatePath"],
+                "--commit",
+                "14b2b12",
+                "--json",
+            )
+
+            self.assertEqual(checklist.returncode, 0, checklist.stderr)
+            checklist_payload = json.loads(checklist.stdout)
+            self.assertTrue(checklist_payload["ok"])
+            self.assertEqual(checklist_payload["missingEvidence"], [])
+            self.assertFalse(checklist_payload["presentEvidence"]["guards"][0]["guardRequired"])
 
     def test_acceptance_marks_repaired_post_suite_guard_as_accept_with_repair(self):
         with tempfile.TemporaryDirectory() as temp_dir:

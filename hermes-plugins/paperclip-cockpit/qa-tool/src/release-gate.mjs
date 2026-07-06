@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { manifestCreatedWork, postSuiteHealthConfig, suiteCreatesWork } from "./guard-runner.mjs";
 import { manifestPathForRun, readManifest, runDirectory } from "./manifest.mjs";
 import { writeAcceptance } from "./report-writer.mjs";
 
@@ -49,6 +50,13 @@ function profileSyncStatus(rawStatus) {
   };
 }
 
+function requiresPostSuiteGuard({ config, manifest }) {
+  const guard = postSuiteHealthConfig(config);
+  const suite = config.suites?.[manifest?.suite || ""];
+  if (guard.enabled && guard.runFor === "always") return true;
+  return manifestCreatedWork(manifest) || suiteCreatesWork(suite);
+}
+
 function summarizeRun({ config, runId }) {
   const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId });
   if (!fs.existsSync(manifestPath)) {
@@ -61,6 +69,7 @@ function summarizeRun({ config, runId }) {
       guardBefore: "not-run",
       guardAfter: "not-run",
       guardRepeat: "not-run",
+      guardRequired: true,
       cleanupResiduals: 0,
       activeRunsBeforeCleanup: 0,
       cancelledRuns: 0,
@@ -76,9 +85,10 @@ function summarizeRun({ config, runId }) {
   const acceptanceReasons = repaired
     ? acceptance.reasons.filter((reason) => reason !== "post-suite-guard")
     : acceptance.reasons;
+  const guardRequired = requiresPostSuiteGuard({ config, manifest });
 
   for (const reason of acceptanceReasons) runReasons.push(`${reason}:${runId}`);
-  if (!manifest.guardAfter) runReasons.push(`post-suite-guard-missing:${runId}`);
+  if (guardRequired && !manifest.guardAfter) runReasons.push(`post-suite-guard-missing:${runId}`);
 
   return {
     runId,
@@ -91,6 +101,7 @@ function summarizeRun({ config, runId }) {
     guardBefore: guardStatus(manifest.guardBefore),
     guardAfter: guardStatus(manifest.guardAfter),
     guardRepeat: guardStatus(manifest.guardRepeat),
+    guardRequired,
     cleanupResiduals: acceptance.summary.cleanupResiduals,
     activeRunsBeforeCleanup: Array.isArray(manifest.cleanup?.activeRunsBeforeCleanup)
       ? manifest.cleanup.activeRunsBeforeCleanup.length

@@ -87,10 +87,12 @@ stay separate from cleanup commits.
   explicit `--live-ok`, `release-live-gate` now creates a read-only Paperclip
   backup, runs one suite through the existing live runner, performs cleanup,
   records configured guards, and writes release-gate/evidence-checklist
-  artifacts. Focused live evidence exists for `interface-contract-topics`:
-  `RLG-20260706-085927-629b7c` accepted run
-  `QA-20260706-0849-interface-contract-topics-646217` after cleanup retry and
-  repeat guard evidence. Auto-repair remains manual/explicit.
+  artifacts. Focused live evidence exists for read-only `help`
+  (`RLG-20260706-090802-35c2fb`, guardRequired=false, cleanup residuals 0)
+  and work-creating `interface-contract-topics` (`RLG-20260706-085927-629b7c`
+  accepted run `QA-20260706-0849-interface-contract-topics-646217` after
+  cleanup retry and repeat guard evidence). Auto-repair remains
+  manual/explicit.
 - `profile-plugin-sync`: implemented in `paperclip-qa` as a read-only preflight
   that compares the repo `paperclip-cockpit` plugin tree with the installed
   Hermes profile plugin tree and blocks on digest mismatch before live suites.
@@ -467,7 +469,8 @@ node scripts/agora.mjs costs --pricing default
 
 ## Recommended Next Work
 
-1. Broaden the focused release-live-gate proof to the remaining release suites,
+1. Broaden the focused release-live-gate proof to the remaining release suites
+   (`service-commands`, `mode-routing`, `natural-dialogue`, `council-create`),
    using the same evidence chain: backup, profile/plugin sync, live suite,
    active-run-safe cleanup, acceptance, post-suite guard, optional repair
    backup/repeat guard, docs/commit evidence.

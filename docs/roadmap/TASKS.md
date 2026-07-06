@@ -94,8 +94,8 @@ suite через существующий live runner, cleanup, configured guard
 `release-gate` и `evidence-checklist`, после чего пишет
 `release-live-gate.json` / `RELEASE_LIVE_GATE.md`. В fake-live регрессии
 доказано, что backup идет до suite, cleanup удаляет тестовый issue, а guard
-before/after попадают в release evidence. Реальный live запуск все еще требует
-операторского подтверждения и не был выполнен этим срезом.
+before/after попадают в release evidence. Реальные live runs выполняются только
+после явного операторского подтверждения.
 
 Live evidence 2026-07-06: focused `release-live-gate --live-ok --suite
 interface-contract-topics` создал backup
@@ -109,6 +109,17 @@ assigned `in_progress`. После RL-3 cleanup fix и retry cleanup wrapper
 `RG-20260706-085927-02df11`: tests 4/4 pass, `profilePluginSync=ok`,
 guardBefore/guardAfter/guardRepeat `ok`, cleanup residuals `0`,
 `activeRunsBeforeCleanup=5`, `cancelledRuns=5`.
+
+Live evidence 2026-07-06: read-only `release-live-gate --live-ok --suite help`
+создал backup
+`artifacts/telegram-test-runs/backups/2026-07-06t09-07-23-576z-the-inner-agora/backup.json`
+и run `QA-20260706-0907-help-7917d5`. Wrapper
+`RLG-20260706-090802-35c2fb` accepted с release gate
+`RG-20260706-090802-77c948`: tests 4/4 pass, `profilePluginSync=ok`,
+cleanup residuals `0`, `activeRunsBeforeCleanup=0`, `cancelledRuns=0`,
+guardBefore/guardAfter/guardRepeat `not-run`, `guardRequired=false`. Это
+доказывает, что read-only suites могут проходить release gate без synthetic
+post-suite-health guard evidence.
 
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest

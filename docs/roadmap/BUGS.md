@@ -502,6 +502,14 @@ guard later found transient `Платон` error; backup
 `backups/2026-07-06T08-58-55-378Z-the-inner-agora/backup.json` plus
 `node scripts/agora.mjs prepare local` restored guard to `ok=true`.
 
+Read-only release-gate follow-up 2026-07-06: `help` run
+`QA-20260706-0907-help-7917d5` passed all 4 checks, created no Paperclip work,
+deleted Telegram QA messages cleanly, and produced accepted wrapper
+`RLG-20260706-090802-35c2fb` / release gate `RG-20260706-090802-77c948`.
+The run records `guardRequired=false` with guardBefore/guardAfter/guardRepeat
+`not-run`, proving read-only suites should not be blocked by synthetic
+post-suite-health expectations.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

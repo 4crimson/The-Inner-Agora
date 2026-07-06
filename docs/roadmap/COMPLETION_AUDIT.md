@@ -163,7 +163,12 @@ Current audit blockers:
   `QA-20260706-0849-interface-contract-topics-646217`. Evidence includes backup
   `artifacts/telegram-test-runs/backups/2026-07-06t08-49-59-171z-the-inner-agora/backup.json`,
   `profilePluginSync=ok`, guard before/after/repeat `ok`, cleanup residuals
-  `0`, `activeRunsBeforeCleanup=5`, and `cancelledRuns=5`. Broader
+  `0`, `activeRunsBeforeCleanup=5`, and `cancelledRuns=5`. Read-only evidence
+  also exists for `help`: accepted wrapper
+  `RLG-20260706-090802-35c2fb`, release gate `RG-20260706-090802-77c948`, run
+  `QA-20260706-0907-help-7917d5`, backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t09-07-23-576z-the-inner-agora/backup.json`,
+  cleanup residuals `0`, no Paperclip work, and `guardRequired=false`. Broader
   release-live-gate coverage across the remaining suites remains open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale

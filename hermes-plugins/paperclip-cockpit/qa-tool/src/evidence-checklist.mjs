@@ -26,6 +26,7 @@ function missingItem(id, reason) {
 
 function runGuardMissing(run) {
   if (run.repaired) return false;
+  if (run.guardRequired === false) return false;
   return run.guardAfter !== "ok";
 }
 
@@ -45,6 +46,7 @@ function presentEvidence(gate, commits) {
       guardBefore: run.guardBefore || "not-run",
       guardAfter: run.guardAfter || "not-run",
       guardRepeat: run.guardRepeat || "not-run",
+      guardRequired: run.guardRequired !== false,
       repaired: Boolean(run.repaired),
     })),
     cleanup: (gate.runs || []).map((run) => ({
