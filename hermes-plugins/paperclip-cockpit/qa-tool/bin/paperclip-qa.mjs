@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ConfigValidationError, loadConfig, suiteSummary } from "../src/config.mjs";
 import { cleanupRun } from "../src/cleanup-runner.mjs";
+import { writeEvidenceChecklist } from "../src/evidence-checklist.mjs";
 import { runSuiteHealthGuard, shouldRunSuiteHealthGuard } from "../src/guard-runner.mjs";
 import { runHealthChecks } from "../src/health-check.mjs";
 import { createRun, manifestPathForRun, readManifest, runDirectory, updateManifest } from "../src/manifest.mjs";
@@ -37,6 +38,8 @@ function parseArgs(argv) {
     repoPluginDir: "",
     profilePluginDir: "",
     profilePluginSync: "",
+    releaseGate: "",
+    commits: [],
     appendDoc: "",
     area: "",
     kind: "",
@@ -62,6 +65,11 @@ function parseArgs(argv) {
     else if (arg === "--repo-plugin-dir") options.repoPluginDir = tail[++index] || "";
     else if (arg === "--profile-plugin-dir") options.profilePluginDir = tail[++index] || "";
     else if (arg === "--profile-plugin-sync") options.profilePluginSync = tail[++index] || "";
+    else if (arg === "--release-gate") options.releaseGate = tail[++index] || "";
+    else if (arg === "--commit") {
+      const value = tail[++index] || "";
+      if (value) options.commits.push(value);
+    }
     else if (arg === "--append-doc") options.appendDoc = tail[++index] || "";
     else if (arg === "--area") options.area = tail[++index] || "";
     else if (arg === "--kind") options.kind = tail[++index] || "";
@@ -84,6 +92,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-plan --config FILE [--cleanup hard|soft|none] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config FILE [--profile NAME] [--plugin NAME] [--repo-plugin-dir DIR] [--profile-plugin-dir DIR] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config FILE --release-gate FILE [--commit HASH...] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--notify telegram] [--json] [--dry-run|--live-ok]
@@ -452,6 +461,15 @@ async function main(argv) {
       runIds: options.runs,
       backupId: options.backupId,
       profilePluginSync: options.profilePluginSync,
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
+  }
+  if (options.command === "evidence-checklist") {
+    const result = writeEvidenceChecklist({
+      releaseGatePath: options.releaseGate,
+      commits: options.commits,
+      projectRoot: PROJECT_ROOT,
     });
     printPayload(result, options.json);
     return result.ok ? 0 : 1;

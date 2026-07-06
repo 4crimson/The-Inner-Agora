@@ -35,6 +35,7 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing
 node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config telegram-testing.config.json --release-gate artifacts/telegram-test-runs/release-gates/RG-.../release-gate.json --commit COMMIT --json
 ```
 
 Live runs, standalone cleanup, and retained Telegram notifications require explicit operator confirmation and the exact live command must include `--live-ok`.

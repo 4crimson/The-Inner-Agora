@@ -121,6 +121,16 @@ action не просит `presentation.mode=raw` или global debug details. П
 `test_run_action_humanizes_provider_timeout_error` и
 `test_run_action_humanizes_paperclip_terminated_ancestor_error`.
 
+Статус 2026-07-06: RL-9 закрыт локально как read-only evidence checklist.
+`paperclip-qa evidence-checklist --release-gate ... --commit ... --json` читает
+`release-gate.json`, пишет рядом `EVIDENCE_CHECKLIST.md` и явно перечисляет,
+что должно попасть в `BUGS.md` и `COMPLETION_AUDIT.md`: release gate id,
+decision, run ids, backup id, profile/plugin sync, guard/cleanup/repair status
+и commit hashes. Если backup/profile/guard/commit evidence отсутствует, команда
+возвращает blocked checklist без live side effects. Покрытие:
+`tests.test_telegram_qa_tool.TelegramQaToolConfigTests.test_evidence_checklist_reports_docs_commit_requirements_from_release_gate`
+и `test_evidence_checklist_blocks_when_required_evidence_is_missing`.
+
 Тестовую стратегию упростить:
 
 - route/local evidence не проверять через first-level Telegram text; маршрут

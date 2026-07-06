@@ -100,7 +100,9 @@ stay separate from cleanup commits.
   `replyNotContains` lists.
 - `docs-evidence-checklist`: a lightweight release checklist for run ids,
   backup ids, guard status, repair status, and commit hashes that must be
-  reflected in `BUGS.md` and `COMPLETION_AUDIT.md`.
+  reflected in `BUGS.md` and `COMPLETION_AUDIT.md`. Implemented as
+  non-live `paperclip-qa evidence-checklist`; it reads `release-gate.json` and
+  writes `EVIDENCE_CHECKLIST.md` next to the release gate artifact.
 
 ### Extract Later
 

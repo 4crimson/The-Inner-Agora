@@ -281,6 +281,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             "completion-check",
             "release-plan",
             "release-gate",
+            "evidence-checklist",
             "profile-plugin-sync",
             "readiness",
             "health",
@@ -425,6 +426,102 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             release_gate_markdown_path = Path(payload["releaseGateMarkdownPath"])
             self.assertTrue(release_gate_markdown_path.exists())
             self.assertIn("Decision: accepted", release_gate_markdown_path.read_text(encoding="utf-8"))
+
+    def test_evidence_checklist_reports_docs_commit_requirements_from_release_gate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-evidence-clean-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["cleanup"]["activeRunsBeforeCleanup"] = [{"issueId": "issue-1", "runs": [{"id": "run-1"}]}]
+            manifest["cleanup"]["cancelledRuns"] = [{"runId": "run-1"}]
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            gate = self.run_cli(
+                "release-gate",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--profile-plugin-sync",
+                "ok",
+                "--json",
+            )
+            self.assertEqual(gate.returncode, 0, gate.stderr)
+            gate_payload = json.loads(gate.stdout)
+
+            result = self.run_cli(
+                "evidence-checklist",
+                "--config",
+                config_path,
+                "--release-gate",
+                gate_payload["releaseGatePath"],
+                "--commit",
+                "14b2b12",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["releaseGateId"], gate_payload["gateId"])
+            self.assertEqual(payload["presentEvidence"]["runIds"], [run_id])
+            self.assertEqual(payload["presentEvidence"]["backupId"], "backup-20260706-a1b2")
+            self.assertEqual(payload["presentEvidence"]["profilePluginSync"], "ok")
+            self.assertEqual(payload["presentEvidence"]["commits"], ["14b2b12"])
+            self.assertEqual(payload["presentEvidence"]["guards"][0]["guardAfter"], "ok")
+            self.assertEqual(payload["presentEvidence"]["cleanup"][0]["activeRunsBeforeCleanup"], 1)
+            self.assertEqual(payload["missingEvidence"], [])
+            self.assertEqual(
+                [item["id"] for item in payload["requiredDocs"]],
+                ["docs/roadmap/BUGS.md", "docs/roadmap/COMPLETION_AUDIT.md"],
+            )
+            self.assertTrue(Path(payload["evidenceChecklistPath"]).exists())
+            checklist = Path(payload["evidenceChecklistPath"]).read_text(encoding="utf-8")
+            self.assertIn(run_id, checklist)
+            self.assertIn("backup-20260706-a1b2", checklist)
+            self.assertIn("14b2b12", checklist)
+
+    def test_evidence_checklist_blocks_when_required_evidence_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-evidence-missing-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            gate = self.run_cli("release-gate", "--config", config_path, "--run", run_id, "--json")
+            self.assertNotEqual(gate.returncode, 0)
+            gate_payload = json.loads(gate.stdout)
+
+            result = self.run_cli(
+                "evidence-checklist",
+                "--config",
+                config_path,
+                "--release-gate",
+                gate_payload["releaseGatePath"],
+                "--json",
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(result.stdout)
+            missing = {item["id"] for item in payload["missingEvidence"]}
+            self.assertIn("backup-id", missing)
+            self.assertIn("profile-plugin-sync", missing)
+            self.assertIn(f"post-suite-guard:{run_id}", missing)
+            self.assertIn("commit-hash", missing)
+            self.assertFalse(payload["ok"])
 
     def test_release_gate_blocks_without_backup_or_profile_sync_evidence(self):
         with tempfile.TemporaryDirectory() as temp_dir:
