@@ -24,6 +24,8 @@ class AgoraStateOutputUtilsTests(unittest.TestCase):
             import assert from "node:assert/strict";
             import {{
               activeChamberOutputLines,
+              chamberListLines,
+              chamberUseLines,
               costSummaryOutputLines,
               decoratedCostLogEntries,
               issueStatePatch,
@@ -89,6 +91,32 @@ class AgoraStateOutputUtilsTests(unittest.TestCase):
               "activeChamberId=philosophy",
               "activeChamberName=The Inner Agora",
             ]);
+
+            assert.deepEqual(
+              chamberListLines(
+                [
+                  {{ id: "philosophy", name: "The Inner Agora", status: "active" }},
+                  {{ id: "board-directors", name: "Board Directors", status: "draft" }},
+                ],
+                "philosophy",
+              ),
+              [
+                "* philosophy: The Inner Agora (active)",
+                "- board-directors: Board Directors (draft)",
+              ],
+            );
+
+            assert.deepEqual(
+              chamberUseLines(
+                {{ id: "philosophy", name: "The Inner Agora" }},
+                {{ updatedAt: "2026-07-06T12:00:00.000Z" }},
+              ),
+              [
+                "Активная палата: philosophy",
+                "Название: The Inner Agora",
+                "updatedAt=2026-07-06T12:00:00.000Z",
+              ],
+            );
 
             assert.deepEqual(
               modeOutputLines({{

@@ -39,6 +39,22 @@ export function activeChamberOutputLines(chamber = {}) {
   ];
 }
 
+export function chamberListLines(chambers = [], currentChamberId = "") {
+  return chambers.map((chamber) => {
+    const marker = chamber.id === currentChamberId ? "*" : "-";
+    return `${marker} ${chamber.id}: ${chamber.name} (${chamber.status})`;
+  });
+}
+
+export function chamberUseLines(chamber = {}, state = {}) {
+  const lines = [
+    `Активная палата: ${chamber.id}`,
+    `Название: ${chamber.name}`,
+  ];
+  if (state.updatedAt) lines.push(`updatedAt=${state.updatedAt}`);
+  return lines;
+}
+
 export function modeOutputLines({ mode = "", adapter = {}, statePath = "", state = {} } = {}) {
   const lines = [
     `mode=${mode}`,

@@ -64,7 +64,7 @@ CLI argument parsing for ask, council, follow-up, role-proposal, tasks, and
 full-output flags. `scripts/agora.mjs` still owns default mode resolution, help
 output, role selection, command execution, Paperclip API calls, and terminal
 printing, so the roadmap remains partial rather than complete.
-Next local Pass C slice: `scripts/agora/state-output-utils.mjs` now owns pure
+Previous local Pass C slice: `scripts/agora/state-output-utils.mjs` now owns pure
 state patch and CLI line formatting for remembered issues, decorated token cost
 entries, compact cost summaries, active chamber readout, and mode readout.
 `scripts/agora.mjs` still owns state reads/writes, adapter/chamber selection,
@@ -97,6 +97,10 @@ role/chamber risk fallback and transparency policy text resolution through
 injected policy/skill loaders. `scripts/agora.mjs` still owns active chamber
 state, CLI printing, skill loader wiring, and adapter request dispatch, so this
 is a module-boundary cleanup only.
+Latest local Pass C slice: `scripts/agora/state-output-utils.mjs` now also owns
+pure chamber CLI list/use line formatting. `scripts/agora.mjs` still owns
+chamber loading, state/profile writes, and command dispatch, so this is another
+output-boundary cleanup rather than a chamber behavior change.
 
 ## Definition Of Ideal Check
 

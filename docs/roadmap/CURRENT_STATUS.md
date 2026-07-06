@@ -298,6 +298,10 @@ pure role/chamber risk fallback and transparency policy text resolution through
 injected policy/skill loaders. `scripts/agora.mjs` still owns active chamber
 state, CLI printing, skill loader wiring, and adapter request dispatch, so this
 slice changes policy module boundaries only.
+Twenty-seventh extraction completed: `scripts/agora/state-output-utils.mjs` now
+also owns pure chamber CLI list/use line formatting. `scripts/agora.mjs` still
+owns chamber loading, state/profile writes, and command dispatch; this slice
+only moves output formatting out of the dispatcher.
 
 Acceptance criteria:
 

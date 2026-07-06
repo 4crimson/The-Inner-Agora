@@ -127,6 +127,8 @@ import {
 } from "./agora/cli-parse-utils.mjs";
 import {
   activeChamberOutputLines,
+  chamberListLines,
+  chamberUseLines,
   costSummaryOutputLines,
   decoratedCostLogEntries,
   issueStatePatch,
@@ -323,10 +325,7 @@ function chamberCommand(args = []) {
 
   if (action === "list" || action === "ls") {
     const current = activeChamberId();
-    for (const chamber of listChambers(CHAMBERS_DIR)) {
-      const marker = chamber.id === current ? "*" : "-";
-      console.log(`${marker} ${chamber.id}: ${chamber.name} (${chamber.status})`);
-    }
+    for (const line of chamberListLines(listChambers(CHAMBERS_DIR), current)) console.log(line);
     return;
   }
 
@@ -340,9 +339,7 @@ function chamberCommand(args = []) {
     const chamber = loadChamber(CHAMBERS_DIR, value);
     const state = writeState({ activeChamberId: chamber.id });
     writeProfile({ preferredChamberId: chamber.id });
-    console.log(`Активная палата: ${chamber.id}`);
-    console.log(`Название: ${chamber.name}`);
-    if (state.updatedAt) console.log(`updatedAt=${state.updatedAt}`);
+    for (const line of chamberUseLines(chamber, state)) console.log(line);
     return;
   }
 
