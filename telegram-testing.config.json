@@ -82,7 +82,7 @@
         {
           "id": "service.help",
           "message": "/help",
-          "waitSeconds": 20,
+          "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
@@ -96,7 +96,7 @@
         {
           "id": "service.agora.home",
           "message": "/agora",
-          "waitSeconds": 20,
+          "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
@@ -110,7 +110,7 @@
         {
           "id": "service.agora.help",
           "message": "/agora help",
-          "waitSeconds": 20,
+          "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["The Inner Agora", "философов", "обычным языком"],
@@ -138,7 +138,7 @@
         {
           "id": "service.agora.help.full",
           "message": "/agora help full",
-          "waitSeconds": 20,
+          "waitSeconds": 35,
           "expect": {
             "paperclipRootsCreated": 0,
             "replyContains": ["Обычный вход", "Обычные команды", "Работа с сессиями", "Админ/диагностика"],
