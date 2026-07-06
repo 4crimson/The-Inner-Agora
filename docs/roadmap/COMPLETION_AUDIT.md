@@ -87,11 +87,16 @@ Previous local Pass C slice: `scripts/agora/text-utils.mjs` now also owns the
 pure Paperclip issue title cleanup helper (`cleanTitle`). `scripts/agora.mjs`
 still owns session, follow-up, and dialogue issue creation, so this is another
 module-boundary cleanup, not a behavior or Paperclip write-path change.
-Latest local Pass C slice: `scripts/agora/issue-query-utils.mjs` now owns
+Previous local Pass C slice: `scripts/agora/issue-query-utils.mjs` now owns
 Paperclip read-side issue resolution for latest synthesis lookup, root session
 selection, and top-root traversal through an injected `api` dependency.
 `scripts/agora.mjs` still owns command flow, terminal output, state updates, and
 all Paperclip write paths.
+Latest local Pass C slice: `scripts/agora/policy-utils.mjs` now owns pure
+role/chamber risk fallback and transparency policy text resolution through
+injected policy/skill loaders. `scripts/agora.mjs` still owns active chamber
+state, CLI printing, skill loader wiring, and adapter request dispatch, so this
+is a module-boundary cleanup only.
 
 ## Definition Of Ideal Check
 

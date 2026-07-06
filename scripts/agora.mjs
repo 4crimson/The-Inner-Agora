@@ -133,6 +133,11 @@ import {
   modeOutputLines,
 } from "./agora/state-output-utils.mjs";
 import {
+  chamberRiskTier as chamberRiskTierFromPolicy,
+  roleRiskTier as roleRiskTierFromPolicy,
+  transparencyPolicyText,
+} from "./agora/policy-utils.mjs";
+import {
   allRoleSkillsLines,
   allRoleSkillsPayload,
   resolvedRoleSkillsPayload,
@@ -351,11 +356,11 @@ function defaultMode() {
 }
 
 function roleRiskTier(role) {
-  return role?.riskTier || "reflective";
+  return roleRiskTierFromPolicy(role);
 }
 
 function chamberRiskTier(chamber = activeChamber()) {
-  return chamber.riskTier || "reflective";
+  return chamberRiskTierFromPolicy(chamber);
 }
 
 function adapterForMode(mode, options = {}) {
@@ -554,15 +559,14 @@ function selectPhilosophers(request, mode, philosopherList, options = {}) {
 }
 
 function transparencyPolicy(chamberOrPolicyId = activeChamber()) {
-  if (typeof chamberOrPolicyId !== "string") {
-    return composeChamberPolicy(chamberOrPolicyId, { skillsDir: SKILLS_DIR });
-  }
-  const policyId = chamberOrPolicyId || activeChamber().transparencyPolicy;
-  try {
-    return loadSkillPrompt(SKILLS_DIR, policyId);
-  } catch (error) {
-    return fallbackTransparencyPolicy(policyId, error);
-  }
+  return transparencyPolicyText({
+    chamberOrPolicyId,
+    activeChamber,
+    skillsDir: SKILLS_DIR,
+    loadSkillPrompt,
+    composeChamberPolicy,
+    fallbackTransparencyPolicy,
+  });
 }
 
 function policyCommand(args = []) {

@@ -293,6 +293,11 @@ issue creation. Twenty-fifth extraction completed:
 resolution for latest synthesis lookup, root issue selection, and top-root
 traversal through an injected `api` dependency. `scripts/agora.mjs` still owns
 command flow, terminal output, state updates, and all Paperclip write paths.
+Twenty-sixth extraction completed: `scripts/agora/policy-utils.mjs` now owns
+pure role/chamber risk fallback and transparency policy text resolution through
+injected policy/skill loaders. `scripts/agora.mjs` still owns active chamber
+state, CLI printing, skill loader wiring, and adapter request dispatch, so this
+slice changes policy module boundaries only.
 
 Acceptance criteria:
 
@@ -328,6 +333,7 @@ scripts/agora/cli-parse-utils.mjs
 scripts/agora/state-output-utils.mjs
 scripts/agora/role-output-utils.mjs
 scripts/agora/finalize-utils.mjs
+scripts/agora/policy-utils.mjs
 ```
 
 These slices intentionally avoid router semantics, Telegram UX, Paperclip write
