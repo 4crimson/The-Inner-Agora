@@ -165,6 +165,14 @@ decision, run ids, backup id, profile/plugin sync, guard/cleanup/repair status
 
 Фикс для cleanup/finalize race:
 
+Наблюдение 2026-07-05: run `20b5a4ed-9021-4830-9654-718e2c10534b`
+стартовал в `21:06:32Z`; связанный issue
+`357f13b2-ad4f-46a8-bbb5-0817b4029bab` был удален cleanup-ом в
+`21:08:36Z`; Hermes позже вышел с code `0` в `21:18:14Z`, а
+`workspace_finalize` затем не смог вставить `workspace_operations`, потому что
+foreign-key target issue уже не существовал. Это конкретная regression shape
+для RL-3/RL-2.
+
 1. Перед `hard cleanup` получить active heartbeat/live runs для каждого issue,
    который будет удален.
 2. Если runs активны, выполнить cancel/stop и дождаться terminal state; если

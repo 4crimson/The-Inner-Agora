@@ -476,6 +476,14 @@ again found transient agent errors (`Фуко`, `Аристотель`), and bac
 `ok=true`. This is an operational live-health gap, not a Telegram UX acceptance
 failure.
 
+Adapter failure evidence 2026-07-05: heartbeat run
+`20b5a4ed-9021-4830-9654-718e2c10534b` стартовал в `21:06:32Z`, но связанный
+issue `357f13b2-ad4f-46a8-bbb5-0817b4029bab` был удален hard cleanup-ом в
+`21:08:36Z`. Hermes успешно завершился в `21:18:14Z`, затем
+`workspace_finalize` не смог вставить `workspace_operations`, потому что
+`workspace_operations.issue_id` ссылался на уже удаленный issue. Это точный
+RL-3 cleanup/finalize race, а не model, router или Telegram UX failure.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`
