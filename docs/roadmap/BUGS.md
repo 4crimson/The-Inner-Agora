@@ -539,6 +539,18 @@ The suite passed 3/3. It usefully exercised both sides of the contract:
 `THE-269`/`THE-270`. Active-run-safe cleanup cancelled 2 live runs and left
 cleanup residuals `0`; guardAfter and post-run guard were `ok`.
 
+Mode-routing release-gate follow-up 2026-07-06: wrapper
+`RLG-20260706-094133-e88732` correctly blocked run
+`QA-20260706-0938-mode-routing-80cf45` even though all 4 UX/router checks
+passed. Root cause was post-suite live-health drift: guardAfter found
+`Аристотель` and `Декарт` in `error`. Cleanup was otherwise clean and strong:
+three roots (`THE-271`, `THE-279`, `THE-282`) were removed/hidden, residuals
+`0`, active runs before cleanup `11`, cancelled runs `12`. Repair was recorded
+with backup `backups/2026-07-06T09-42-04-221Z-the-inner-agora/backup.json`,
+`node scripts/agora.mjs prepare local`, and guardRepeat `ok`. Non-live wrapper
+`RLG-20260706-094245-ee1783` / release gate `RG-20260706-094245-8f43e9`
+accepted the suite as `accepted_with_repair`; post-run guard returned `ok=true`.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

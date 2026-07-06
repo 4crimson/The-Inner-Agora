@@ -155,6 +155,18 @@ the "пару философов" path created root `THE-268` plus active child 
 `activeRunsBeforeCleanup=2`, `cancelledRuns=2`. GuardAfter `ok`,
 `profilePluginSync=ok`; post-run guard stayed `ok=true`.
 
+Live evidence 2026-07-06: focused `release-live-gate --live-ok --suite
+mode-routing` first produced blocked wrapper `RLG-20260706-094133-e88732` for
+run `QA-20260706-0938-mode-routing-80cf45`: all 4 UX/router tests passed, but
+post-suite guard caught live-health drift (`Аристотель` and `Декарт` in
+`error`). Cleanup itself proved RL-3 with residuals `0`,
+`activeRunsBeforeCleanup=11`, `cancelledRuns=12` across three created roots
+`THE-271`, `THE-279`, `THE-282`. Repair evidence: backup
+`backups/2026-07-06T09-42-04-221Z-the-inner-agora/backup.json`, command
+`node scripts/agora.mjs prepare local`, guardRepeat `ok`. Non-live wrapper
+`RLG-20260706-094245-ee1783` / release gate `RG-20260706-094245-8f43e9`
+returned `accepted_with_repair`; post-run guard stayed `ok=true`.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

@@ -96,6 +96,10 @@ stay separate from cleanup commits.
   `RG-20260706-093712-3558bb`, run `QA-20260706-0936-natural-dialogue-490a3f`,
   guardAfter ok, cleanup residuals 0, activeRunsBeforeCleanup=2,
   cancelledRuns=2)
+  and `mode-routing` (`RLG-20260706-094245-ee1783`, release gate
+  `RG-20260706-094245-8f43e9`, run `QA-20260706-0938-mode-routing-80cf45`,
+  accepted_with_repair after guardAfter caught `Аристотель`/`Декарт` error,
+  cleanup residuals 0, activeRunsBeforeCleanup=11, cancelledRuns=12)
   and work-creating `interface-contract-topics` (`RLG-20260706-085927-629b7c`
   accepted run `QA-20260706-0849-interface-contract-topics-646217` after
   cleanup retry and repeat guard evidence). Auto-repair remains
@@ -477,9 +481,9 @@ node scripts/agora.mjs costs --pricing default
 ## Recommended Next Work
 
 1. Broaden the focused release-live-gate proof to the remaining release suites
-   (`mode-routing`, `council-create`), using the same evidence chain: backup,
-   profile/plugin sync, live suite, active-run-safe cleanup, acceptance,
-   post-suite guard, optional repair backup/repeat guard, docs/commit evidence.
+   (`council-create`), using the same evidence chain: backup, profile/plugin
+   sync, live suite, active-run-safe cleanup, acceptance, post-suite guard,
+   optional repair backup/repeat guard, docs/commit evidence.
 2. Centralize the Telegram first-level leak contract after that, so UX tests
    stop duplicating route/model/local URL/wake/raw child row exclusions.
 3. Continue Pass C runtime-module splits only after the release lane no longer

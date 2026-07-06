@@ -185,9 +185,17 @@ Current audit blockers:
   `QA-20260706-0936-natural-dialogue-490a3f`, backup
   `artifacts/telegram-test-runs/backups/2026-07-06t09-36-35-861z-the-inner-agora/backup.json`,
   tests 3/3 pass, cleanup residuals `0`, active runs before cleanup `2`,
-  cancelled runs `2`, profile/plugin sync `ok`, and guardAfter `ok`. Broader
-  release-live-gate coverage across the remaining `mode-routing` and
-  `council-create` suites remains open.
+  cancelled runs `2`, profile/plugin sync `ok`, and guardAfter `ok`.
+  `mode-routing` is accepted with repair through wrapper
+  `RLG-20260706-094245-ee1783`, release gate `RG-20260706-094245-8f43e9`, run
+  `QA-20260706-0938-mode-routing-80cf45`, original backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t09-38-51-489z-the-inner-agora/backup.json`,
+  repair backup `backups/2026-07-06T09-42-04-221Z-the-inner-agora/backup.json`,
+  repair command `node scripts/agora.mjs prepare local`, tests 4/4 pass,
+  cleanup residuals `0`, active runs before cleanup `11`, cancelled runs `12`,
+  guardBefore `ok`, guardAfter `failed`, and guardRepeat `ok`. Broader
+  release-live-gate coverage across the remaining `council-create` suite
+  remains open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -228,9 +236,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Continue focused release-live-gate coverage for `mode-routing` and
-   `council-create`, then record each accepted or blocked artifact in
-   `BUGS.md` / `COMPLETION_AUDIT.md`.
+1. Continue focused release-live-gate coverage for `council-create`, then
+   record each accepted or blocked artifact in `BUGS.md` /
+   `COMPLETION_AUDIT.md`.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown
