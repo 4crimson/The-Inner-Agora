@@ -484,11 +484,12 @@ node scripts/agora.mjs costs --pricing default
 
 ## Recommended Next Work
 
-1. Run `completion-check` and update `COMPLETION_AUDIT.md` now that focused
-   `release-live-gate` coverage exists for all release suites.
-2. Centralize the Telegram first-level leak contract after that, so UX tests
-   stop duplicating route/model/local URL/wake/raw child row exclusions.
-3. Continue Pass C runtime-module splits after the completion-check result is
-   recorded.
+1. Close or explicitly defer the remaining `completion-check` partial blockers:
+   real failing-live bug handoff, real failed-then-fixed retest, and literal
+   full-suite repeat cleanup.
+2. Continue Pass C runtime-module splits now that the release lane no longer has
+   stale missing-live blockers.
+3. Keep the shared first-level leak macro as the central UX contract for any new
+   Telegram expectations.
 4. Keep production Telegram checks and plugin install/publish in their own
    focused turns even when approved.

@@ -43,7 +43,7 @@ evidence that Telegram live UX is accepted.
 | Phase 0 regression baseline | `scripts/regression.mjs`, baseline fixtures, current readiness check runs regression on the chamber role path | Locally proven | Keep running before behavior-changing slices |
 | QW-1 typo handling | `ask-unknown-philosopher-dry-run` in regression baseline, role search helpers | Locally proven | None for local scope |
 | QW-2 self-heal / guard direction | `scripts/inner-agora-guard.mjs`, monitor/guard tests and Phase 8 notes | Locally implemented | Live reliability still belongs to live acceptance, not cleanup |
-| QW-3 onboarding / compact Telegram entry | Telegram command boundary, `/start` aliases, compact home/help callbacks | Locally implemented | Live retest still pending for full service command surface |
+| QW-3 onboarding / compact Telegram entry | Telegram command boundary, `/start` aliases, compact home/help callbacks, accepted `help` and `service-commands` release gates | Live-proven for focused service surface | Keep first-level leak checks in the release lane |
 | QW-4 Paperclip backup before migrations | `scripts/backup-company.mjs`, `.gitignore` `backups/`, `tests/test_backup_company.py`, live backup `backups/2026-07-05T20-48-53-793Z-the-inner-agora/backup.json` | Locally implemented and used before approved live recovery | Keep backup-before-repair discipline for future live migrations |
 | Phase 1 role schema and migration | `data/schema/role.schema.json`, `scripts/migrate-roles.mjs`, `chambers/philosophy/roles.json`, importer/CLI chamber role source, readiness check `migration` ok | Locally complete | Keep migration check as a drift guard while `data/philosophers.json` remains the source for generated chamber roles |
 | Phase 2 chambers / packs | `data/schema/chamber.schema.json`, `scripts/chamber-loader.mjs`, philosophy and board-directors chambers | Locally implemented | Board role content quality T2.6b is not proven by voice tests |
@@ -204,6 +204,15 @@ Current audit blockers:
   guardBefore `ok`, guardAfter `failed`, and guardRepeat `ok`. Focused
   release-live-gate coverage now exists for all release suites; completion
   remains subject to the broader audit items below.
+- 2026-07-06 `paperclip-qa completion-check --config
+  telegram-testing.config.json --json` was updated and rerun after the focused
+  release evidence. It now reports `overallStatus:
+  release-focused-live-accepted`, `complete: false`, `missingLiveEvidence: 0`,
+  `proven: 6`, `partial: 3`, and blockers
+  `bug-batch-developer-handoff`, `retest-failed-test-ids`, and
+  `full-suite-repeat-cleanup`. This removes the stale
+  `controlled-live-help-run` blocker without claiming the whole QA workflow is
+  complete.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -244,8 +253,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Run `paperclip-qa completion-check --config telegram-testing.config.json
-   --json` and update this audit with its current blockers.
+1. Close or explicitly defer the three `completion-check` partial blockers:
+   real failing-live bug handoff, real failed-then-fixed retest, and literal
+   full-suite repeat cleanup.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction.
 3. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.

@@ -301,19 +301,22 @@ class TelegramQaToolConfigTests(unittest.TestCase):
         self.assertIn("release-review mode", readme)
         self.assertIn("explicit operator confirmation", readme)
 
-    def test_completion_checklist_tracks_live_evidence_gap(self):
+    def test_completion_checklist_tracks_remaining_workflow_gaps(self):
         checklist = json.loads(QA_COMPLETION_CHECKLIST.read_text(encoding="utf-8"))
 
         self.assertEqual(checklist["goal"], "telegram-paperclip-qa-two-layer-system")
-        self.assertEqual(checklist["overallStatus"], "pre-live-ready")
+        self.assertEqual(checklist["overallStatus"], "release-focused-live-accepted")
         statuses = {item["id"]: item["status"] for item in checklist["requirements"]}
         self.assertEqual(statuses["universal-runtime-tool"], "proven")
         self.assertEqual(statuses["codex-qa-skill-plugin"], "proven")
-        self.assertEqual(statuses["controlled-live-help-run"], "missing-live-evidence")
-        self.assertEqual(statuses["full-suite-repeat-cleanup"], "missing-live-evidence")
-        self.assertIn("controlled-live-help-run", checklist["blocksCompletion"])
+        self.assertEqual(statuses["controlled-live-help-run"], "proven")
+        self.assertEqual(statuses["full-suite-repeat-cleanup"], "partial")
+        self.assertNotIn("controlled-live-help-run", checklist["blocksCompletion"])
+        self.assertIn("bug-batch-developer-handoff", checklist["blocksCompletion"])
+        self.assertIn("retest-failed-test-ids", checklist["blocksCompletion"])
+        self.assertIn("full-suite-repeat-cleanup", checklist["blocksCompletion"])
 
-    def test_completion_check_reports_live_blockers(self):
+    def test_completion_check_reports_remaining_workflow_blockers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = self.write_config(temp_dir, self.base_config())
 
@@ -323,13 +326,18 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertTrue(payload["ok"])
             self.assertFalse(payload["complete"])
-            self.assertEqual(payload["overallStatus"], "pre-live-ready")
-            self.assertEqual(payload["blockingRequirements"], ["controlled-live-help-run", "full-suite-repeat-cleanup"])
-            self.assertEqual(payload["summary"]["missingLiveEvidence"], 2)
+            self.assertEqual(payload["overallStatus"], "release-focused-live-accepted")
+            self.assertEqual(
+                payload["blockingRequirements"],
+                ["bug-batch-developer-handoff", "retest-failed-test-ids", "full-suite-repeat-cleanup"],
+            )
+            self.assertEqual(payload["summary"]["partial"], 3)
+            self.assertEqual(payload["summary"]["missingLiveEvidence"], 0)
             self.assertEqual([action["id"] for action in payload["blockingActions"]], payload["blockingRequirements"])
-            self.assertIn("readiness", payload["blockingActions"][0]["preflight"][0])
-            self.assertIn("--live-ok", payload["blockingActions"][0]["liveCommand"])
-            self.assertIn("release-plan", payload["blockingActions"][1]["preflight"][0])
+            self.assertIn("bug-batch", payload["blockingActions"][0]["preflight"][1])
+            self.assertIn("retest", payload["blockingActions"][1]["preflight"][0])
+            self.assertIn("--live-ok", payload["blockingActions"][1]["liveCommand"])
+            self.assertIn("release-plan", payload["blockingActions"][2]["preflight"][0])
 
     def test_documented_suite_commands_exist_in_project_config(self):
         config = json.loads((ROOT / "telegram-testing.config.json").read_text(encoding="utf-8"))

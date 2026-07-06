@@ -1,10 +1,10 @@
 {
   "goal": "telegram-paperclip-qa-two-layer-system",
-  "updated": "2026-07-03",
-  "overallStatus": "pre-live-ready",
+  "updated": "2026-07-06",
+  "overallStatus": "release-focused-live-accepted",
   "statusLegend": {
     "proven": "Current local evidence proves the requirement.",
-    "partial": "Local evidence proves the contract, but live behavior or a real handoff is still unproven.",
+    "partial": "Current evidence proves part of the contract, but a stricter live workflow or real failing handoff is still unproven.",
     "missing-live-evidence": "The requirement cannot be closed without an explicit live Telegram/Paperclip run."
   },
   "requirements": [
@@ -64,13 +64,23 @@
       "id": "bug-batch-developer-handoff",
       "requirement": "Tester mode can produce grouped bug batches that developer mode can consume one area at a time.",
       "status": "partial",
-        "evidence": [
-          "bug-batch --config FILE --run RUN_ID --json",
+      "evidence": [
+        "bug-batch --config FILE --run RUN_ID --json",
         "hermes-plugins/paperclip-cockpit/codex-plugin/telegram-paperclip-qa/skills/telegram-paperclip-qa/references/developer-mode.md",
-          "test_bug_batch_without_area_groups_by_area_and_severity",
-          "test_bug_batch_filters_manifest_bugs_by_area"
+        "test_bug_batch_without_area_groups_by_area_and_severity",
+        "test_bug_batch_filters_manifest_bugs_by_area"
       ],
-      "remainingEvidence": "A real failing live manifest and developer handoff have not yet been exercised."
+      "remainingEvidence": "A real failing live manifest and developer handoff have not yet been exercised.",
+      "nextAction": {
+        "mode": "developer",
+        "preflight": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json",
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json"
+        ],
+        "postRun": [
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --area AREA --json"
+        ]
+      }
     },
     {
       "id": "retest-failed-test-ids",
@@ -81,40 +91,44 @@
         "test_retest_dry_run_selects_previous_failed_tests_only",
         "test_retest_live_executes_only_failed_tests_and_writes_artifacts"
       ],
-      "remainingEvidence": "A real live failed-then-fixed cycle has not yet been exercised."
-    },
-    {
-      "id": "controlled-live-help-run",
-      "requirement": "A controlled live help suite run passes or produces accepted bug output and cleans itself.",
-      "status": "missing-live-evidence",
-      "evidence": [
-        "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
-      ],
-      "remainingEvidence": "Requires explicit operator approval and a live run with --live-ok.",
+      "remainingEvidence": "A real live failed-then-fixed cycle has not yet been exercised.",
       "nextAction": {
-        "mode": "tester",
+        "mode": "retest",
         "preflight": [
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs readiness --config telegram-testing.config.json --suite help --cleanup hard --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs live-plan --config telegram-testing.config.json --suite help --cleanup hard --json"
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --dry-run --json"
         ],
-        "acknowledgement": "This will send Telegram messages and may create Paperclip issues. Cleanup will run with hard-delete-first and soft fallback. Proceed?",
-        "liveCommand": "node paperclip-qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite help --cleanup hard --live-ok --json",
+        "acknowledgement": "This will send Telegram messages for the previous failed test ids and may create Paperclip issues. Proceed?",
+        "liveCommand": "node paperclip-qa-tool/bin/paperclip-qa.mjs retest --config telegram-testing.config.json --run QA-... --cleanup hard --live-ok --json",
         "postRun": [
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs report --config telegram-testing.config.json --run QA-... --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.config.json --run QA-... --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json",
-          "node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json"
+          "node paperclip-qa-tool/bin/paperclip-qa.mjs acceptance --config telegram-testing.config.json --run QA-... --json"
         ]
       }
     },
     {
+      "id": "controlled-live-help-run",
+      "requirement": "A controlled live help suite run passes or produces accepted bug output and cleans itself.",
+      "status": "proven",
+      "evidence": [
+        "artifacts/telegram-test-runs/QA-20260706-0907-help-7917d5/ACCEPTANCE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-090802-35c2fb/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-gates/RG-20260706-090802-77c948/RELEASE_GATE.md",
+        "docs/roadmap/COMPLETION_AUDIT.md"
+      ]
+    },
+    {
       "id": "full-suite-repeat-cleanup",
       "requirement": "The full suite can run twice without leaving extra visible Paperclip roots.",
-      "status": "missing-live-evidence",
+      "status": "partial",
       "evidence": [
-        "docs/telegram-testing/TELEGRAM_QA_READINESS_AUDIT.md"
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-085927-629b7c/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-090802-35c2fb/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-093243-a2491c/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-093712-e47310/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-094245-ee1783/RELEASE_LIVE_GATE.md",
+        "artifacts/telegram-test-runs/release-live-gates/RLG-20260706-094748-03a094/RELEASE_LIVE_GATE.md",
+        "docs/roadmap/COMPLETION_AUDIT.md"
       ],
-      "remainingEvidence": "Requires explicit operator approval, live full-suite execution, and post-cleanup Paperclip inspection.",
+      "remainingEvidence": "Focused release-live-gate evidence exists for every release suite with cleanup residuals 0, but a literal full-suite repeat in one release-plan sequence has not been exercised.",
       "nextAction": {
         "mode": "release-review",
         "preflight": [
@@ -132,7 +146,8 @@
     }
   ],
   "blocksCompletion": [
-    "controlled-live-help-run",
+    "bug-batch-developer-handoff",
+    "retest-failed-test-ids",
     "full-suite-repeat-cleanup"
   ]
 }
