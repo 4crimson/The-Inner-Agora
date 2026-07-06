@@ -101,6 +101,10 @@ Latest local Pass C slice: `scripts/agora/state-output-utils.mjs` now also owns
 pure chamber CLI list/use line formatting. `scripts/agora.mjs` still owns
 chamber loading, state/profile writes, and command dispatch, so this is another
 output-boundary cleanup rather than a chamber behavior change.
+Latest local Pass C slice: `scripts/agora/cli-help-utils.mjs` now owns the
+top-level `agora.mjs` usage text. `scripts/agora.mjs` still owns help dispatch
+and process exit, so this is a CLI-help boundary cleanup with no intended copy
+change.
 
 ## Definition Of Ideal Check
 

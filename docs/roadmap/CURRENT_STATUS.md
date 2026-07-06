@@ -302,6 +302,10 @@ Twenty-seventh extraction completed: `scripts/agora/state-output-utils.mjs` now
 also owns pure chamber CLI list/use line formatting. `scripts/agora.mjs` still
 owns chamber loading, state/profile writes, and command dispatch; this slice
 only moves output formatting out of the dispatcher.
+Twenty-eighth extraction completed: `scripts/agora/cli-help-utils.mjs` now owns
+the top-level `agora.mjs` usage text. `scripts/agora.mjs` still owns when help
+is printed and when the process exits; this slice is a help-text module boundary
+only and does not change CLI copy.
 
 Acceptance criteria:
 
@@ -338,6 +342,7 @@ scripts/agora/state-output-utils.mjs
 scripts/agora/role-output-utils.mjs
 scripts/agora/finalize-utils.mjs
 scripts/agora/policy-utils.mjs
+scripts/agora/cli-help-utils.mjs
 ```
 
 These slices intentionally avoid router semantics, Telegram UX, Paperclip write
