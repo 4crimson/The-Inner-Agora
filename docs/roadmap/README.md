@@ -20,5 +20,6 @@ acceptance -> post-suite guard -> docs/commit`.
 `adapter_failed` после успешного Hermes exit code 0, это может быть не ошибка
 модели или UX, а race между `hard cleanup` и еще живым `workspace_finalize`.
 `RL-3` и `RL-2` фиксируют правило: cleanup сначала cancel/wait active runs,
-затем delete, затем post-suite guard; иначе release decision не может быть
-чистым `accepted`.
+затем delete, затем post-suite guard. Если guard красный и был ручной repair,
+`guard-repeat` должен записать backup, repair command и repeat guard; иначе
+release decision не может быть чистым `accepted`.

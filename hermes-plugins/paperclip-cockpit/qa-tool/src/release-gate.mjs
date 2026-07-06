@@ -124,6 +124,7 @@ function releaseMarkdown(gate) {
       lines.push(`  - Suite: ${run.suite || "unknown"}`);
       lines.push(`  - Guard before: ${run.guardBefore}`);
       lines.push(`  - Guard after: ${run.guardAfter}`);
+      lines.push(`  - Guard repeat: ${run.guardRepeat}`);
       lines.push(`  - Cleanup residuals: ${run.cleanupResiduals}`);
       if (run.repaired) lines.push(`  - Repair: ${run.repairBackup} via ${run.repairCommand}`);
     }

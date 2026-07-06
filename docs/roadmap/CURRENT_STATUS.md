@@ -90,7 +90,9 @@ stay separate from cleanup commits.
 - `post-suite-health-gate`: a `paperclip-qa` gate for work-creating suites that
   now records `guardBefore` and `guardAfter` in the manifest and acceptance
   report; red before-guard blocks live side effects, and red after-guard rejects
-  acceptance. Repair backup/command and repeat guard remain next.
+  clean acceptance. `guard-repeat` now records `repairBackup`, `repairCommand`,
+  and `guardRepeat` after a manual repair so acceptance/release-gate can report
+  `accept-with-repair` / `accepted_with_repair`.
 - `cleanup-active-run-guard`: implemented in `paperclip-qa`; hard cleanup now
   blocks issue delete when `/issues/:id/live-runs` reports active runs, cancels
   active heartbeat runs, waits for terminal state, and records

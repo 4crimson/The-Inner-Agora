@@ -10,11 +10,12 @@ Workflow:
 4. Run the full suite.
 5. Run cleanup through the live run/retest command, or use standalone `cleanup --live-ok` for an existing manifest.
 6. Generate report, summary, bug output, and acceptance output for each run.
-7. Run `release-gate --config telegram-testing.config.json --run RUN_ID --backup-id BACKUP_ID --profile-plugin-sync ok --json` after backup id is known and `profile-plugin-sync` returned `ok`.
-8. Run `evidence-checklist --config telegram-testing.config.json --release-gate RELEASE_GATE_JSON --commit COMMIT --json` before docs/commit review.
-9. Use `release-gate.json`, `RELEASE_GATE.md`, and `EVIDENCE_CHECKLIST.md` as the release decision and documentation source.
-10. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
-11. Decide `accepted`, `accepted_with_repair`, or `blocked`.
+7. If post-suite guard was red and a manual repair was performed, run `guard-repeat --config telegram-testing.config.json --run RUN_ID --backup-id BACKUP_ID --repair-command "REPAIR COMMAND" --json`, then regenerate acceptance for that run.
+8. Run `release-gate --config telegram-testing.config.json --run RUN_ID --backup-id BACKUP_ID --profile-plugin-sync ok --json` after backup id is known and `profile-plugin-sync` returned `ok`.
+9. Run `evidence-checklist --config telegram-testing.config.json --release-gate RELEASE_GATE_JSON --commit COMMIT --json` before docs/commit review.
+10. Use `release-gate.json`, `RELEASE_GATE.md`, and `EVIDENCE_CHECKLIST.md` as the release decision and documentation source.
+11. Run `completion-check --config telegram-testing.config.json --json` and compare the result with `docs/telegram-testing/TELEGRAM_QA_COMPLETION_CHECKLIST.json`.
+12. Decide `accepted`, `accepted_with_repair`, or `blocked`.
 
 Acceptance gates:
 

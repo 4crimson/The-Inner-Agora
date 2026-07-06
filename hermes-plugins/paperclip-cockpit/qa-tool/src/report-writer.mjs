@@ -25,16 +25,27 @@ function testCounts(manifest) {
 }
 
 function guardFailures(manifest) {
+  const repaired = hasRepairEvidence(manifest);
   return [
     manifest.guardBefore?.ok === false ? "pre-suite-guard" : "",
-    manifest.guardAfter?.ok === false ? "post-suite-guard" : "",
+    manifest.guardAfter?.ok === false && !repaired ? "post-suite-guard" : "",
   ].filter(Boolean);
 }
 
-function statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards = [] }) {
+function hasRepairEvidence(manifest) {
+  return Boolean(
+    manifest.guardAfter?.ok === false
+      && manifest.guardRepeat?.ok === true
+      && manifest.repairBackup
+      && manifest.repairCommand,
+  );
+}
+
+function statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards = [], repaired = false }) {
   const blockingBugs = bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
   if (counts.planned > 0 && counts.pass === 0 && counts.fail === 0) return "BLOCKED";
   if (counts.fail > 0 || residuals.length > 0 || blockingBugs.length > 0 || failedGuards.length > 0) return "FAIL";
+  if (repaired) return "REPAIRED";
   return "PASS";
 }
 
@@ -44,15 +55,18 @@ function compactObjectSummary(value) {
   return entries.map(([key, count]) => `${key}:${count}`).join(", ");
 }
 
-function topFinding({ status, bugs, residuals, guardFailures: failedGuards = [] }) {
+function topFinding({ status, bugs, residuals, guardFailures: failedGuards = [], repaired = false }) {
+  if (repaired) return "health guard repaired after suite";
   if (failedGuards.length) return `health guard failed: ${failedGuards.join(", ")}`;
   if (residuals.length) return `cleanup residuals: ${residuals.length}`;
   if (bugs.length) return `${bugs[0].area || "unknown"} ${bugs[0].severity || "P2"}: ${bugs[0].title || bugs[0].testId}`;
   if (status === "PASS") return "критичных проблем не найдено";
+  if (status === "REPAIRED") return "suite accepted with live-health repair evidence";
   return "run blocked before acceptance";
 }
 
-function nextStep({ status, bugs, residuals, guardFailures: failedGuards = [] }) {
+function nextStep({ status, bugs, residuals, guardFailures: failedGuards = [], repaired = false }) {
+  if (repaired) return "release gate with repair evidence";
   if (status === "PASS") return "live suite complete";
   if (failedGuards.length) return "developer batch: post-suite health";
   if (status === "BLOCKED") return "readiness or live approval";
@@ -266,6 +280,7 @@ export function writeAcceptance({ manifest, outputDir }) {
   const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
   const blockingBugs = batch.bugs.filter((bug) => bug.severity === "P0" || bug.severity === "P1");
   const failedGuards = guardFailures(manifest);
+  const repaired = hasRepairEvidence(manifest);
   const reasons = [];
   if (counts.fail > 0) reasons.push("failed-tests");
   if (residuals.length > 0) reasons.push("cleanup-residuals");
@@ -274,7 +289,9 @@ export function writeAcceptance({ manifest, outputDir }) {
 
   const decision = reasons.length
     ? "reject"
-    : batch.bugs.length
+    : repaired
+      ? "accept-with-repair"
+      : batch.bugs.length
       ? "accept-with-known-issues"
       : "accept";
   const lines = [
@@ -304,8 +321,12 @@ export function writeAcceptance({ manifest, outputDir }) {
     "",
     `Before: ${manifest.guardBefore ? (manifest.guardBefore.ok ? "ok" : "failed") : "not-run"}`,
     `After: ${manifest.guardAfter ? (manifest.guardAfter.ok ? "ok" : "failed") : "not-run"}`,
+    `Repeat: ${manifest.guardRepeat ? (manifest.guardRepeat.ok ? "ok" : "failed") : "not-run"}`,
     "",
   ];
+  if (repaired) {
+    lines.push(`Repair: ${redact(manifest.repairBackup)} via ${redact(manifest.repairCommand)}`, "");
+  }
   if (reasons.length) {
     lines.push("## Blocking Reasons", "");
     for (const reason of reasons) lines.push(`- ${reason}`);
@@ -325,6 +346,7 @@ export function writeAcceptance({ manifest, outputDir }) {
       bySeverity: batch.summary.bySeverity,
       cleanupResiduals: residuals.length,
       guardFailures: failedGuards,
+      repairs: repaired ? 1 : 0,
     },
   };
 }
@@ -335,7 +357,8 @@ export function buildTelegramSummary({ manifest, outputDir }) {
   const bugs = batch.bugs;
   const residuals = Array.isArray(manifest.cleanup?.residuals) ? manifest.cleanup.residuals : [];
   const failedGuards = guardFailures(manifest);
-  const status = statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards });
+  const repaired = hasRepairEvidence(manifest);
+  const status = statusForSummary({ counts, bugs, residuals, guardFailures: failedGuards, repaired });
   const reportPath = path.join(outputDir, "REPORT.md");
   const acceptancePath = path.join(outputDir, "ACCEPTANCE.md");
   const bugsPath = path.join(outputDir, "bugs.jsonl");
@@ -348,14 +371,14 @@ export function buildTelegramSummary({ manifest, outputDir }) {
     `Cleanup: ${residuals.length ? `residuals ${residuals.length}` : "clean"}`,
     "",
     "Главное:",
-    `- ${redact(topFinding({ status, bugs, residuals, guardFailures: failedGuards }))}`,
+    `- ${redact(topFinding({ status, bugs, residuals, guardFailures: failedGuards, repaired }))}`,
     "",
     "Артефакты:",
     `- REPORT.md: ${redact(reportPath)}`,
     `- ACCEPTANCE.md: ${redact(acceptancePath)}`,
     `- bugs.jsonl: ${redact(bugsPath)}`,
     "",
-    `Следующий шаг: ${redact(nextStep({ status, bugs, residuals, guardFailures: failedGuards }))}`,
+    `Следующий шаг: ${redact(nextStep({ status, bugs, residuals, guardFailures: failedGuards, repaired }))}`,
   ].join("\n");
   return {
     status,

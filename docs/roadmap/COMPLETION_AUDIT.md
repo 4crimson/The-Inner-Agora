@@ -129,8 +129,12 @@ Current audit blockers:
   `prepare local` before guard returned to `ok=true`. First local
   post-suite-health slice is now implemented: work-creating `paperclip-qa run`
   writes `guardBefore`/`guardAfter`, blocks live side effects on red before
-  guard, and rejects acceptance on red after guard. Automated repair backup,
-  repair command, and guard repeat remain open.
+  guard, and rejects clean acceptance on red after guard. The follow-up local
+  slice adds `paperclip-qa guard-repeat`: after manual repair and backup it
+  writes `repairBackup`, `repairCommand`, and `guardRepeat`, making acceptance
+  `accept-with-repair` and release-gate `accepted_with_repair` instead of a
+  clean pass. A single release-live-gate orchestrator and any auto-repair policy
+  remain open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart

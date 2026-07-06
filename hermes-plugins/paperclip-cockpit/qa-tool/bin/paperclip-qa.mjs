@@ -39,6 +39,7 @@ function parseArgs(argv) {
     profilePluginDir: "",
     profilePluginSync: "",
     releaseGate: "",
+    repairCommand: "",
     commits: [],
     appendDoc: "",
     area: "",
@@ -66,6 +67,7 @@ function parseArgs(argv) {
     else if (arg === "--profile-plugin-dir") options.profilePluginDir = tail[++index] || "";
     else if (arg === "--profile-plugin-sync") options.profilePluginSync = tail[++index] || "";
     else if (arg === "--release-gate") options.releaseGate = tail[++index] || "";
+    else if (arg === "--repair-command") options.repairCommand = tail[++index] || "";
     else if (arg === "--commit") {
       const value = tail[++index] || "";
       if (value) options.commits.push(value);
@@ -93,6 +95,7 @@ function usage() {
   node paperclip-qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config FILE [--profile NAME] [--plugin NAME] [--repo-plugin-dir DIR] [--profile-plugin-dir DIR] [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config FILE --run RUN_ID [--run RUN_ID...] --backup-id ID --profile-plugin-sync ok [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config FILE --release-gate FILE [--commit HASH...] [--json]
+  node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config FILE --run RUN_ID --backup-id ID --repair-command COMMAND [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs completion-check --config FILE [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run-start --config FILE --suite NAME [--json]
   node paperclip-qa-tool/bin/paperclip-qa.mjs run --config FILE --suite NAME [--cleanup hard|soft|none] [--notify telegram] [--json] [--dry-run|--live-ok]
@@ -371,6 +374,38 @@ function runAfterSuiteHealthGuard({ config, suite, manifestPath }) {
   return guardAfter;
 }
 
+function recordGuardRepeat({ config, runId, backupId, repairCommand }) {
+  if (!runId) throw new ConfigValidationError(["--run is required"]);
+  if (!backupId) throw new ConfigValidationError(["--backup-id is required"]);
+  if (!repairCommand) throw new ConfigValidationError(["--repair-command is required"]);
+  const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId });
+  const manifest = readManifest(manifestPath);
+  const guardRepeat = runSuiteHealthGuard({
+    config,
+    manifest: {
+      ...manifest,
+      repairBackup: backupId,
+      repairCommand,
+    },
+    manifestPath,
+    phase: "repeat",
+  });
+  updateManifest(manifestPath, (current) => ({
+    ...current,
+    repairBackup: backupId,
+    repairCommand,
+    guardRepeat,
+  }));
+  return {
+    ok: guardRepeat.ok,
+    runId,
+    manifestPath,
+    repairBackup: backupId,
+    repairCommand,
+    guardRepeat,
+  };
+}
+
 function summarizeRun({ config, runId }) {
   const manifestPath = manifestPathForRun({ artifactsDir: config.artifacts.dir, runId });
   const manifest = readManifest(manifestPath);
@@ -470,6 +505,16 @@ async function main(argv) {
       releaseGatePath: options.releaseGate,
       commits: options.commits,
       projectRoot: PROJECT_ROOT,
+    });
+    printPayload(result, options.json);
+    return result.ok ? 0 : 1;
+  }
+  if (options.command === "guard-repeat") {
+    const result = recordGuardRepeat({
+      config,
+      runId: options.run,
+      backupId: options.backupId,
+      repairCommand: options.repairCommand,
     });
     printPayload(result, options.json);
     return result.ok ? 0 : 1;

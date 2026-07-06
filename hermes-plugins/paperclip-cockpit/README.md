@@ -109,10 +109,11 @@ Canonical CLI:
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs config-check --config telegram-testing.config.json --json
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs profile-plugin-sync --config telegram-testing.config.json --json
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs run --config telegram-testing.config.json --suite service-commands --cleanup hard --notify telegram --live-ok --json
+node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs guard-repeat --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --repair-command "node scripts/agora.mjs prepare local" --json
 node hermes-plugins/paperclip-cockpit/qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json
 ```
 
-Projects may keep their own wrapper command for compatibility. Live mutation commands such as `run`, `retest`, `cleanup`, and `notify` require explicit `--live-ok`; planning, readiness, dry-run, profile-plugin-sync, summary, report, acceptance, release-gate, and bug-batch commands are non-live. `profile-plugin-sync` compares the repo plugin tree with the installed Hermes profile plugin tree; `release-gate` does not run live suites and instead aggregates existing run manifests plus backup/profile-sync evidence into a release decision artifact.
+Projects may keep their own wrapper command for compatibility. Live mutation commands such as `run`, `retest`, `cleanup`, and `notify` require explicit `--live-ok`; planning, readiness, dry-run, profile-plugin-sync, guard-repeat, summary, report, acceptance, release-gate, and bug-batch commands are non-live. `profile-plugin-sync` compares the repo plugin tree with the installed Hermes profile plugin tree; `guard-repeat` reruns the configured health guard after manual repair and records `repairBackup`, `repairCommand`, and `guardRepeat` in the manifest; `release-gate` does not run live suites and instead aggregates existing run manifests plus backup/profile-sync/repair evidence into a release decision artifact.
 
 The optional Codex workflow plugin lives in `codex-plugin/telegram-paperclip-qa/`. It is not part of the Hermes runtime; it teaches Codex agents how to keep tester, developer, retest, and release-review work separate.
 

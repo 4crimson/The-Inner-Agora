@@ -36,6 +36,12 @@ node paperclip-qa-tool/bin/paperclip-qa.mjs summary --config telegram-testing.co
 node paperclip-qa-tool/bin/paperclip-qa.mjs bug-batch --config telegram-testing.config.json --run QA-... --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs release-gate --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --profile-plugin-sync ok --json
 node paperclip-qa-tool/bin/paperclip-qa.mjs evidence-checklist --config telegram-testing.config.json --release-gate artifacts/telegram-test-runs/release-gates/RG-.../release-gate.json --commit COMMIT --json
+node paperclip-qa-tool/bin/paperclip-qa.mjs guard-repeat --config telegram-testing.config.json --run QA-... --backup-id BACKUP_ID --repair-command "node scripts/agora.mjs prepare local" --json
 ```
+
+Use `guard-repeat` only after a red post-suite guard has been repaired manually
+and a repair backup id exists. It records `repairBackup`, `repairCommand`, and
+`guardRepeat` in the manifest so acceptance and release-gate can report
+`accept-with-repair` / `accepted_with_repair` instead of a clean pass.
 
 Live runs, standalone cleanup, and retained Telegram notifications require explicit operator confirmation and the exact live command must include `--live-ok`.

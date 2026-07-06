@@ -180,7 +180,14 @@ result через residual `active-runs-before-cleanup` и не удаляет i
 пишется в manifest и `ACCEPTANCE.md` как `post-suite-guard`, а decision не
 может быть clean accept. Реальный `telegram-testing.config.json` включает
 `node scripts/inner-agora-guard.mjs --json` для work-creating release suites.
-Осталось: repair backup/command, `guardRepeat`, и общий `release-live-gate`.
+Второй локальный срез RL-2 добавил `paperclip-qa guard-repeat`: после ручного
+repair и backup команда повторно запускает configured guard с фазой `repeat` и
+пишет `repairBackup`, `repairCommand`, `guardRepeat` в manifest. `acceptance`
+теперь возвращает `accept-with-repair`, а `release-gate` — `accepted_with_repair`
+для красного `guardAfter`, который был подтвержденно восстановлен repeat guard.
+Осталось: общий `release-live-gate`, который сам оркестрирует preflight,
+backup/profile sync/live suite/cleanup/acceptance/docs evidence, и решение,
+нужен ли auto-repair вместо ручного repair+repeat.
 
 Рекомендуемый порядок:
 

@@ -282,6 +282,7 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             "release-plan",
             "release-gate",
             "evidence-checklist",
+            "guard-repeat",
             "profile-plugin-sync",
             "readiness",
             "health",
@@ -578,6 +579,79 @@ class TelegramQaToolConfigTests(unittest.TestCase):
             self.assertFalse(payload["ok"])
             self.assertEqual(payload["decision"], "blocked")
             self.assertIn(f"post-suite-guard:{run_id}", payload["reasons"])
+
+    def test_acceptance_marks_repaired_post_suite_guard_as_accept_with_repair(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-acceptance-repaired-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": False, "events": [{"level": "error", "message": "agent drift"}], "agents": {"ok": False}}
+            manifest["repairBackup"] = "backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json"
+            manifest["repairCommand"] = "node scripts/agora.mjs prepare local"
+            manifest["guardRepeat"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli("acceptance", "--config", config_path, "--run", run_id, "--json")
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["decision"], "accept-with-repair")
+            self.assertEqual(payload["reasons"], [])
+            self.assertEqual(payload["summary"]["repairs"], 1)
+            acceptance = Path(payload["acceptancePath"]).read_text(encoding="utf-8")
+            self.assertIn("Decision: accept-with-repair", acceptance)
+            self.assertIn("After: failed", acceptance)
+            self.assertIn("Repeat: ok", acceptance)
+            self.assertIn("Repair: backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json via node scripts/agora.mjs prepare local", acceptance)
+
+    def test_release_gate_accepts_repaired_run_with_repeat_guard_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            config_path = self.write_config(temp_dir, self.config_with_artifacts(artifacts_dir))
+            run_id = "QA-20260706-release-repaired-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": False, "events": [{"level": "error", "message": "agent drift"}], "agents": {"ok": False}}
+            manifest["repairBackup"] = "backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json"
+            manifest["repairCommand"] = "node scripts/agora.mjs prepare local"
+            manifest["guardRepeat"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "release-gate",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backup-20260706-a1b2",
+                "--profile-plugin-sync",
+                "ok",
+                "--json",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["decision"], "accepted_with_repair")
+            self.assertEqual(payload["summary"]["repairedRuns"], 1)
+            self.assertEqual(payload["runs"][0]["acceptanceDecision"], "accept-with-repair")
+            self.assertTrue(payload["runs"][0]["repaired"])
+            self.assertEqual(payload["runs"][0]["guardRepeat"], "ok")
+            release_gate_markdown = Path(payload["releaseGateMarkdownPath"]).read_text(encoding="utf-8")
+            self.assertIn("Decision: accepted_with_repair", release_gate_markdown)
+            self.assertIn("Guard repeat: ok", release_gate_markdown)
+            self.assertIn("Repair: backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json via node scripts/agora.mjs prepare local", release_gate_markdown)
 
     def test_profile_plugin_sync_accepts_matching_plugin_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1937,6 +2011,56 @@ console.log(JSON.stringify(result));
             self.assertFalse(manifest["guardAfter"]["ok"])
             acceptance = Path(payload["acceptancePath"]).read_text(encoding="utf-8")
             self.assertIn("post-suite-guard", acceptance)
+
+    def test_guard_repeat_records_repair_evidence_and_repeat_guard(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifacts_dir = Path(temp_dir) / "runs"
+            guard_calls_path = Path(temp_dir) / "guard-calls.jsonl"
+            fake_guard = self.write_fake_guard_driver(temp_dir, fail_phase="")
+            config = self.config_with_artifacts(artifacts_dir)
+            config["guards"]["postSuiteHealth"] = {
+                "enabled": True,
+                "command": "python3",
+                "args": [str(fake_guard)],
+                "timeoutMs": 5000,
+            }
+            config_path = self.write_config(temp_dir, config)
+            run_id = "QA-20260706-guard-repeat-a1b2c3"
+            manifest_path = self.write_report_manifest(artifacts_dir, run_id)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["tests"] = [{"id": "help.ok", "message": "агора помощь", "status": "pass"}]
+            manifest["cleanup"]["residuals"] = []
+            manifest["bugs"] = []
+            manifest["guardBefore"] = {"ok": True, "events": [], "agents": {"ok": True}}
+            manifest["guardAfter"] = {"ok": False, "events": [{"level": "error", "message": "agent drift"}], "agents": {"ok": False}}
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = self.run_cli(
+                "guard-repeat",
+                "--config",
+                config_path,
+                "--run",
+                run_id,
+                "--backup-id",
+                "backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json",
+                "--repair-command",
+                "node scripts/agora.mjs prepare local",
+                "--json",
+                env={"FAKE_GUARD_CALLS": str(guard_calls_path)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["repairBackup"], "backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json")
+            self.assertEqual(payload["repairCommand"], "node scripts/agora.mjs prepare local")
+            self.assertTrue(payload["guardRepeat"]["ok"])
+            guard_calls = [json.loads(line) for line in guard_calls_path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([call["phase"] for call in guard_calls], ["repeat"])
+            recorded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(recorded["repairBackup"], "backups/2026-07-05T22-25-55-730Z-the-inner-agora/backup.json")
+            self.assertEqual(recorded["repairCommand"], "node scripts/agora.mjs prepare local")
+            self.assertTrue(recorded["guardRepeat"]["ok"])
 
     def test_run_with_notify_sends_retained_result_after_cleanup(self):
         before_issues = [
