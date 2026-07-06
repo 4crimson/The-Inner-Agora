@@ -1811,6 +1811,22 @@ def _action_usage(name: str, action: dict[str, Any]) -> str:
     return usage or name
 
 
+def _human_help_action_visible(action: dict[str, Any]) -> bool:
+    if _as_bool(action.get("hidden"), False) or _as_bool(action.get("internal"), False):
+        return False
+    presentation = action.get("presentation", {})
+    if isinstance(presentation, dict) and str(presentation.get("mode") or "").strip().casefold() == "raw":
+        return False
+    return True
+
+
+def _human_help_action_usage(name: str, action: dict[str, Any]) -> str:
+    usage = _action_usage(name, action)
+    usage = re.sub(r"\s*\[[^\]]*--[^\]]*\]", "", usage)
+    usage = re.sub(r"\s+--[^\s]+(?:\s+\S+)?", "", usage)
+    return " ".join(usage.split()) or name
+
+
 def _help_line(command_text: str, description: str = "") -> str:
     if description:
         return f"{command_text} - {description}"
@@ -1870,7 +1886,13 @@ def _technical_help(_: str = "") -> str:
     if actions:
         lines.extend(["", _help_text("project_actions_heading")])
         for name, action in actions.items():
-            lines.append(_help_line(f"{command} {_action_usage(name, action)}", _action_description(action)))
+            if _human_enabled() and not _show_technical_by_default():
+                if not _human_help_action_visible(action):
+                    continue
+                usage = _human_help_action_usage(name, action)
+            else:
+                usage = _action_usage(name, action)
+            lines.append(_help_line(f"{command} {usage}", _action_description(action)))
     lines.extend(
         [
             "",

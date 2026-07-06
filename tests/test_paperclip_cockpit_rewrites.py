@@ -1095,6 +1095,16 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
                     "presentation": {"description": "глубокое исследование"},
                     "exec": ["echo", "deep"],
                 },
+                "ask": {
+                    "usage": "ask [--min|--balanced|--max|--all|--philosophers list] QUESTION",
+                    "presentation": {"description": "создать исследовательскую сессию"},
+                    "exec": ["echo", "ask"],
+                },
+                "telegram_result": {
+                    "usage": "telegram_result ISSUE",
+                    "presentation": {"mode": "raw", "clip": 30000},
+                    "exec": ["echo", "payload"],
+                },
             },
         }
         with tempfile.NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as handle:
@@ -1117,6 +1127,11 @@ class PaperclipCockpitRewriteTests(unittest.TestCase):
         self.assertIn("Безопасность", help_text)
         self.assertIn("/agora quick TEXT", help_text)
         self.assertIn("/agora deep TEXT", help_text)
+        self.assertIn("/agora ask QUESTION", help_text)
+        self.assertNotIn("--min", help_text)
+        self.assertNotIn("--max", help_text)
+        self.assertNotIn("--all", help_text)
+        self.assertNotIn("telegram_result", help_text)
         self.assertLess(help_text.index("Обычные команды"), help_text.index("Админ/диагностика"))
 
     def test_run_action_can_take_cwd_from_environment(self):
