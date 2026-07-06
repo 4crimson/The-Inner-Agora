@@ -53,6 +53,9 @@ heartbeat/run еще завершает работу. Конкретный пр�
 `workspace_operations` со ссылкой на уже удаленный `issue_id` и получил
 `workspace_operations_issue_id_issues_id_fk`. Поэтому `cleanup` без
 active-run safety и post-suite guard не доказывает live health.
+Implementation checklist для этого фикса поддерживается в
+`../superpowers/plans/2026-07-05-agora-system-cleanup.md` в секции
+`Cleanup Race Fix Plan`.
 
 | ID | Задача | Приоритет | Размер | Зависит от | Готово, когда |
 |---|---|---|---|---|---|

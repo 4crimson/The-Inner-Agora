@@ -15,6 +15,8 @@
 фиксирует повторяемый release workflow для Agora/Telegram/Paperclip:
 `preflight -> backup -> profile/plugin sync -> live suite -> cleanup ->
 acceptance -> post-suite guard -> docs/commit`.
+Поддерживающий implementation checklist для cleanup/finalize race находится в
+`../superpowers/plans/2026-07-05-agora-system-cleanup.md`.
 
 Главный lifecycle-фикс этого трека: если Paperclip показывает
 `adapter_failed` после успешного Hermes exit code 0, это может быть не ошибка

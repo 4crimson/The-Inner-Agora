@@ -538,6 +538,27 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 
 ### Cleanup Race Fix Plan
 
+**Boundary:** this is a Paperclip QA lifecycle fix, not a Telegram UX/router
+fix. User-visible recovery can stay short, but the root evidence belongs in the
+release workflow manifest.
+
+**Implementation target map:**
+
+- `hermes-plugins/paperclip-cockpit/qa-tool/src/cleanup-engine.mjs` owns active
+  run discovery, cancel, terminal wait, delete/blocked cleanup, and assigned
+  issue stabilization.
+- `hermes-plugins/paperclip-cockpit/qa-tool/src/cleanup-runner.mjs` persists
+  cleanup evidence into `manifest.json`, including retry residual history.
+- `hermes-plugins/paperclip-cockpit/qa-tool/src/config.mjs` and
+  `qa-tool.config.schema.json` own `cleanupRunWaitAttempts` and
+  `cleanupRunWaitDelayMs`.
+- `hermes-plugins/paperclip-cockpit/qa-tool/src/release-gate.mjs` and
+  `evidence-checklist.mjs` surface cleanup counts in release evidence.
+- `telegram-testing.config.json` owns the real `postSuiteHealth` guard command
+  for work-creating suites.
+- `tests/test_telegram_qa_tool.py` is the focused regression harness for this
+  workflow.
+
 1. Before `hard cleanup`, query active heartbeat/live runs for every issue that
    the cleanup intends to delete.
 2. If a run is active, cancel/stop it and wait for a terminal state. If the run
@@ -551,6 +572,27 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 6. Do not mark a suite as clean PASS if cleanup removed visible artifacts but
    left running/finalizing runs or a red guard. Use `accepted_with_repair` or
    `blocked`.
+
+**Acceptance criteria:**
+
+- Fake Paperclip issue with active run: `cleanup hard` records
+  `activeRunsBeforeCleanup`, calls cancel, and does not `DELETE` until the run
+  becomes terminal.
+- Fake active run that remains active: cleanup exits blocked with residual
+  reason `active-runs-before-cleanup`, and the issue remains present.
+- Fake terminal-after-cancel run: cleanup deletes child issues before parents
+  only after terminal polling succeeds.
+- Assigned/in-progress issue with active run: cleanup first stabilizes execution
+  fields so Paperclip terminal recovery does not immediately enqueue a
+  replacement run.
+- Cleanup retry after a blocked attempt: current residuals reflect the latest
+  successful cleanup, while older blocked evidence is preserved in
+  `residualHistory`.
+- Work-creating suite with red post-suite guard: acceptance is
+  `accepted_with_repair` or `blocked`, never a clean PASS.
+- `adapter_failed` with `workspace_operations_issue_id_issues_id_fk` after
+  Hermes `Exit code: 0` is classified as lifecycle/release-gate failure until
+  cleanup and post-suite guard evidence prove otherwise.
 
 ### Workflow/Plugin Candidates
 
@@ -573,6 +615,9 @@ preflight -> backup -> profile/plugin sync -> live suite -> cleanup -> acceptanc
 - Active-run cleanup test: fake Paperclip issue has an active heartbeat run;
   `cleanup hard` must cancel/wait or return blocked cleanup result instead of
   deleting the issue immediately.
+- Cleanup retry test: first cleanup blocks on active runs, second cleanup
+  succeeds and replaces current residuals while preserving old attempts in
+  `residualHistory`.
 - Profile/plugin sync check: repo plugin sha must match Hermes profile plugin
   sha before live suite, or the suite blocks/records an explicit warning.
 - Central `noTechnicalFirstLevelLeak` macro instead of duplicated
