@@ -551,6 +551,18 @@ with backup `backups/2026-07-06T09-42-04-221Z-the-inner-agora/backup.json`,
 `RLG-20260706-094245-ee1783` / release gate `RG-20260706-094245-8f43e9`
 accepted the suite as `accepted_with_repair`; post-run guard returned `ok=true`.
 
+Council-create release-gate follow-up 2026-07-06: wrapper
+`RLG-20260706-094701-9a1b08` correctly blocked run
+`QA-20260706-0944-council-create-d82518` even though all 3 council create checks
+passed. Root cause was post-suite live-health drift: guardAfter found
+`Аристотель` and `Джудит Батлер` in `error`. Cleanup was otherwise clean:
+roots `THE-285`, `THE-288`, `THE-291`, residuals `0`, active runs before
+cleanup `6`, cancelled runs `6`. Repair was recorded with backup
+`backups/2026-07-06T09-47-07-977Z-the-inner-agora/backup.json`,
+`node scripts/agora.mjs prepare local`, and guardRepeat `ok`. Non-live wrapper
+`RLG-20260706-094748-03a094` / release gate `RG-20260706-094748-9d523e`
+accepted the suite as `accepted_with_repair`; post-run guard returned `ok=true`.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

@@ -193,9 +193,17 @@ Current audit blockers:
   repair backup `backups/2026-07-06T09-42-04-221Z-the-inner-agora/backup.json`,
   repair command `node scripts/agora.mjs prepare local`, tests 4/4 pass,
   cleanup residuals `0`, active runs before cleanup `11`, cancelled runs `12`,
-  guardBefore `ok`, guardAfter `failed`, and guardRepeat `ok`. Broader
-  release-live-gate coverage across the remaining `council-create` suite
-  remains open.
+  guardBefore `ok`, guardAfter `failed`, and guardRepeat `ok`.
+  `council-create` is accepted with repair through wrapper
+  `RLG-20260706-094748-03a094`, release gate `RG-20260706-094748-9d523e`, run
+  `QA-20260706-0944-council-create-d82518`, original backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t09-44-39-175z-the-inner-agora/backup.json`,
+  repair backup `backups/2026-07-06T09-47-07-977Z-the-inner-agora/backup.json`,
+  repair command `node scripts/agora.mjs prepare local`, tests 3/3 pass,
+  cleanup residuals `0`, active runs before cleanup `6`, cancelled runs `6`,
+  guardBefore `ok`, guardAfter `failed`, and guardRepeat `ok`. Focused
+  release-live-gate coverage now exists for all release suites; completion
+  remains subject to the broader audit items below.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -236,10 +244,8 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Continue focused release-live-gate coverage for `council-create`, then
-   record each accepted or blocked artifact in `BUGS.md` /
-   `COMPLETION_AUDIT.md`.
-2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
-   after the release lane no longer needs manual post-suite investigation.
+1. Run `paperclip-qa completion-check --config telegram-testing.config.json
+   --json` and update this audit with its current blockers.
+2. Continue Pass C as behavior-preserving `agora.mjs` module extraction.
 3. Extend Phase 9 only where usage data is actually available; keep unknown
    pricing unknown.

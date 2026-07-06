@@ -167,6 +167,18 @@ post-suite guard caught live-health drift (`Аристотель` and `Дека�
 `RLG-20260706-094245-ee1783` / release gate `RG-20260706-094245-8f43e9`
 returned `accepted_with_repair`; post-run guard stayed `ok=true`.
 
+Live evidence 2026-07-06: focused `release-live-gate --live-ok --suite
+council-create` first produced blocked wrapper `RLG-20260706-094701-9a1b08`
+for run `QA-20260706-0944-council-create-d82518`: all 3 council UX/create tests
+passed, but post-suite guard caught live-health drift (`Аристотель` and
+`Джудит Батлер` in `error`). Cleanup proved RL-3 with residuals `0`,
+`activeRunsBeforeCleanup=6`, `cancelledRuns=6` across roots `THE-285`,
+`THE-288`, `THE-291`. Repair evidence: backup
+`backups/2026-07-06T09-47-07-977Z-the-inner-agora/backup.json`, command
+`node scripts/agora.mjs prepare local`, guardRepeat `ok`. Non-live wrapper
+`RLG-20260706-094748-03a094` / release gate `RG-20260706-094748-9d523e`
+returned `accepted_with_repair`; post-run guard stayed `ok=true`.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

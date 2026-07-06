@@ -100,6 +100,10 @@ stay separate from cleanup commits.
   `RG-20260706-094245-8f43e9`, run `QA-20260706-0938-mode-routing-80cf45`,
   accepted_with_repair after guardAfter caught `Аристотель`/`Декарт` error,
   cleanup residuals 0, activeRunsBeforeCleanup=11, cancelledRuns=12)
+  and `council-create` (`RLG-20260706-094748-03a094`, release gate
+  `RG-20260706-094748-9d523e`, run `QA-20260706-0944-council-create-d82518`,
+  accepted_with_repair after guardAfter caught `Аристотель`/`Джудит Батлер`
+  error, cleanup residuals 0, activeRunsBeforeCleanup=6, cancelledRuns=6)
   and work-creating `interface-contract-topics` (`RLG-20260706-085927-629b7c`
   accepted run `QA-20260706-0849-interface-contract-topics-646217` after
   cleanup retry and repeat guard evidence). Auto-repair remains
@@ -480,13 +484,11 @@ node scripts/agora.mjs costs --pricing default
 
 ## Recommended Next Work
 
-1. Broaden the focused release-live-gate proof to the remaining release suites
-   (`council-create`), using the same evidence chain: backup, profile/plugin
-   sync, live suite, active-run-safe cleanup, acceptance, post-suite guard,
-   optional repair backup/repeat guard, docs/commit evidence.
+1. Run `completion-check` and update `COMPLETION_AUDIT.md` now that focused
+   `release-live-gate` coverage exists for all release suites.
 2. Centralize the Telegram first-level leak contract after that, so UX tests
    stop duplicating route/model/local URL/wake/raw child row exclusions.
-3. Continue Pass C runtime-module splits only after the release lane no longer
-   requires manual investigation after every work-creating suite.
+3. Continue Pass C runtime-module splits after the completion-check result is
+   recorded.
 4. Keep production Telegram checks and plugin install/publish in their own
    focused turns even when approved.
