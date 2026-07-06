@@ -510,6 +510,25 @@ The run records `guardRequired=false` with guardBefore/guardAfter/guardRepeat
 `not-run`, proving read-only suites should not be blocked by synthetic
 post-suite-health expectations.
 
+Read-only service-command release-gate follow-up 2026-07-06:
+`service-commands` first blocked usefully rather than producing a false accept.
+`RLG-20260706-091855-4ecee1` / run
+`QA-20260706-0916-service-commands-d960af` failed
+`service.agora.help.full` because the first-level full help exposed raw/CLI
+details (`--min`, `--max`, `--all`, and service `telegram_*` actions). Fix:
+human full help hides raw actions and strips `--` option groups from project
+action usage; focused local tests passed. After live profile sync and gateway
+restart, `RLG-20260706-092456-855264` and
+`RLG-20260706-092825-6748ff` exposed a separate QA timing attribution problem:
+20-second menu-command waits could put the reply into the next test bucket.
+Fix: `service-commands` menu/help waits are now 35 seconds, assertions
+unchanged. Accepted evidence: wrapper `RLG-20260706-093243-a2491c`, release gate
+`RG-20260706-093243-9ce35c`, run `QA-20260706-0929-service-commands-b51db6`,
+backup
+`artifacts/telegram-test-runs/backups/2026-07-06t09-29-40-389z-the-inner-agora/backup.json`,
+profile/plugin sync `ok`, tests 5/5 pass, cleanup residuals `0`, no Paperclip
+work, `activeRunsBeforeCleanup=0`, `cancelledRuns=0`, guardRequired `false`.
+
 Live profile-sync recovery 2026-07-06: new read-only
 `paperclip-qa profile-plugin-sync --config telegram-testing.config.json --json`
 first reported `profilePluginSync=blocked` because the live `inneragora`

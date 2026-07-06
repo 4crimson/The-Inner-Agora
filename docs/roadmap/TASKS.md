@@ -124,6 +124,26 @@ guardBefore/guardAfter/guardRepeat `not-run`, `guardRequired=false`. Это
 доказывает, что read-only suites могут проходить release gate без synthetic
 post-suite-health guard evidence.
 
+Live evidence 2026-07-06: read-only `release-live-gate --live-ok --suite
+service-commands` сначала корректно заблокировал два дефекта release lane.
+Wrapper `RLG-20260706-091855-4ecee1` / run
+`QA-20260706-0916-service-commands-d960af` нашел реальный UX contract leak:
+`/agora help full` показывал raw/CLI детали (`--min`, `--max`, `--all` и
+служебные `telegram_*` actions). Fix: human full help теперь скрывает raw
+actions и нормализует project action usage без `--` option groups; локальная
+регрессия покрыта `tests.test_paperclip_cockpit_rewrites`.
+Следующие wrappers `RLG-20260706-092456-855264` и
+`RLG-20260706-092825-6748ff` выявили QA timing attribution: ответы на menu
+commands приходили на 20s boundary и попадали в следующий test bucket. Fix:
+`service-commands` menu/help waits увеличены до 35s без ослабления assertions.
+Accepted wrapper `RLG-20260706-093243-a2491c` с release gate
+`RG-20260706-093243-9ce35c`, run `QA-20260706-0929-service-commands-b51db6`,
+backup
+`artifacts/telegram-test-runs/backups/2026-07-06t09-29-40-389z-the-inner-agora/backup.json`:
+tests 5/5 pass, `profilePluginSync=ok`, cleanup residuals `0`, no Paperclip
+work, `activeRunsBeforeCleanup=0`, `cancelledRuns=0`,
+guardBefore/guardAfter/guardRepeat `not-run`, `guardRequired=false`.
+
 Статус 2026-07-06: первый локальный срез RL-4 реализован как
 `paperclip-qa profile-plugin-sync`. Команда read-only сравнивает digest
 repo plugin tree и установленного Hermes profile plugin tree, игнорируя

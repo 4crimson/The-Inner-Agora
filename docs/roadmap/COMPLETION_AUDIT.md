@@ -168,8 +168,19 @@ Current audit blockers:
   `RLG-20260706-090802-35c2fb`, release gate `RG-20260706-090802-77c948`, run
   `QA-20260706-0907-help-7917d5`, backup
   `artifacts/telegram-test-runs/backups/2026-07-06t09-07-23-576z-the-inner-agora/backup.json`,
-  cleanup residuals `0`, no Paperclip work, and `guardRequired=false`. Broader
-  release-live-gate coverage across the remaining suites remains open.
+  cleanup residuals `0`, no Paperclip work, and `guardRequired=false`. Read-only
+  `service-commands` evidence is also accepted after two diagnostic blocked
+  wrappers exposed separate issues: `RLG-20260706-091855-4ecee1` found a real
+  `/agora help full` first-level leak from raw/CLI action usage, and
+  `RLG-20260706-092456-855264` / `RLG-20260706-092825-6748ff` exposed 20-second
+  live timing attribution drift for menu commands. Fixes are committed in
+  `2548b62` and `8354445`. Accepted wrapper
+  `RLG-20260706-093243-a2491c`, release gate `RG-20260706-093243-9ce35c`, run
+  `QA-20260706-0929-service-commands-b51db6`, backup
+  `artifacts/telegram-test-runs/backups/2026-07-06t09-29-40-389z-the-inner-agora/backup.json`:
+  tests 5/5 pass, cleanup residuals `0`, no Paperclip work, profile/plugin sync
+  `ok`, and `guardRequired=false`. Broader release-live-gate coverage across
+  the remaining work-creating/natural suites remains open.
 - 2026-07-06 profile/plugin sync preflight is now locally implemented and was
   exercised against the live `inneragora` profile. It first blocked on stale
   plugin digest, then `scripts/setup-hermes-profile.mjs` plus gateway restart
@@ -210,9 +221,9 @@ evidence; they should not be mixed into cleanup or T1.6 removal commits.
 
 ## Next Safe Work Order
 
-1. Run a focused release-review cycle with `release-live-gate --live-ok` after
-   explicit operator confirmation, then record its release-live-gate artifact in
-   `BUGS.md` / `COMPLETION_AUDIT.md`.
+1. Continue focused release-live-gate coverage for `mode-routing`,
+   `natural-dialogue`, and `council-create`, then record each accepted or
+   blocked artifact in `BUGS.md` / `COMPLETION_AUDIT.md`.
 2. Continue Pass C as behavior-preserving `agora.mjs` module extraction only
    after the release lane no longer needs manual post-suite investigation.
 3. Extend Phase 9 only where usage data is actually available; keep unknown

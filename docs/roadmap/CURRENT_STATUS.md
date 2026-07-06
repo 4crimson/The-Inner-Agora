@@ -89,6 +89,9 @@ stay separate from cleanup commits.
   records configured guards, and writes release-gate/evidence-checklist
   artifacts. Focused live evidence exists for read-only `help`
   (`RLG-20260706-090802-35c2fb`, guardRequired=false, cleanup residuals 0)
+  and read-only `service-commands` (`RLG-20260706-093243-a2491c`, release gate
+  `RG-20260706-093243-9ce35c`, run `QA-20260706-0929-service-commands-b51db6`,
+  guardRequired=false, cleanup residuals 0, no Paperclip work)
   and work-creating `interface-contract-topics` (`RLG-20260706-085927-629b7c`
   accepted run `QA-20260706-0849-interface-contract-topics-646217` after
   cleanup retry and repeat guard evidence). Auto-repair remains
@@ -470,8 +473,8 @@ node scripts/agora.mjs costs --pricing default
 ## Recommended Next Work
 
 1. Broaden the focused release-live-gate proof to the remaining release suites
-   (`service-commands`, `mode-routing`, `natural-dialogue`, `council-create`),
-   using the same evidence chain: backup, profile/plugin sync, live suite,
+   (`mode-routing`, `natural-dialogue`, `council-create`), using the same
+   evidence chain: backup, profile/plugin sync, live suite,
    active-run-safe cleanup, acceptance, post-suite guard, optional repair
    backup/repeat guard, docs/commit evidence.
 2. Centralize the Telegram first-level leak contract after that, so UX tests
